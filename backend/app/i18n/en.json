@@ -1,0 +1,23 @@
+{
+  "locale": "en",
+  "direction": "ltr",
+  "errors": {
+    "invalid_credentials": "Invalid credentials",
+    "invalid_token": "Invalid token",
+    "forbidden": "You are not allowed to perform this action",
+    "not_found": "Item not found",
+    "mfa_invalid": "Invalid verification code"
+  },
+  "entities": {
+    "client": "Client",
+    "user": "User",
+    "audit_year": "Audit Year"
+  },
+  "roles": {
+    "admin": "Administrator",
+    "manager": "Engagement Manager",
+    "consultant": "Consultant",
+    "client": "Client",
+    "auditor": "Auditor"
+  }
+}

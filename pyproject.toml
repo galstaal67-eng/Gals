@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sox-backend"
+version = "0.1.0"
+description = "SOX management system — backend (Phase 1 MVP)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
+    "pydantic[email]>=2.7",
+    "pydantic-settings>=2.3",
+    "python-jose[cryptography]>=3.3",
+    "bcrypt>=4.1",
+    "pyotp>=2.9",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+    "aiosqlite>=0.20",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "coverage>=7.5",
+]
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["backend"]
+testpaths = ["backend/tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# B008: FastAPI's Depends() in defaults is idiomatic.
+# UP042: keep (str, Enum) for explicit .value usage across SQLAlchemy/Pydantic.
+ignore = ["B008", "UP042"]
+
+[tool.coverage.run]
+source = ["backend/app"]
+omit = ["backend/tests/*"]

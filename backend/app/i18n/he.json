@@ -1,0 +1,23 @@
+{
+  "locale": "he",
+  "direction": "rtl",
+  "errors": {
+    "invalid_credentials": "פרטי התחברות שגויים",
+    "invalid_token": "אסימון לא תקין",
+    "forbidden": "אין הרשאה לבצע פעולה זו",
+    "not_found": "הפריט לא נמצא",
+    "mfa_invalid": "קוד אימות שגוי"
+  },
+  "entities": {
+    "client": "לקוח",
+    "user": "משתמש",
+    "audit_year": "שנת ביקורת"
+  },
+  "roles": {
+    "admin": "מנהל מערכת",
+    "manager": "מנהל תיק",
+    "consultant": "יועץ",
+    "client": "לקוח",
+    "auditor": "רו\"ח מבקר"
+  }
+}
