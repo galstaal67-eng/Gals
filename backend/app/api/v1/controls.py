@@ -11,6 +11,7 @@ from app.core.rbac import Permission
 from app.core.state_machine import can_transition
 from app.models.audit_year import AuditYear
 from app.models.control import Control, ControlBank
+from app.models.control_test import ControlTest
 from app.models.enums import AuditAction, AuditYearStatus, ControlStatus, UserRole
 from app.models.risk import RiskSelection
 from app.schemas.control import (
@@ -41,6 +42,27 @@ async def _ensure_year_open(db: AsyncSession, user: CurrentUser, year_id: uuid.U
         raise HTTPException(status.HTTP_404_NOT_FOUND, "audit year not found")
     if year.status != AuditYearStatus.OPEN:
         raise HTTPException(status.HTTP_409_CONFLICT, "audit year is locked")
+
+
+async def _ensure_test_row(db: AsyncSession, user: CurrentUser, ctrl: Control) -> None:
+    """A validated control surfaces a test row in the tests tab (SPEC §טסטים)."""
+    existing = (
+        await db.execute(
+            select(ControlTest.id).where(
+                ControlTest.control_id == ctrl.id, ControlTest.deleted_at.is_(None)
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return
+    db.add(
+        ControlTest(
+            tenant_id=user.tenant_id,
+            control_id=ctrl.id,
+            audit_year_id=ctrl.audit_year_id,
+            subsidiary_id=ctrl.subsidiary_id,
+        )
+    )
 
 
 async def _get_control(db: AsyncSession, user: CurrentUser, cid: uuid.UUID) -> Control:
@@ -237,6 +259,7 @@ async def transition_control(
     if body.target_state == ControlStatus.VALIDATED:
         ctrl.validated_at = datetime.now(UTC)
         ctrl.validated_by = user.id
+        await _ensure_test_row(db, user, ctrl)
     elif body.target_state == ControlStatus.DRAFT:
         ctrl.validated_at = None
         ctrl.validated_by = None

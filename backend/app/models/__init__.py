@@ -3,6 +3,7 @@ from app.models.audit_year import AuditYear
 from app.models.client import Client
 from app.models.contact import Contact
 from app.models.control import Control, ControlBank
+from app.models.control_test import ControlTest, Evidence
 from app.models.materiality import MaterialityParameter
 from app.models.process import Process, SubActivity
 from app.models.process_selection import ProcessSelection
@@ -28,5 +29,7 @@ __all__ = [
     "RiskSelection",
     "ControlBank",
     "Control",
+    "ControlTest",
+    "Evidence",
     "AuditLog",
 ]

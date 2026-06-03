@@ -181,3 +181,26 @@ class TestStatus(str, enum.Enum):
     DEFICIENCY_CLOSED = "deficiency_closed"
     ROUND_B_PENDING = "round_b_pending"
     NOT_RELEVANT = "not_relevant"
+
+
+class TestRound(str, enum.Enum):
+    """סבב הבדיקות (טאב טסטים)."""
+
+    ROUND_A = "round_a"  # סבב א'
+    ROUND_B = "round_b"  # סבב ב'
+    BOTH = "both"  # שניהם
+    NOT_REQUIRED = "not_required"  # לא נדרש לביצוע
+
+
+class DeficiencySeverity(str, enum.Enum):
+    """חומרת ליקוי — שדה נפרד, אינו סטטוס (SPEC C2)."""
+
+    DEFICIENCY = "deficiency"  # ליקוי
+    MATERIAL_DEFICIENCY = "material_deficiency"  # ליקוי מהותי
+    MATERIAL_WEAKNESS = "material_weakness"  # חולשה מהותית
+
+
+class ControlEffectiveness(str, enum.Enum):
+    EFFECTIVE = "effective"  # אפקטיבית
+    INEFFECTIVE = "ineffective"  # לא אפקטיבית
+    NOT_RELEVANT = "not_relevant"  # לא רלוונטי

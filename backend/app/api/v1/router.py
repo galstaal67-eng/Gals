@@ -11,6 +11,7 @@ from app.api.v1 import (
     risks,
     subsidiaries,
     tenants,
+    tests,
     users,
 )
 
@@ -26,3 +27,4 @@ api_router.include_router(subsidiaries.router)
 api_router.include_router(processes.router)
 api_router.include_router(risks.router)
 api_router.include_router(controls.router)
+api_router.include_router(tests.router)

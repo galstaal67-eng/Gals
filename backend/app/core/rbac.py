@@ -46,6 +46,10 @@ class Permission(str, enum.Enum):
     CONTROL_CREATE = "control:create"
     CONTROL_EDIT = "control:edit"
     CONTROL_BANK_MANAGE = "control:bank_manage"
+    # טסטים
+    TEST_VIEW = "test:view"
+    TEST_MANAGE = "test:manage"  # יועץ+: תאריך יעד, שדות בדיקה, סטטוס
+    TEST_UPLOAD_EVIDENCE = "test:upload_evidence"  # לקוח+: העלאת ראיות
     # דוחות
     REPORT_EXPORT = "report:export"
 
@@ -86,6 +90,9 @@ PERMISSION_ROLES: dict[Permission, set[UserRole]] = {
     Permission.CONTROL_CREATE: {A, M, C},
     Permission.CONTROL_EDIT: {A, M, C},
     Permission.CONTROL_BANK_MANAGE: {A, M},
+    Permission.TEST_VIEW: {A, M, C, CL, AU},
+    Permission.TEST_MANAGE: {A, M, C},
+    Permission.TEST_UPLOAD_EVIDENCE: {A, M, C, CL},
     Permission.REPORT_EXPORT: {A, M, C, CL, AU},
 }
 
