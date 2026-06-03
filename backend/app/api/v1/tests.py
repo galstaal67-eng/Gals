@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,11 +11,12 @@ from app.core.email import queue_email, render_evidence_request
 from app.core.notifications import notify
 from app.core.rbac import Permission
 from app.core.state_machine import can_test_transition
+from app.core.storage import save_evidence
 from app.models.audit_year import AuditYear
 from app.models.contact import Contact
 from app.models.control import Control
 from app.models.control_test import ControlTest, Evidence
-from app.models.enums import AuditAction, AuditYearStatus, TestStatus
+from app.models.enums import AuditAction, AuditYearStatus, TestStatus, UserRole
 from app.models.user import User
 from app.schemas.control_test import (
     EvidenceCreate,
@@ -391,3 +392,53 @@ async def request_evidence(
     await db.commit()
     await db.refresh(msg)
     return msg
+
+
+@router.post(
+    "/tests/{tid}/evidences/upload",
+    response_model=EvidenceOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_evidence(
+    tid: uuid.UUID,
+    file: UploadFile = File(...),
+    is_sample: bool = Form(False),
+    notes: str | None = Form(None),
+    user: CurrentUser = Depends(require(Permission.TEST_UPLOAD_EVIDENCE)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a real evidence file: stores bytes, computes SHA-256, records it."""
+    test = await _get_test(db, user, tid)
+    await _ensure_year_open(db, user, test.audit_year_id)
+    content = await file.read()
+    stored = save_evidence(
+        tenant_id=user.tenant_id, filename=file.filename or "evidence", content=content
+    )
+    # only consultant+ may flag a file as a sample
+    sample = is_sample and user.role in (UserRole.ADMIN, UserRole.MANAGER, UserRole.CONSULTANT)
+    ev = Evidence(
+        tenant_id=user.tenant_id,
+        test_id=tid,
+        filename=file.filename or "evidence",
+        file_hash=stored.file_hash,
+        file_size=stored.file_size,
+        storage_path=stored.storage_path,
+        is_sample=sample,
+        notes=notes,
+        uploaded_by_user_id=user.id,
+        source="manual",
+    )
+    db.add(ev)
+    await db.flush()
+    await record_audit(
+        db,
+        action=AuditAction.CREATE,
+        entity_type="evidence",
+        entity_id=ev.id,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        after={"filename": ev.filename, "hash": ev.file_hash},
+    )
+    await db.commit()
+    await db.refresh(ev)
+    return ev

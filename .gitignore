@@ -18,6 +18,9 @@ coverage.xml
 .env
 *.local
 
+# Evidence files (local dev storage)
+var/
+
 # IDE
 .idea/
 .vscode/

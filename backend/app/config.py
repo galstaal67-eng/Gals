@@ -24,6 +24,8 @@ class Settings(BaseSettings):
 
     azure_storage_connection_string: str = ""
     azure_blob_container: str = "sox-evidence"
+    # Local dev fallback for evidence files when no Azure connection is set.
+    evidence_storage_dir: str = "./var/evidence"
 
     default_locale: str = "he"
     supported_locales: str = "he,en"
