@@ -4,7 +4,9 @@ import { AuthProvider } from "./auth/AuthContext";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ClientsPage } from "./pages/ClientsPage";
+import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
 import { UsersPage } from "./pages/UsersPage";
 
 export default function App() {
@@ -20,10 +22,12 @@ export default function App() {
               </ProtectedRoute>
             }
           >
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/clients" element={<ClientsPage />} />
             <Route path="/users" element={<UsersPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
           </Route>
-          <Route path="*" element={<Navigate to="/clients" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

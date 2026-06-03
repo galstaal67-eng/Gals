@@ -1,6 +1,28 @@
 {
   "app": { "title": "מערכת SOX" },
-  "nav": { "clients": "לקוחות", "users": "משתמשים", "logout": "התנתקות" },
+  "nav": {
+    "dashboard": "דשבורד",
+    "clients": "לקוחות",
+    "users": "משתמשים",
+    "notifications": "התראות",
+    "logout": "התנתקות"
+  },
+  "dashboard": {
+    "title": "דשבורד",
+    "loading": "טוען…",
+    "controls": "בקרות",
+    "key_controls": "בקרות מפתח",
+    "tests": "טסטים",
+    "controls_by_status": "בקרות לפי סטטוס",
+    "tests_by_status": "טסטים לפי סטטוס",
+    "deficiencies": "ממצאים לפי חומרה"
+  },
+  "notifications": {
+    "title": "התראות",
+    "empty": "אין התראות",
+    "mark_read": "סמן כנקרא",
+    "mark_all": "סמן הכל כנקרא"
+  },
   "login": {
     "title": "התחברות",
     "subdomain": "מזהה ארגון",

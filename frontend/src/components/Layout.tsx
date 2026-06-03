@@ -20,11 +20,17 @@ export function Layout() {
       <nav className="navbar navbar-expand bg-light border-bottom px-3">
         <span className="navbar-brand">{t("app.title")}</span>
         <div className="navbar-nav me-auto">
+          <Link className="nav-link" to="/dashboard">
+            {t("nav.dashboard")}
+          </Link>
           <Link className="nav-link" to="/clients">
             {t("nav.clients")}
           </Link>
           <Link className="nav-link" to="/users">
             {t("nav.users")}
+          </Link>
+          <Link className="nav-link" to="/notifications">
+            {t("nav.notifications")}
           </Link>
         </div>
         <button className="btn btn-sm btn-outline-secondary mx-2" onClick={toggleLang}>

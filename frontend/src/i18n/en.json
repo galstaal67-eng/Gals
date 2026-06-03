@@ -1,6 +1,28 @@
 {
   "app": { "title": "SOX System" },
-  "nav": { "clients": "Clients", "users": "Users", "logout": "Logout" },
+  "nav": {
+    "dashboard": "Dashboard",
+    "clients": "Clients",
+    "users": "Users",
+    "notifications": "Notifications",
+    "logout": "Logout"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "loading": "Loading…",
+    "controls": "Controls",
+    "key_controls": "Key controls",
+    "tests": "Tests",
+    "controls_by_status": "Controls by status",
+    "tests_by_status": "Tests by status",
+    "deficiencies": "Deficiencies by severity"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications",
+    "mark_read": "Mark read",
+    "mark_all": "Mark all read"
+  },
   "login": {
     "title": "Sign in",
     "subdomain": "Organization ID",
