@@ -50,6 +50,21 @@ class AuditYearStatus(str, enum.Enum):
     ARCHIVED = "archived"
 
 
+class QualitativeQuestion(str, enum.Enum):
+    """5 השאלות האיכותיות לבחינת חברת בת (טאב חברות בנות)."""
+
+    SEPARATE_LOCATION = "separate_location"  # מיקום פיזי נפרד
+    SEPARATE_MANAGEMENT = "separate_management"  # הנהלה/דירקטוריון נפרדים
+    SEPARATE_SYSTEMS = "separate_systems"  # מערכות מידע מופרדות
+    UNIQUE_REPORTING_RISK = "unique_reporting_risk"  # סיכון ייחודי בדיווח/גילוי
+    FRAUD_OR_ERROR = "fraud_or_error"  # הונאות/מעילות/טעויות מהותיות
+
+
+class ScopeResult(str, enum.Enum):
+    PASS = "pass"  # נכנס לסקופ / מהותי
+    FAIL = "fail"  # לא מהותי
+
+
 class MaterialityParameterType(str, enum.Enum):
     """פרמטר לקביעת סף מהותיות — רשימה סגורה (טאב שנת ביקורת)."""
 

@@ -28,6 +28,11 @@ class Permission(str, enum.Enum):
     AUDIT_YEAR_EDIT = "audit_year:edit"
     AUDIT_YEAR_LOCK = "audit_year:lock"
     AUDIT_YEAR_VIEW = "audit_year:view"
+    # חברות בנות
+    SUBSIDIARY_VIEW = "subsidiary:view"
+    SUBSIDIARY_CREATE = "subsidiary:create"
+    SUBSIDIARY_EDIT = "subsidiary:edit"
+    SUBSIDIARY_SCOPE = "subsidiary:scope"  # אישור תיחום (מנהל תיק)
     # דוחות
     REPORT_EXPORT = "report:export"
 
@@ -54,6 +59,10 @@ PERMISSION_ROLES: dict[Permission, set[UserRole]] = {
     Permission.AUDIT_YEAR_EDIT: {A, M, C},
     Permission.AUDIT_YEAR_LOCK: {A, M},
     Permission.AUDIT_YEAR_VIEW: {A, M, C, CL},
+    Permission.SUBSIDIARY_VIEW: {A, M, C, CL},
+    Permission.SUBSIDIARY_CREATE: {A, M, C},
+    Permission.SUBSIDIARY_EDIT: {A, M, C, CL},
+    Permission.SUBSIDIARY_SCOPE: {A, M},
     Permission.REPORT_EXPORT: {A, M, C, CL, AU},
 }
 
