@@ -6,6 +6,7 @@ from app.api.v1 import (
     clients,
     contacts,
     mfa,
+    processes,
     subsidiaries,
     tenants,
     users,
@@ -20,3 +21,4 @@ api_router.include_router(clients.router)
 api_router.include_router(contacts.router)
 api_router.include_router(audit_years.router)
 api_router.include_router(subsidiaries.router)
+api_router.include_router(processes.router)

@@ -65,6 +65,21 @@ class ScopeResult(str, enum.Enum):
     FAIL = "fail"  # לא מהותי
 
 
+class ProcessCategory(str, enum.Enum):
+    BUSINESS = "business"  # עסקי
+    ITGC = "itgc"
+
+
+class ItgcLayer(str, enum.Enum):
+    """רובד — נבחר רק כאשר התהליך הוא ITGC."""
+
+    NETWORK = "network"  # רשת
+    APPLICATION = "application"  # אפליקציה
+    DATABASE = "database"  # בסיס נתונים
+    APP_SERVER = "app_server"  # שרת אפליקציה
+    DB_SERVER = "db_server"  # שרת בסיס נתונים
+
+
 class MaterialityParameterType(str, enum.Enum):
     """פרמטר לקביעת סף מהותיות — רשימה סגורה (טאב שנת ביקורת)."""
 

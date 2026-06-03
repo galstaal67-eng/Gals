@@ -33,6 +33,10 @@ class Permission(str, enum.Enum):
     SUBSIDIARY_CREATE = "subsidiary:create"
     SUBSIDIARY_EDIT = "subsidiary:edit"
     SUBSIDIARY_SCOPE = "subsidiary:scope"  # אישור תיחום (מנהל תיק)
+    # תהליכים (בנק ומופעים)
+    PROCESS_VIEW = "process:view"
+    PROCESS_MANAGE = "process:manage"  # יצירה/עריכת מופעים — מנהל תיק
+    PROCESS_BANK_MANAGE = "process:bank_manage"  # ניהול הבנק + יבוא CSV
     # דוחות
     REPORT_EXPORT = "report:export"
 
@@ -63,6 +67,9 @@ PERMISSION_ROLES: dict[Permission, set[UserRole]] = {
     Permission.SUBSIDIARY_CREATE: {A, M, C},
     Permission.SUBSIDIARY_EDIT: {A, M, C, CL},
     Permission.SUBSIDIARY_SCOPE: {A, M},
+    Permission.PROCESS_VIEW: {A, M, C, CL},
+    Permission.PROCESS_MANAGE: {A, M},
+    Permission.PROCESS_BANK_MANAGE: {A, M},
     Permission.REPORT_EXPORT: {A, M, C, CL, AU},
 }
 
