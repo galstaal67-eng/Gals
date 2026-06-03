@@ -50,6 +50,19 @@ class AuditYearStatus(str, enum.Enum):
     ARCHIVED = "archived"
 
 
+class MaterialityParameterType(str, enum.Enum):
+    """פרמטר לקביעת סף מהותיות — רשימה סגורה (טאב שנת ביקורת)."""
+
+    SALES = "sales"  # מכירות
+    NET_INCOME = "net_income"  # רווח (הפסד) נקי
+    ASSETS = "assets"  # נכסים
+    OPERATING_INCOME = "operating_income"  # רווח תפעולי
+    EQUITY = "equity"  # הון עצמי (גרעון בהון)
+    PRETAX_INCOME = "pretax_income"  # רווח (הפסד) לפני מס
+    CASH = "cash"  # מזומנים
+    OPERATING_EXPENSES = "operating_expenses"  # הוצאות תפעוליות
+
+
 class AuditAction(str, enum.Enum):
     CREATE = "CREATE"
     UPDATE = "UPDATE"
