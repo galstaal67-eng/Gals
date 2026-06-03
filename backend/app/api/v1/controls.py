@@ -7,13 +7,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, get_db, require
 from app.core.audit import record_audit
+from app.core.email import queue_email, render_validation_request
 from app.core.rbac import Permission
 from app.core.state_machine import can_transition
 from app.models.audit_year import AuditYear
+from app.models.contact import Contact
 from app.models.control import Control, ControlBank
 from app.models.control_test import ControlTest
 from app.models.enums import AuditAction, AuditYearStatus, ControlStatus, UserRole
 from app.models.risk import RiskSelection
+from app.models.user import User
 from app.schemas.control import (
     ControlBankCreate,
     ControlBankOut,
@@ -22,6 +25,7 @@ from app.schemas.control import (
     ControlTransition,
     ControlUpdate,
 )
+from app.schemas.email_message import EmailMessageOut, RequestValidationIn
 
 router = APIRouter(tags=["controls"])
 
@@ -301,3 +305,78 @@ async def delete_control(
         user_id=user.id,
     )
     await db.commit()
+
+
+async def _owner_email(
+    db: AsyncSession, user: CurrentUser, contact_id: uuid.UUID | None
+) -> Contact:
+    if contact_id is None:
+        raise HTTPException(422, "control has no owner contact to email")
+    contact = (
+        await db.execute(
+            select(Contact).where(
+                Contact.id == contact_id, Contact.tenant_id == user.tenant_id
+            )
+        )
+    ).scalar_one_or_none()
+    if not contact or not contact.email:
+        raise HTTPException(422, "owner contact has no email")
+    return contact
+
+
+@router.post("/controls/{cid}/request-validation", response_model=EmailMessageOut)
+async def request_validation(
+    cid: uuid.UUID,
+    body: RequestValidationIn,
+    user: CurrentUser = Depends(require(Permission.CONTROL_EDIT)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Move a control to needs_validation and queue the תיקוף email to the owner."""
+    ctrl = await _get_control(db, user, cid)
+    await _ensure_year_open(db, user, ctrl.audit_year_id)
+    if not can_transition(ctrl.status, ControlStatus.NEEDS_VALIDATION, user.role):
+        raise HTTPException(status.HTTP_409_CONFLICT, "control cannot move to needs_validation")
+
+    contact = await _owner_email(db, user, ctrl.owner_contact_id)
+    year = (
+        await db.execute(select(AuditYear).where(AuditYear.id == ctrl.audit_year_id))
+    ).scalar_one()
+    sender = await db.get(User, user.id)
+
+    rendered = render_validation_request(
+        client_name=contact.full_name,
+        audit_year=year.year,
+        consultant_name=sender.full_name if sender else "",
+        controls=[
+            {
+                "system": ctrl.system_name,
+                "control_name": ctrl.control_name,
+                "code": ctrl.existing_code or ctrl.new_code,
+                "frequency": ctrl.frequency.value if ctrl.frequency else None,
+            }
+        ],
+    )
+    msg = await queue_email(
+        db,
+        tenant_id=user.tenant_id,
+        to_email=contact.email,
+        cc_email=body.cc_email,
+        rendered=rendered,
+        related_entity_type="control",
+        related_entity_id=ctrl.id,
+        sent_by_user_id=user.id,
+    )
+    ctrl.status = ControlStatus.NEEDS_VALIDATION
+    await db.flush()
+    await record_audit(
+        db,
+        action=AuditAction.UPDATE,
+        entity_type="control",
+        entity_id=ctrl.id,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        after={"status": "needs_validation", "email_queued": str(msg.id)},
+    )
+    await db.commit()
+    await db.refresh(msg)
+    return msg

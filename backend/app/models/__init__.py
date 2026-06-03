@@ -4,6 +4,7 @@ from app.models.client import Client
 from app.models.contact import Contact
 from app.models.control import Control, ControlBank
 from app.models.control_test import ControlTest, Evidence
+from app.models.email_message import EmailMessage
 from app.models.materiality import MaterialityParameter
 from app.models.notification import Notification
 from app.models.process import Process, SubActivity
@@ -33,5 +34,6 @@ __all__ = [
     "ControlTest",
     "Evidence",
     "Notification",
+    "EmailMessage",
     "AuditLog",
 ]

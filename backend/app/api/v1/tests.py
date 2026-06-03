@@ -7,12 +7,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, get_db, require
 from app.core.audit import record_audit
+from app.core.email import queue_email, render_evidence_request
 from app.core.notifications import notify
 from app.core.rbac import Permission
 from app.core.state_machine import can_test_transition
 from app.models.audit_year import AuditYear
+from app.models.contact import Contact
+from app.models.control import Control
 from app.models.control_test import ControlTest, Evidence
 from app.models.enums import AuditAction, AuditYearStatus, TestStatus
+from app.models.user import User
 from app.schemas.control_test import (
     EvidenceCreate,
     EvidenceOut,
@@ -20,6 +24,7 @@ from app.schemas.control_test import (
     TestTransition,
     TestUpdate,
 )
+from app.schemas.email_message import EmailMessageOut, RequestEvidenceIn
 
 router = APIRouter(tags=["tests"])
 
@@ -314,3 +319,75 @@ async def replace_evidence(
     await db.commit()
     await db.refresh(new)
     return new
+
+
+@router.post("/tests/{tid}/request-evidence", response_model=EmailMessageOut)
+async def request_evidence(
+    tid: uuid.UUID,
+    body: RequestEvidenceIn,
+    user: CurrentUser = Depends(require(Permission.TEST_MANAGE)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Queue the evidence-request email to the control owner and set the due date."""
+    test = await _get_test(db, user, tid)
+    await _ensure_year_open(db, user, test.audit_year_id)
+    ctrl = (
+        await db.execute(select(Control).where(Control.id == test.control_id))
+    ).scalar_one_or_none()
+    if not ctrl or ctrl.owner_contact_id is None:
+        raise HTTPException(422, "control has no owner contact to email")
+    contact = (
+        await db.execute(
+            select(Contact).where(
+                Contact.id == ctrl.owner_contact_id, Contact.tenant_id == user.tenant_id
+            )
+        )
+    ).scalar_one_or_none()
+    if not contact or not contact.email:
+        raise HTTPException(422, "owner contact has no email")
+
+    year = (
+        await db.execute(select(AuditYear).where(AuditYear.id == test.audit_year_id))
+    ).scalar_one()
+    sender = await db.get(User, user.id)
+
+    if body.due_date is not None:
+        test.due_date = body.due_date
+
+    rendered = render_evidence_request(
+        client_name=contact.full_name,
+        audit_year=year.year,
+        consultant_name=sender.full_name if sender else "",
+        due_date=str(body.due_date) if body.due_date else None,
+        controls=[
+            {
+                "system": ctrl.system_name,
+                "control_name": ctrl.control_name,
+                "code": ctrl.existing_code or ctrl.new_code,
+                "required_evidence": ", ".join(test.required_evidence or []),
+            }
+        ],
+    )
+    msg = await queue_email(
+        db,
+        tenant_id=user.tenant_id,
+        to_email=contact.email,
+        cc_email=body.cc_email,
+        rendered=rendered,
+        related_entity_type="control_test",
+        related_entity_id=test.id,
+        sent_by_user_id=user.id,
+    )
+    await db.flush()
+    await record_audit(
+        db,
+        action=AuditAction.UPDATE,
+        entity_type="control_test",
+        entity_id=test.id,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        after={"email_queued": str(msg.id), "due_date": str(test.due_date)},
+    )
+    await db.commit()
+    await db.refresh(msg)
+    return msg
