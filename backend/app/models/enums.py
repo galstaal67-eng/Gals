@@ -204,3 +204,9 @@ class ControlEffectiveness(str, enum.Enum):
     EFFECTIVE = "effective"  # אפקטיבית
     INEFFECTIVE = "ineffective"  # לא אפקטיבית
     NOT_RELEVANT = "not_relevant"  # לא רלוונטי
+
+
+class NotificationChannel(str, enum.Enum):
+    IN_APP = "in_app"
+    EMAIL = "email"
+    SMS = "sms"

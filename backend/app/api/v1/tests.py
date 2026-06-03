@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, get_db, require
 from app.core.audit import record_audit
+from app.core.notifications import notify
 from app.core.rbac import Permission
 from app.core.state_machine import can_test_transition
 from app.models.audit_year import AuditYear
@@ -177,6 +178,19 @@ async def transition_test(
         test.ready_to_send = False
     if body.target_state in _TERMINAL:
         test.completed_at = datetime.now(UTC)
+
+    # Bounced back to the company → notify the assignee there is work to do.
+    if body.target_state in _RESET_READY and test.assigned_to_user_id:
+        await notify(
+            db,
+            tenant_id=user.tenant_id,
+            recipient_user_id=test.assigned_to_user_id,
+            event_type="test_returned",
+            title="טסט הוחזר לטיפולך",
+            body=body.reason,
+            entity_type="control_test",
+            entity_id=test.id,
+        )
 
     await db.flush()
     await record_audit(

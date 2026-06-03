@@ -6,8 +6,11 @@ from app.api.v1 import (
     clients,
     contacts,
     controls,
+    dashboards,
     mfa,
+    notifications,
     processes,
+    reports,
     risks,
     subsidiaries,
     tenants,
@@ -28,3 +31,6 @@ api_router.include_router(processes.router)
 api_router.include_router(risks.router)
 api_router.include_router(controls.router)
 api_router.include_router(tests.router)
+api_router.include_router(notifications.router)
+api_router.include_router(dashboards.router)
+api_router.include_router(reports.router)
