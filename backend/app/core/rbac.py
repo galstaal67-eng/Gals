@@ -41,6 +41,11 @@ class Permission(str, enum.Enum):
     RISK_VIEW = "risk:view"
     RISK_MANAGE = "risk:manage"  # יצירה/עריכת מופעים — מנהל תיק
     RISK_BANK_MANAGE = "risk:bank_manage"
+    # בקרות ותיקופים
+    CONTROL_VIEW = "control:view"
+    CONTROL_CREATE = "control:create"
+    CONTROL_EDIT = "control:edit"
+    CONTROL_BANK_MANAGE = "control:bank_manage"
     # דוחות
     REPORT_EXPORT = "report:export"
 
@@ -77,6 +82,10 @@ PERMISSION_ROLES: dict[Permission, set[UserRole]] = {
     Permission.RISK_VIEW: {A, M, C, CL},
     Permission.RISK_MANAGE: {A, M},
     Permission.RISK_BANK_MANAGE: {A, M},
+    Permission.CONTROL_VIEW: {A, M, C, CL, AU},
+    Permission.CONTROL_CREATE: {A, M, C},
+    Permission.CONTROL_EDIT: {A, M, C},
+    Permission.CONTROL_BANK_MANAGE: {A, M},
     Permission.REPORT_EXPORT: {A, M, C, CL, AU},
 }
 

@@ -2,6 +2,7 @@ from app.models.audit_log import AuditLog
 from app.models.audit_year import AuditYear
 from app.models.client import Client
 from app.models.contact import Contact
+from app.models.control import Control, ControlBank
 from app.models.materiality import MaterialityParameter
 from app.models.process import Process, SubActivity
 from app.models.process_selection import ProcessSelection
@@ -25,5 +26,7 @@ __all__ = [
     "ProcessSelection",
     "Risk",
     "RiskSelection",
+    "ControlBank",
+    "Control",
     "AuditLog",
 ]

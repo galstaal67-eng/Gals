@@ -113,6 +113,37 @@ class RiskRating(str, enum.Enum):
     VERY_HIGH = "very_high"  # גבוה מאוד
 
 
+class ControlStatus(str, enum.Enum):
+    """סטאטוס בקרה — 4 מצבים (טאב בקרות)."""
+
+    DRAFT = "draft"  # בעריכה
+    NEEDS_VALIDATION = "needs_validation"  # נדרש תיקוף
+    NEEDS_FIX = "needs_fix"  # נדרש תיקון
+    VALIDATED = "validated"  # מאושר
+
+
+class ControlPurpose(str, enum.Enum):
+    PREVENTIVE = "preventive"  # מונעת
+    DIRECTIVE = "directive"  # מנחה
+    DETECTIVE = "detective"  # מגלה
+    COMPENSATING = "compensating"  # מפצה
+
+
+class ControlType(str, enum.Enum):
+    MANUAL = "manual"  # ידנית
+    AUTOMATIC = "automatic"  # אוטומטית
+    HYBRID = "hybrid"  # משולבת
+
+
+class ControlFrequency(str, enum.Enum):
+    ONGOING = "ongoing"  # שוטף
+    AUTOMATIC = "automatic"  # אוטומטית
+    MONTHLY = "monthly"  # חודשית
+    QUARTERLY = "quarterly"  # רבעונית
+    SEMIANNUAL = "semiannual"  # חצי שנתית
+    ANNUAL = "annual"  # שנתית
+
+
 class MaterialityParameterType(str, enum.Enum):
     """פרמטר לקביעת סף מהותיות — רשימה סגורה (טאב שנת ביקורת)."""
 

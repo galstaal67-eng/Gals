@@ -5,6 +5,7 @@ from app.api.v1 import (
     auth,
     clients,
     contacts,
+    controls,
     mfa,
     processes,
     risks,
@@ -24,3 +25,4 @@ api_router.include_router(audit_years.router)
 api_router.include_router(subsidiaries.router)
 api_router.include_router(processes.router)
 api_router.include_router(risks.router)
+api_router.include_router(controls.router)
