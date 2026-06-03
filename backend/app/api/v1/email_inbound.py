@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_public_db
+from app.api.deps import CurrentUser, get_db, get_public_db, require
+from app.core.email import dispatch_pending
+from app.core.rbac import Permission
 from app.db.session import set_tenant
 from app.models.email_message import EmailMessage
 from app.models.tenant import Tenant
@@ -45,3 +47,29 @@ async def inbound_email(body: InboundEmail, db: AsyncSession = Depends(get_publi
     await db.commit()
     await db.refresh(msg)
     return msg
+
+
+@router.get("/outbox", response_model=list[EmailMessageOut])
+async def list_outbox(
+    status_filter: str | None = None,
+    user: CurrentUser = Depends(require(Permission.TEST_MANAGE)),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(EmailMessage).where(
+        EmailMessage.tenant_id == user.tenant_id,
+        EmailMessage.direction == "outbound",
+    )
+    if status_filter:
+        stmt = stmt.where(EmailMessage.status == status_filter)
+    stmt = stmt.order_by(EmailMessage.created_at.desc())
+    return (await db.execute(stmt)).scalars().all()
+
+
+@router.post("/dispatch")
+async def dispatch(
+    user: CurrentUser = Depends(require(Permission.USER_CREATE)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send all queued outbound emails for the tenant (admin-triggered worker)."""
+    sent = await dispatch_pending(db, tenant_id=user.tenant_id)
+    return {"dispatched": sent}

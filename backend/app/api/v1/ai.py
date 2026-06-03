@@ -1,11 +1,19 @@
 from fastapi import APIRouter, Depends
 
-from app.api.deps import CurrentUser, require
+from app.api.deps import CurrentUser, get_current_user, require
+from app.config import settings
 from app.core.ai import get_ai_provider
 from app.core.rbac import Permission
 from app.schemas.ai import ControlSuggestionOut, SuggestControlsRequest
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+
+@router.get("/status")
+async def ai_status(_user: CurrentUser = Depends(get_current_user)):
+    """Which AI provider is active (heuristic offline default, or anthropic)."""
+    provider = type(get_ai_provider()).__name__
+    return {"provider": settings.ai_provider, "active": provider, "model": settings.ai_model}
 
 
 @router.post("/suggest-controls", response_model=list[ControlSuggestionOut])

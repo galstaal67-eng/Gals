@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # Local dev fallback for evidence files when no Azure connection is set.
     evidence_storage_dir: str = "./var/evidence"
 
+    # Email delivery: "console" (dev, logs) or "graph" (Microsoft Graph, Q2).
+    email_provider: str = "console"
+    email_from_address: str = "sox@entropy.example"
+
     default_locale: str = "he"
     supported_locales: str = "he,en"
 

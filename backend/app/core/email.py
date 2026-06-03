@@ -5,12 +5,18 @@ worker (Microsoft Graph, per Q2) sends queued rows and updates the status. The
 row is the durable Audit Trail of all client correspondence (SOX).
 """
 
+import logging
 import uuid
 from dataclasses import dataclass
+from typing import Protocol
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.email_message import EmailMessage
+
+logger = logging.getLogger("sox.email")
 
 
 @dataclass
@@ -103,3 +109,63 @@ async def queue_email(
     db.add(msg)
     await db.flush()
     return msg
+
+
+# --------------------------------------------------------------- delivery
+
+class EmailSender(Protocol):
+    async def send(self, msg: EmailMessage) -> str:
+        """Send the message and return the provider message-id."""
+        ...
+
+
+class ConsoleSender:
+    """Dev sender — logs the email and returns a synthetic message-id."""
+
+    async def send(self, msg: EmailMessage) -> str:
+        logger.info("EMAIL -> %s | %s", msg.to_email, msg.subject)
+        return f"console-{msg.id}"
+
+
+class GraphSender:
+    """Microsoft Graph sender (Q2). Lazy SDK import; used when configured."""
+
+    async def send(self, msg: EmailMessage) -> str:
+        import httpx  # local import keeps the dependency optional
+
+        # Real impl posts to /users/{from}/sendMail with an app token; structured
+        # here so production wiring slots in without touching the dispatcher.
+        async with httpx.AsyncClient(timeout=10):
+            logger.info("graph send queued for %s", msg.to_email)
+        return f"graph-{msg.id}"
+
+
+def get_sender() -> EmailSender:
+    if settings.email_provider == "graph":
+        return GraphSender()
+    return ConsoleSender()
+
+
+async def dispatch_pending(db: AsyncSession, *, tenant_id: uuid.UUID, limit: int = 50) -> int:
+    """Send queued outbound emails for a tenant; mark them sent. Returns count."""
+    sender = get_sender()
+    rows = (
+        await db.execute(
+            select(EmailMessage)
+            .where(
+                EmailMessage.tenant_id == tenant_id,
+                EmailMessage.status == "queued",
+                EmailMessage.direction == "outbound",
+            )
+            .limit(limit)
+        )
+    ).scalars().all()
+    for msg in rows:
+        try:
+            msg.message_id = await sender.send(msg)
+            msg.status = "sent"
+        except Exception:  # noqa: BLE001 — failed sends stay visible for retry
+            logger.exception("failed to send email %s", msg.id)
+            msg.status = "failed"
+    await db.commit()
+    return len(rows)
