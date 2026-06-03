@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import String, Text
+from sqlalchemy import Boolean, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin, new_uuid
@@ -27,4 +27,7 @@ class EmailMessage(Base, TimestampMixin):
     message_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
     in_reply_to: Mapped[str | None] = mapped_column(String(512), nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="queued", nullable=False)
+    direction: Mapped[str] = mapped_column(String(8), default="outbound", nullable=False)
+    from_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    reviewed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sent_by_user_id: Mapped[uuid.UUID | None] = mapped_column(GUID(), nullable=True)

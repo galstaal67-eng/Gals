@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     default_locale: str = "he"
     supported_locales: str = "he,en"
 
+    # AI (Phase 6) — provider behind an abstraction (Q4). "heuristic" needs no
+    # network/keys; "anthropic" calls the Claude API when a key is configured.
+    ai_provider: str = "heuristic"
+    anthropic_api_key: str = ""
+    ai_model: str = "claude-sonnet-4-6"
+
     @property
     def locales(self) -> list[str]:
         return [s.strip() for s in self.supported_locales.split(",") if s.strip()]

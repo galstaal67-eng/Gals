@@ -442,3 +442,41 @@ async def upload_evidence(
     await db.commit()
     await db.refresh(ev)
     return ev
+
+
+@router.get("/tests/{tid}/evidence-comparison/{baseline_tid}")
+async def evidence_comparison(
+    tid: uuid.UUID,
+    baseline_tid: uuid.UUID,
+    user: CurrentUser = Depends(require(Permission.TEST_VIEW)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Compare evidence of two tests by SHA-256 (Q3 phase A — hash-based).
+
+    Used to diff the current year's evidence against a prior year's for the same
+    control. Returns added/removed/unchanged file hashes.
+    """
+    await _get_test(db, user, tid)
+    await _get_test(db, user, baseline_tid)
+
+    async def _hashes(test_id: uuid.UUID) -> dict[str, str]:
+        rows = (
+            await db.execute(
+                select(Evidence).where(
+                    Evidence.test_id == test_id,
+                    Evidence.tenant_id == user.tenant_id,
+                    Evidence.deleted_at.is_(None),
+                    Evidence.file_hash.is_not(None),
+                )
+            )
+        ).scalars().all()
+        return {e.file_hash: e.filename for e in rows}
+
+    current = await _hashes(tid)
+    baseline = await _hashes(baseline_tid)
+    cur_set, base_set = set(current), set(baseline)
+    return {
+        "added": [current[h] for h in cur_set - base_set],
+        "removed": [baseline[h] for h in base_set - cur_set],
+        "unchanged": [current[h] for h in cur_set & base_set],
+    }

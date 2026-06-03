@@ -1,12 +1,14 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    ai,
     audit_years,
     auth,
     clients,
     contacts,
     controls,
     dashboards,
+    email_inbound,
     mfa,
     notifications,
     processes,
@@ -34,3 +36,5 @@ api_router.include_router(tests.router)
 api_router.include_router(notifications.router)
 api_router.include_router(dashboards.router)
 api_router.include_router(reports.router)
+api_router.include_router(ai.router)
+api_router.include_router(email_inbound.router)

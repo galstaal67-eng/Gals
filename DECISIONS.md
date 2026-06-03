@@ -139,4 +139,13 @@ WAF של Microsoft, וקישורי SharePoint/Planner. נעילה ל-Azure מפ�
   audit log, RLS, RBAC, i18n + Frontend React. bootstrap CLI + SSO JWKS.
 - ✅ **Phase 2** — שנות ביקורת + ספי מהותיות (C1), חברות בנות (איכותי/סקופ),
   תהליכים (בנק+מופעים+CSV), סיכונים (בנק+מופעים).
-- ⏳ **Phase 3** — בקרות ותיקופים (מכונת מצב). הבא בתור.
+- ✅ **Phase 3** — בקרות ותיקופים + מכונת מצב (draft→needs_validation→validated).
+- ✅ **Phase 4** — טסטים (12 סטטוסים + FSM) + ראיות (החלפה ללא מחיקה).
+- ✅ **Phase 5** — דשבורדים + התראות + דוחות (CSV/XLSX) + זרימות מייל.
+- ✅ **Phase 6** — AI (המלצות בקרות, שכבת הפשטה Q4), השוואת ראיות (hash, Q3),
+  קליטת מייל נכנס (webhook, Q2).
+
+### פערי תשתית פתוחים (לא חוסמים)
+- dispatcher מייל בפועל (worker שקורא `email_messages` queued ושולח דרך Graph).
+- Azure Blob בפועל (כרגע אחסון לוקאלי מאחורי אותו ממשק `.save()`).
+- ספק AI Anthropic בפועל (R2: DPA + data-residency) — כרגע ברירת מחדל heuristic.
