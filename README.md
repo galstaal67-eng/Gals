@@ -40,15 +40,34 @@ pytest
 
 ה-API ב-`http://localhost:8000`, תיעוד OpenAPI ב-`/docs`.
 
+## Frontend (React + TypeScript)
+
+```bash
+cd frontend
+cp .env.example .env
+npm install
+npm run dev        # http://localhost:5173 (מ-proxy ל-/api → backend)
+npm run build      # typecheck + production build
+```
+
+תמיכת RTL/LTR ו-i18n (he/en) מובנית, מתחלפת בכפתור שפה בסרגל הניווט.
+
 ## מבנה
 
 ```
 backend/app/
-  api/v1/      — REST endpoints (/api/v1)
-  core/        — security (JWT), rbac, audit
-  db/          — session, base, RLS
+  api/v1/      — REST endpoints (/api/v1): auth, mfa, tenants, users, clients, contacts
+  core/        — security (JWT/TOTP), rbac, audit, entra (SSO)
+  db/          — session, base, RLS, portable types
   models/      — SQLAlchemy models
   schemas/     — Pydantic schemas
   i18n/        — תרגומים he/en
-backend/tests/ — pytest
+backend/tests/ — pytest (38 טסטים)
+
+frontend/src/
+  api/         — client (fetch+JWT), auth, clients, users
+  auth/        — AuthContext
+  components/  — Layout, ProtectedRoute
+  pages/       — Login (כולל MFA + SSO), Clients, Users
+  i18n/        — he/en + ניהול כיוון RTL/LTR
 ```

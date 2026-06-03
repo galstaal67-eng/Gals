@@ -1,0 +1,42 @@
+{
+  "app": { "title": "מערכת SOX" },
+  "nav": { "clients": "לקוחות", "users": "משתמשים", "logout": "התנתקות" },
+  "login": {
+    "title": "התחברות",
+    "subdomain": "מזהה ארגון",
+    "email": "דוא\"ל",
+    "password": "סיסמה",
+    "submit": "התחבר",
+    "sso": "התחברות עם Entra ID",
+    "mfa_title": "אימות דו-שלבי",
+    "mfa_code": "קוד אימות",
+    "error": "פרטי התחברות שגויים"
+  },
+  "clients": {
+    "title": "לקוחות",
+    "name": "שם הלקוח",
+    "industry": "סקטור",
+    "address": "כתובת",
+    "is_public": "נסחרת",
+    "add": "הוסף לקוח",
+    "edit": "עריכה",
+    "delete": "מחיקה",
+    "empty": "אין לקוחות להצגה"
+  },
+  "users": {
+    "title": "משתמשים",
+    "email": "דוא\"ל",
+    "full_name": "שם מלא",
+    "role": "תפקיד",
+    "active": "פעיל",
+    "deactivate": "השבת"
+  },
+  "roles": {
+    "admin": "מנהל מערכת",
+    "manager": "מנהל תיק",
+    "consultant": "יועץ",
+    "client": "לקוח",
+    "auditor": "רו\"ח מבקר"
+  },
+  "common": { "save": "שמור", "cancel": "ביטול", "language": "English" }
+}

@@ -26,6 +26,8 @@ coverage.xml
 # OS
 .DS_Store
 
-# Node (frontend, later)
+# Node (frontend)
 node_modules/
-dist-frontend/
+frontend/dist/
+*.tsbuildinfo
+.vite/

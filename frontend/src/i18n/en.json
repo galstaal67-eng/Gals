@@ -1,0 +1,42 @@
+{
+  "app": { "title": "SOX System" },
+  "nav": { "clients": "Clients", "users": "Users", "logout": "Logout" },
+  "login": {
+    "title": "Sign in",
+    "subdomain": "Organization ID",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "sso": "Sign in with Entra ID",
+    "mfa_title": "Two-factor authentication",
+    "mfa_code": "Verification code",
+    "error": "Invalid credentials"
+  },
+  "clients": {
+    "title": "Clients",
+    "name": "Client name",
+    "industry": "Sector",
+    "address": "Address",
+    "is_public": "Public",
+    "add": "Add client",
+    "edit": "Edit",
+    "delete": "Delete",
+    "empty": "No clients to display"
+  },
+  "users": {
+    "title": "Users",
+    "email": "Email",
+    "full_name": "Full name",
+    "role": "Role",
+    "active": "Active",
+    "deactivate": "Deactivate"
+  },
+  "roles": {
+    "admin": "Administrator",
+    "manager": "Engagement Manager",
+    "consultant": "Consultant",
+    "client": "Client",
+    "auditor": "Auditor"
+  },
+  "common": { "save": "Save", "cancel": "Cancel", "language": "עברית" }
+}
