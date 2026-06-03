@@ -156,6 +156,15 @@ async def test_reports_csv(client, seed):
     assert ts.status_code == 200
     assert "status" in ts.text
 
+    # XLSX format
+    xlsx = await client.get(
+        f"/api/v1/reports/controls-matrix?audit_year_id={yr}&format=xlsx",
+        headers=auth_headers(token),
+    )
+    assert xlsx.status_code == 200
+    assert "spreadsheetml" in xlsx.headers["content-type"]
+    assert xlsx.content[:2] == b"PK"  # xlsx is a zip
+
 
 @pytest.mark.asyncio
 async def test_auditor_cannot_export_is_allowed_but_client_dashboard_role(client, seed):

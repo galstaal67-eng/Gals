@@ -1,8 +1,10 @@
 import csv
 import io
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Response
+from openpyxl import Workbook
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,8 +15,10 @@ from app.models.control_test import ControlTest
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
+ReportFormat = Literal["csv", "xlsx"]
 
-def _csv_response(headers: list[str], rows: list[list[str]], filename: str) -> Response:
+
+def _csv(headers: list[str], rows: list[list[str]], filename: str) -> Response:
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(headers)
@@ -22,17 +26,44 @@ def _csv_response(headers: list[str], rows: list[list[str]], filename: str) -> R
     return Response(
         content=buf.getvalue().encode("utf-8-sig"),
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
+    )
+
+
+def _xlsx(headers: list[str], rows: list[list[str]], filename: str, sheet: str) -> Response:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet
+    ws.append(headers)
+    for row in rows:
+        ws.append(row)
+    buf = io.BytesIO()
+    wb.save(buf)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}.xlsx"'},
+    )
+
+
+def _render(
+    fmt: ReportFormat, headers: list[str], rows: list[list[str]], filename: str, sheet: str
+) -> Response:
+    return (
+        _xlsx(headers, rows, filename, sheet)
+        if fmt == "xlsx"
+        else _csv(headers, rows, filename)
     )
 
 
 @router.get("/controls-matrix")
 async def controls_matrix(
     audit_year_id: uuid.UUID,
+    format: ReportFormat = "csv",
     user: CurrentUser = Depends(require(Permission.REPORT_EXPORT)),
     db: AsyncSession = Depends(get_db),
 ):
-    """דוח מטריצת בקרות — CSV (PDF/XLSX rendering to be layered on top)."""
+    """דוח מטריצת בקרות — CSV/XLSX."""
     rows = (
         await db.execute(
             select(Control).where(
@@ -53,18 +84,23 @@ async def controls_matrix(
         ]
         for c in rows
     ]
-    return _csv_response(
-        ["id", "control_name", "system", "code", "key", "status"], data, "controls_matrix.csv"
+    return _render(
+        format,
+        ["id", "control_name", "system", "code", "key", "status"],
+        data,
+        "controls_matrix",
+        "Controls",
     )
 
 
 @router.get("/test-status")
 async def test_status_report(
     audit_year_id: uuid.UUID,
+    format: ReportFormat = "csv",
     user: CurrentUser = Depends(require(Permission.REPORT_EXPORT)),
     db: AsyncSession = Depends(get_db),
 ):
-    """דוח סטטוס טסטים/ממצאים — CSV."""
+    """דוח סטטוס טסטים/ממצאים — CSV/XLSX."""
     rows = (
         await db.execute(
             select(ControlTest).where(
@@ -85,8 +121,10 @@ async def test_status_report(
         ]
         for t in rows
     ]
-    return _csv_response(
+    return _render(
+        format,
         ["id", "control_id", "status", "severity", "effectiveness", "round"],
         data,
-        "test_status.csv",
+        "test_status",
+        "Tests",
     )
