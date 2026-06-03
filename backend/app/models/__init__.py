@@ -5,6 +5,7 @@ from app.models.contact import Contact
 from app.models.materiality import MaterialityParameter
 from app.models.process import Process, SubActivity
 from app.models.process_selection import ProcessSelection
+from app.models.risk import Risk, RiskSelection
 from app.models.subsidiary import Subsidiary, SubsidiaryQualitativeAnswer
 from app.models.tenant import Tenant
 from app.models.user import User, UserAssignment
@@ -22,5 +23,7 @@ __all__ = [
     "Process",
     "SubActivity",
     "ProcessSelection",
+    "Risk",
+    "RiskSelection",
     "AuditLog",
 ]

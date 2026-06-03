@@ -80,6 +80,39 @@ class ItgcLayer(str, enum.Enum):
     DB_SERVER = "db_server"  # שרת בסיס נתונים
 
 
+class RiskClassification(str, enum.Enum):
+    FINANCIAL = "financial"  # כספי
+    OPERATIONAL = "operational"  # תפעולי
+
+
+class RiskComplexity(str, enum.Enum):
+    MEDIUM = "medium"  # בינונית
+    MEDIUM_HIGH = "medium_high"  # בינונית-גבוהה
+    HIGH = "high"  # גבוהה
+
+
+class RiskFrequency(str, enum.Enum):
+    DAILY = "daily"  # יומית
+    MULTIPLE_DAILY = "multiple_daily"  # רב פעמי ביום
+    MULTIPLE_MONTHLY = "multiple_monthly"  # מספר פעמים בחודש
+    MULTIPLE_YEARLY = "multiple_yearly"  # מספר פעמים בשנה
+    ANNUAL_PLUS = "annual_plus"  # שנתית ומעלה
+
+
+class RiskProbability(str, enum.Enum):
+    LOW = "low"  # נמוכה
+    MEDIUM = "medium"  # בינונית
+    HIGH = "high"  # גבוהה
+    VERY_HIGH = "very_high"  # גבוהה מאוד
+
+
+class RiskRating(str, enum.Enum):
+    LOW = "low"  # קל
+    MEDIUM = "medium"  # בינוני
+    HIGH = "high"  # גבוה
+    VERY_HIGH = "very_high"  # גבוה מאוד
+
+
 class MaterialityParameterType(str, enum.Enum):
     """פרמטר לקביעת סף מהותיות — רשימה סגורה (טאב שנת ביקורת)."""
 

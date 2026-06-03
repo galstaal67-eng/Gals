@@ -37,6 +37,10 @@ class Permission(str, enum.Enum):
     PROCESS_VIEW = "process:view"
     PROCESS_MANAGE = "process:manage"  # יצירה/עריכת מופעים — מנהל תיק
     PROCESS_BANK_MANAGE = "process:bank_manage"  # ניהול הבנק + יבוא CSV
+    # סיכונים (בנק ומופעים)
+    RISK_VIEW = "risk:view"
+    RISK_MANAGE = "risk:manage"  # יצירה/עריכת מופעים — מנהל תיק
+    RISK_BANK_MANAGE = "risk:bank_manage"
     # דוחות
     REPORT_EXPORT = "report:export"
 
@@ -70,6 +74,9 @@ PERMISSION_ROLES: dict[Permission, set[UserRole]] = {
     Permission.PROCESS_VIEW: {A, M, C, CL},
     Permission.PROCESS_MANAGE: {A, M},
     Permission.PROCESS_BANK_MANAGE: {A, M},
+    Permission.RISK_VIEW: {A, M, C, CL},
+    Permission.RISK_MANAGE: {A, M},
+    Permission.RISK_BANK_MANAGE: {A, M},
     Permission.REPORT_EXPORT: {A, M, C, CL, AU},
 }
 
