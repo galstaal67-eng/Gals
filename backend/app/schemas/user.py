@@ -14,6 +14,13 @@ class UserCreate(BaseModel):
     password: str | None = None  # required for local provider
 
 
+class UserUpdate(BaseModel):
+    full_name: str | None = None
+    role: UserRole | None = None
+    client_subrole: ClientSubrole | None = None
+    is_active: bool | None = None
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

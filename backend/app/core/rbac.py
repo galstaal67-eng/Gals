@@ -16,9 +16,13 @@ class Permission(str, enum.Enum):
     CLIENT_DELETE = "client:delete"
     CLIENT_VIEW = "client:view"
     # ניהול משתמשים
+    USER_VIEW = "user:view"
     USER_CREATE = "user:create"
     USER_EDIT_PERMISSIONS = "user:edit_permissions"
     USER_DEACTIVATE = "user:deactivate"
+    # אנשי קשר (בנק)
+    CONTACT_VIEW = "contact:view"
+    CONTACT_MANAGE = "contact:manage"
     # שנות ביקורת
     AUDIT_YEAR_CREATE = "audit_year:create"
     AUDIT_YEAR_EDIT = "audit_year:edit"
@@ -40,9 +44,12 @@ PERMISSION_ROLES: dict[Permission, set[UserRole]] = {
     Permission.CLIENT_EDIT: {A, M},
     Permission.CLIENT_DELETE: {A},
     Permission.CLIENT_VIEW: {A, M, C, CL},
+    Permission.USER_VIEW: {A, M},
     Permission.USER_CREATE: {A},
     Permission.USER_EDIT_PERMISSIONS: {A},
     Permission.USER_DEACTIVATE: {A, M},
+    Permission.CONTACT_VIEW: {A, M, C, CL},
+    Permission.CONTACT_MANAGE: {A, M},
     Permission.AUDIT_YEAR_CREATE: {A, M, C},
     Permission.AUDIT_YEAR_EDIT: {A, M, C},
     Permission.AUDIT_YEAR_LOCK: {A, M},

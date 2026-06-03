@@ -6,16 +6,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_public_db
+from app.config import settings
+from app.core import entra
 from app.core.audit import record_audit
 from app.core.security import (
     create_access_token,
     create_refresh_token,
+    create_sso_state,
     decode_token,
     verify_password,
     verify_totp,
 )
 from app.db.session import set_tenant
-from app.models.enums import AuditAction
+from app.models.enums import AuditAction, AuthProvider
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.schemas.auth import (
@@ -23,6 +26,7 @@ from app.schemas.auth import (
     MFARequiredResponse,
     MFAVerifyRequest,
     RefreshRequest,
+    SSOLoginResponse,
     TokenResponse,
 )
 
@@ -110,3 +114,45 @@ async def refresh(body: RefreshRequest):
             user_id=payload["sub"], tenant_id=payload["tenant_id"], role=role
         ),
     )
+
+
+@router.get("/sso/entra/login", response_model=SSOLoginResponse)
+async def sso_entra_login(subdomain: str):
+    """Return the Entra authorize URL the SPA should redirect the browser to."""
+    state = create_sso_state(subdomain)
+    return SSOLoginResponse(authorize_url=entra.authorize_url(state, settings.entra_redirect_uri))
+
+
+@router.get("/sso/entra/callback", response_model=TokenResponse)
+async def sso_entra_callback(code: str, state: str, db: AsyncSession = Depends(get_public_db)):
+    payload = decode_token(state)
+    if not payload or payload.get("type") != "sso_state":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid sso state")
+    subdomain = payload["subdomain"]
+
+    claims = await entra.fetch_claims_for_code(code, settings.entra_redirect_uri)
+    email = claims.get("email")
+    if not email:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "no email claim from idp")
+
+    tenant = (
+        await db.execute(select(Tenant).where(Tenant.subdomain == subdomain))
+    ).scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "unknown tenant")
+    await set_tenant(db, str(tenant.id))
+
+    user = (
+        await db.execute(
+            select(User).where(
+                User.tenant_id == tenant.id,
+                User.email == email,
+                User.auth_provider == AuthProvider.ENTRA,
+            )
+        )
+    ).scalar_one_or_none()
+    if not user or not user.is_active:
+        # SSO users are provisioned by an admin first (no auto-provisioning).
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "user not provisioned for sso")
+
+    return await _issue_tokens(db, user)

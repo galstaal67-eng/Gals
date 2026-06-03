@@ -19,6 +19,26 @@ class AuthProvider(str, enum.Enum):
     LOCAL = "local"  # לקוחות / רו"ח (שם משתמש + סיסמה + 2FA)
 
 
+class Sector(str, enum.Enum):
+    """סקטור פעילות — רשימה סגורה (טאב מידע כללי)."""
+
+    HITECH = "hitech"  # הייטק
+    CREDIT = "credit"  # אשראי
+    EDUCATION = "education"  # חינוך
+    INSURANCE = "insurance"  # ביטוח
+    FINANCE = "finance"  # פיננסים
+    BANKING = "banking"  # בנקאות
+    HEALTH = "health"  # בריאות
+    RETAIL = "retail"  # קמעונאות
+    GOVERNMENT = "government"  # ממשלתי
+
+
+class Regulation(str, enum.Enum):
+    SOX = "SOX"
+    ISOX = "ISOX"
+    CSOX = "CSOX"
+
+
 class TenantStatus(str, enum.Enum):
     ACTIVE = "active"
     SUSPENDED = "suspended"

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     entra_tenant_id: str = ""
     entra_client_id: str = ""
     entra_client_secret: str = ""
+    entra_redirect_uri: str = "http://localhost:8000/api/v1/auth/sso/entra/callback"
 
     azure_storage_connection_string: str = ""
     azure_blob_container: str = "sox-evidence"

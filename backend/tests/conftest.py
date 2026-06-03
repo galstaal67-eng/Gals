@@ -53,13 +53,22 @@ async def seed(sessionmaker):
                 auth_provider=AuthProvider.LOCAL,
                 hashed_password=hash_password("secret123"),
             )
-            s.add_all([admin, client_user])
+            consultant = User(
+                tenant_id=tenant.id,
+                email=f"consultant@{key}.com",
+                full_name="Consultant",
+                role=UserRole.CONSULTANT,
+                auth_provider=AuthProvider.ENTRA,
+            )
+            s.add_all([admin, client_user, consultant])
             await s.flush()
             data[key] = {
                 "tenant": tenant.id,
                 "subdomain": tenant.subdomain,
                 "admin": admin.id,
                 "client": client_user.id,
+                "consultant": consultant.id,
+                "consultant_email": consultant.email,
             }
         await s.commit()
     return data

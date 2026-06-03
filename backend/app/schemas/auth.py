@@ -25,3 +25,16 @@ class MFARequiredResponse(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+
+
+class SSOLoginResponse(BaseModel):
+    authorize_url: str
+
+
+class MFASetupResponse(BaseModel):
+    secret: str
+    provisioning_uri: str
+
+
+class MFAEnableRequest(BaseModel):
+    code: str

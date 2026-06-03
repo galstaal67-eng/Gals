@@ -51,3 +51,17 @@ def decode_token(token: str) -> dict[str, Any] | None:
 
 def verify_totp(secret: str, code: str) -> bool:
     return pyotp.TOTP(secret).verify(code, valid_window=1)
+
+
+def new_totp_secret() -> str:
+    return pyotp.random_base32()
+
+
+def totp_provisioning_uri(secret: str, email: str, issuer: str = "SOX System") -> str:
+    return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name=issuer)
+
+
+def create_sso_state(subdomain: str) -> str:
+    return _create_token(
+        "sso", {"subdomain": subdomain, "type": "sso_state"}, timedelta(minutes=10)
+    )

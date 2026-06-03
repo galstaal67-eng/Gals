@@ -17,7 +17,7 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 # Tenant-scoped tables that get PostgreSQL RLS (multi-tenant isolation, Q1/C4).
-RLS_TABLES = ["users", "clients", "audit_years", "audit_log"]
+RLS_TABLES = ["users", "clients", "contacts", "audit_years", "audit_log"]
 
 
 def upgrade() -> None:
