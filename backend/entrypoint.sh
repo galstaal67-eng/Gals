@@ -32,7 +32,7 @@ alembic upgrade head
 echo "==> seeding demo tenant (idempotent)..."
 python -m app.scripts.bootstrap \
   --name "Entropy Demo" --subdomain demo \
-  --admin-email admin@demo.local --admin-password "Demo12345!" || true
+  --admin-email admin@demo.com --admin-password "Demo12345!" || true
 
 echo "==> starting API on :8000"
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --app-dir backend

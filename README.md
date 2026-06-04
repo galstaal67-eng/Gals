@@ -20,7 +20,7 @@ docker compose up --build
 
 **פרטי התחברות לדמו:**
 - מזהה ארגון (subdomain): `demo`
-- דוא"ל: `admin@demo.local`
+- דוא"ל: `admin@demo.com`
 - סיסמה: `Demo12345!`
 
 לעצירה: `docker compose down` (להוספת `-v` כדי למחוק גם את ה-DB).
