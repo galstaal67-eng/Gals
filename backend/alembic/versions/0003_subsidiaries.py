@@ -20,8 +20,8 @@ TABLES = ["subsidiaries", "subsidiary_qualitative_answers"]
 
 def upgrade() -> None:
     bind = op.get_bind()
-    Subsidiary.__table__.create(bind=bind)
-    SubsidiaryQualitativeAnswer.__table__.create(bind=bind)
+    Subsidiary.__table__.create(bind=bind, checkfirst=True)
+    SubsidiaryQualitativeAnswer.__table__.create(bind=bind, checkfirst=True)
 
     if bind.dialect.name != "postgresql":
         return
@@ -45,5 +45,5 @@ def downgrade() -> None:
     if bind.dialect.name == "postgresql":
         for table in TABLES:
             op.execute(f"DROP POLICY IF EXISTS tenant_isolation ON {table}")
-    SubsidiaryQualitativeAnswer.__table__.drop(bind=bind)
-    Subsidiary.__table__.drop(bind=bind)
+    SubsidiaryQualitativeAnswer.__table__.drop(bind=bind, checkfirst=True)
+    Subsidiary.__table__.drop(bind=bind, checkfirst=True)

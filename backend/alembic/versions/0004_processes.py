@@ -47,9 +47,9 @@ def _scoped_policy(table: str) -> str:
 
 def upgrade() -> None:
     bind = op.get_bind()
-    Process.__table__.create(bind=bind)
-    SubActivity.__table__.create(bind=bind)
-    ProcessSelection.__table__.create(bind=bind)
+    Process.__table__.create(bind=bind, checkfirst=True)
+    SubActivity.__table__.create(bind=bind, checkfirst=True)
+    ProcessSelection.__table__.create(bind=bind, checkfirst=True)
 
     if bind.dialect.name != "postgresql":
         return
@@ -68,6 +68,6 @@ def downgrade() -> None:
     if bind.dialect.name == "postgresql":
         for table in [*BANK_TABLES, *SCOPED_TABLES]:
             op.execute(f"DROP POLICY IF EXISTS tenant_isolation ON {table}")
-    ProcessSelection.__table__.drop(bind=bind)
-    SubActivity.__table__.drop(bind=bind)
-    Process.__table__.drop(bind=bind)
+    ProcessSelection.__table__.drop(bind=bind, checkfirst=True)
+    SubActivity.__table__.drop(bind=bind, checkfirst=True)
+    Process.__table__.drop(bind=bind, checkfirst=True)

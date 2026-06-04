@@ -20,8 +20,8 @@ TABLES = ["control_tests", "evidences"]
 
 def upgrade() -> None:
     bind = op.get_bind()
-    ControlTest.__table__.create(bind=bind)
-    Evidence.__table__.create(bind=bind)
+    ControlTest.__table__.create(bind=bind, checkfirst=True)
+    Evidence.__table__.create(bind=bind, checkfirst=True)
 
     if bind.dialect.name != "postgresql":
         return
@@ -45,5 +45,5 @@ def downgrade() -> None:
     if bind.dialect.name == "postgresql":
         for table in TABLES:
             op.execute(f"DROP POLICY IF EXISTS tenant_isolation ON {table}")
-    Evidence.__table__.drop(bind=bind)
-    ControlTest.__table__.drop(bind=bind)
+    Evidence.__table__.drop(bind=bind, checkfirst=True)
+    ControlTest.__table__.drop(bind=bind, checkfirst=True)

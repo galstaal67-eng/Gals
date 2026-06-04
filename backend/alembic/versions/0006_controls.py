@@ -18,8 +18,8 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    ControlBank.__table__.create(bind=bind)
-    Control.__table__.create(bind=bind)
+    ControlBank.__table__.create(bind=bind, checkfirst=True)
+    Control.__table__.create(bind=bind, checkfirst=True)
 
     if bind.dialect.name != "postgresql":
         return
@@ -57,5 +57,5 @@ def downgrade() -> None:
     if bind.dialect.name == "postgresql":
         op.execute("DROP POLICY IF EXISTS tenant_isolation ON controls")
         op.execute("DROP POLICY IF EXISTS tenant_isolation ON control_bank")
-    Control.__table__.drop(bind=bind)
-    ControlBank.__table__.drop(bind=bind)
+    Control.__table__.drop(bind=bind, checkfirst=True)
+    ControlBank.__table__.drop(bind=bind, checkfirst=True)

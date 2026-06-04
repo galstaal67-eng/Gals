@@ -8,8 +8,12 @@ Create Date: 2026-06-02
 from collections.abc import Sequence
 
 from alembic import op
-from app import models  # noqa: F401  — register models on Base.metadata
-from app.db.base import Base
+from app.models.audit_log import AuditLog
+from app.models.audit_year import AuditYear
+from app.models.client import Client
+from app.models.contact import Contact
+from app.models.tenant import Tenant
+from app.models.user import User, UserAssignment
 
 revision: str = "0001_initial"
 down_revision: str | None = None
@@ -19,10 +23,22 @@ depends_on: str | Sequence[str] | None = None
 # Tenant-scoped tables that get PostgreSQL RLS (multi-tenant isolation, Q1/C4).
 RLS_TABLES = ["users", "clients", "contacts", "audit_years", "audit_log"]
 
+# Only the Phase-1 tables are created here; later phases own their own tables.
+# (The full metadata is registered via imports, so we must pass an explicit list.)
+PHASE1_TABLES = [
+    Tenant.__table__,
+    User.__table__,
+    UserAssignment.__table__,
+    Client.__table__,
+    Contact.__table__,
+    AuditYear.__table__,
+    AuditLog.__table__,
+]
+
 
 def upgrade() -> None:
     bind = op.get_bind()
-    Base.metadata.create_all(bind=bind)
+    AuditLog.metadata.create_all(bind=bind, tables=PHASE1_TABLES)
 
     if bind.dialect.name != "postgresql":
         return
@@ -69,4 +85,4 @@ def downgrade() -> None:
         for table in RLS_TABLES:
             op.execute(f"DROP POLICY IF EXISTS tenant_isolation ON {table}")
             op.execute(f"ALTER TABLE {table} DISABLE ROW LEVEL SECURITY")
-    Base.metadata.drop_all(bind=bind)
+    AuditLog.metadata.drop_all(bind=bind, tables=PHASE1_TABLES)

@@ -18,8 +18,8 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    Risk.__table__.create(bind=bind)
-    RiskSelection.__table__.create(bind=bind)
+    Risk.__table__.create(bind=bind, checkfirst=True)
+    RiskSelection.__table__.create(bind=bind, checkfirst=True)
 
     if bind.dialect.name != "postgresql":
         return
@@ -57,5 +57,5 @@ def downgrade() -> None:
     if bind.dialect.name == "postgresql":
         op.execute("DROP POLICY IF EXISTS tenant_isolation ON risk_selections")
         op.execute("DROP POLICY IF EXISTS tenant_isolation ON risks")
-    RiskSelection.__table__.drop(bind=bind)
-    Risk.__table__.drop(bind=bind)
+    RiskSelection.__table__.drop(bind=bind, checkfirst=True)
+    Risk.__table__.drop(bind=bind, checkfirst=True)

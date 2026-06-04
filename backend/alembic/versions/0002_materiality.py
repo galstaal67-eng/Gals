@@ -20,7 +20,7 @@ TABLE = "materiality_parameters"
 
 def upgrade() -> None:
     bind = op.get_bind()
-    MaterialityParameter.__table__.create(bind=bind)
+    MaterialityParameter.__table__.create(bind=bind, checkfirst=True)
 
     if bind.dialect.name != "postgresql":
         return
@@ -42,4 +42,4 @@ def downgrade() -> None:
     bind = op.get_bind()
     if bind.dialect.name == "postgresql":
         op.execute(f"DROP POLICY IF EXISTS tenant_isolation ON {TABLE}")
-    MaterialityParameter.__table__.drop(bind=bind)
+    MaterialityParameter.__table__.drop(bind=bind, checkfirst=True)

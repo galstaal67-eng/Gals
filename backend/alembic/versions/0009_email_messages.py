@@ -18,7 +18,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    EmailMessage.__table__.create(bind=bind)
+    EmailMessage.__table__.create(bind=bind, checkfirst=True)
 
     if bind.dialect.name != "postgresql":
         return
@@ -40,4 +40,4 @@ def downgrade() -> None:
     bind = op.get_bind()
     if bind.dialect.name == "postgresql":
         op.execute("DROP POLICY IF EXISTS tenant_isolation ON email_messages")
-    EmailMessage.__table__.drop(bind=bind)
+    EmailMessage.__table__.drop(bind=bind, checkfirst=True)
