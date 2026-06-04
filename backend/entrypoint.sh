@@ -10,7 +10,7 @@ from sqlalchemy import text
 url = os.environ["DATABASE_URL"]
 
 async def wait():
-    for _ in range(30):
+    for _ in range(60):
         try:
             eng = create_async_engine(url)
             async with eng.connect() as c:
