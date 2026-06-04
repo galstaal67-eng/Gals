@@ -59,3 +59,6 @@ ignore = ["B008", "UP042"]
 [tool.coverage.run]
 source = ["backend/app"]
 omit = ["backend/tests/*"]
+# SQLAlchemy async bridges sync/async via greenlets; trace across them so
+# lines after `await db.execute(...)` are counted.
+concurrency = ["thread", "greenlet"]
