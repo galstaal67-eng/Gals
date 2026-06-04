@@ -1,7 +1,29 @@
 # SOX System
 
 מערכת לניהול ותיעוד תהליך ה-SOX (Multi-tenant). ראה `SPEC.md` לחוזה הטכני
-ו-`DECISIONS.md` ליומן ההחלטות.
+ו-`DECISIONS.md` ליומן ההחלטות. להטמעה ב-Azure ראה `docs/AZURE_DEPLOYMENT.md`.
+
+## 🚀 הרצת דמו בפקודה אחת (Docker)
+
+הדרך המהירה לראות את המערכת (UI + API) רצה מקומית — דורש Docker Desktop:
+
+```bash
+docker compose up --build
+```
+
+זה מקים PostgreSQL, מריץ מיגרציות, זורע tenant דמו, ומפעיל backend + frontend:
+
+| שירות | כתובת | פרטים |
+|-------|-------|--------|
+| **ממשק (UI)** | http://localhost:8080 | התחברות לדמו |
+| **API + Swagger** | http://localhost:8000/docs | תיעוד אינטראקטיבי |
+
+**פרטי התחברות לדמו:**
+- מזהה ארגון (subdomain): `demo`
+- דוא"ל: `admin@demo.local`
+- סיסמה: `Demo12345!`
+
+לעצירה: `docker compose down` (להוספת `-v` כדי למחוק גם את ה-DB).
 
 ## Stack
 

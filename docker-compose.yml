@@ -15,5 +15,29 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://sox:sox@db:5432/sox
+      JWT_SECRET_KEY: dev-secret-change-me
+      EMAIL_PROVIDER: console
+      AI_PROVIDER: heuristic
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
 volumes:
   sox_pgdata:
