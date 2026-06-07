@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { getDashboard, type Dashboard, type DashboardRole } from "../api/dashboards";
 import { useAuth } from "../auth/AuthContext";
+import { NextStep } from "../components/NextStep";
 
 function roleFor(role: string | undefined): DashboardRole {
   if (role === "client") return "client";
@@ -112,6 +113,10 @@ export function DashboardPage() {
   return (
     <div>
       <h1 className="page-title mb-4">{t("dashboard.title")}</h1>
+      <NextStep
+        text={t("nextstep.dashboard")}
+        cta={{ label: t("nextstep.go_clients"), to: "/clients" }}
+      />
       <div className="row g-3 mb-3">
         <StatCard value={data.controls_total} label={t("dashboard.controls")} ico="🛡️" accent="#4f46e5" />
         <StatCard value={data.key_controls} label={t("dashboard.key_controls")} ico="🔑" accent="#0ea5e9" />

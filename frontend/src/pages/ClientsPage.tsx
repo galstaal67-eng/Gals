@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { createClient, deleteClient, listClients } from "../api/clients";
 import type { Client } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { NextStep } from "../components/NextStep";
 
 export function ClientsPage() {
   const { t } = useTranslation();
@@ -32,6 +33,9 @@ export function ClientsPage() {
   return (
     <div>
       <h1 className="page-title mb-4">{t("clients.title")}</h1>
+      <NextStep
+        text={t(clients.length === 0 ? "nextstep.clients_empty" : "nextstep.clients_pick")}
+      />
       {error && <div className="alert alert-danger">{error}</div>}
 
       {canManage && (

@@ -4,9 +4,11 @@ import { Link, useParams } from "react-router-dom";
 
 import { type ControlSuggestion, suggestControls } from "../api/ai";
 import { type Contact, listContacts } from "../api/contacts";
+import { NextStep } from "../components/NextStep";
 import { StatusBadge } from "../components/StatusBadge";
 import {
   type BankItem,
+  type CatalogControl,
   type Control,
   type ControlTest,
   type Evidence,
@@ -19,6 +21,7 @@ import {
   createProcessSelection,
   createRiskSelection,
   getQualitative,
+  listControlCatalog,
   listControls,
   listEvidences,
   listProcessBank,
@@ -106,6 +109,9 @@ export function SubsidiaryManagePage() {
 
   const [tests, setTests] = useState<ControlTest[]>([]);
   const [evidence, setEvidence] = useState<Record<string, Evidence[]>>({});
+  const [showCatalog, setShowCatalog] = useState(false);
+  const [catalog, setCatalog] = useState<CatalogControl[]>([]);
+  const [catalogSearch, setCatalogSearch] = useState("");
   const [suggestions, setSuggestions] = useState<ControlSuggestion[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [qual, setQual] = useState<Record<string, boolean>>({});
@@ -232,6 +238,49 @@ export function SubsidiaryManagePage() {
     listControls(selRisk).then(setControls);
   };
 
+  const openCatalog = () => {
+    const procId = procs.find((p) => p.id === selProc)?.process_id;
+    setCatalogSearch("");
+    setShowCatalog(true);
+    listControlCatalog(procId).then(setCatalog).catch((e) => setError(String(e)));
+  };
+  const importFromCatalog = async (c: CatalogControl) => {
+    if (!selRisk) return;
+    const body: Record<string, unknown> = {
+      control_bank_id: c.id,
+      control_name: c.name_he,
+      is_key_control: c.is_key_default,
+    };
+    if (c.desired_description) body.desired_description = c.desired_description;
+    if (c.default_purpose) body.purpose = c.default_purpose;
+    if (c.default_type) body.control_type = c.default_type;
+    if (c.default_frequency) body.frequency = c.default_frequency;
+    await createControl(selRisk, body).catch((e) => setError(String(e)));
+    listControls(selRisk).then(setControls);
+  };
+  const catalogFiltered = catalog.filter((c) => {
+    const q = catalogSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (c.name_he || "").toLowerCase().includes(q) ||
+      (c.code || "").toLowerCase().includes(q) ||
+      (c.risk_description || "").toLowerCase().includes(q)
+    );
+  });
+
+  // Next-step guidance ("תמרור") for the current state of the 4-column flow.
+  const nextStepKey = (): string => {
+    if (procs.length === 0) return "sub_no_proc";
+    if (!selProc) return "sub_pick_proc";
+    if (risks.length === 0) return "sub_no_risk";
+    if (!selRisk) return "sub_pick_risk";
+    if (controls.length === 0) return "sub_no_control";
+    if (controls.some((c) => c.status === "draft" || c.status === "needs_validation"))
+      return "sub_validate";
+    if (!selControl) return "sub_pick_control";
+    return "sub_tests";
+  };
+
   const loadSuggestions = async () => {
     if (!selectedRisk) return;
     setAiLoading(true);
@@ -261,6 +310,7 @@ export function SubsidiaryManagePage() {
         </Link>
       </nav>
       <h1 className="page-title mb-3">{t("manage.title")}</h1>
+      <NextStep text={t(`nextstep.${nextStepKey()}`)} />
       {error && <div className="alert alert-danger">{error}</div>}
 
       {/* qualitative significance questions (C8) */}
@@ -472,6 +522,13 @@ export function SubsidiaryManagePage() {
                   {t("manage.new_control")}
                 </button>
               </form>
+              <button
+                className="btn btn-sm btn-outline-primary w-100 mt-1"
+                disabled={!selRisk}
+                onClick={openCatalog}
+              >
+                📚 {t("manage.import_catalog")}
+              </button>
               <button
                 className="btn btn-sm btn-outline-info w-100 mt-1"
                 disabled={!selRisk || aiLoading}
@@ -692,6 +749,77 @@ export function SubsidiaryManagePage() {
             <div className="form-text mt-2">{t("risk_fields.itgc_hint")}</div>
           </div>
         </div>
+      )}
+
+      {showCatalog && (
+        <>
+          <div className="modal d-block" tabIndex={-1}>
+            <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">{t("manage.import_catalog_title")}</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setShowCatalog(false)}
+                  />
+                </div>
+                <div className="modal-body">
+                  <input
+                    className="form-control form-control-sm mb-3"
+                    placeholder={t("catalog.search")}
+                    value={catalogSearch}
+                    onChange={(e) => setCatalogSearch(e.target.value)}
+                  />
+                  {catalogFiltered.length === 0 ? (
+                    <p className="text-muted mb-0">{t("manage.import_catalog_empty")}</p>
+                  ) : (
+                    <ul className="list-group">
+                      {catalogFiltered.map((c) => (
+                        <li
+                          key={c.id}
+                          className="list-group-item d-flex justify-content-between align-items-start gap-2"
+                        >
+                          <div>
+                            <div className="fw-semibold">
+                              <span className="badge text-bg-secondary me-2">{c.code}</span>
+                              {c.name_he}
+                              {c.is_key_default && (
+                                <span className="badge text-bg-warning ms-2">
+                                  {t("catalog.key_badge")}
+                                </span>
+                              )}
+                            </div>
+                            {c.risk_description && (
+                              <div className="small text-muted">
+                                {t("catalog.risk")}: {c.risk_description}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            className="btn btn-sm btn-outline-primary flex-shrink-0"
+                            onClick={() => importFromCatalog(c)}
+                          >
+                            +
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={() => setShowCatalog(false)}
+                  >
+                    {t("common.close")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop show" />
+        </>
       )}
     </div>
   );

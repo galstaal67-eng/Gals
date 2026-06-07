@@ -12,6 +12,7 @@ import {
 } from "../api/sox";
 import type { Client } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { NextStep } from "../components/NextStep";
 
 const SECTORS = [
   "hitech",
@@ -109,6 +110,9 @@ export function ClientDetailPage() {
         </Link>
       </nav>
       <h1 className="page-title mb-3">{client.name}</h1>
+      <NextStep
+        text={t(years.length === 0 ? "nextstep.client_no_years" : "nextstep.client_pick_year")}
+      />
       {error && <div className="alert alert-danger">{error}</div>}
       {saved && <div className="alert alert-success py-2">{t("common.save")} ✓</div>}
 

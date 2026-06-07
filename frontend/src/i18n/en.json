@@ -232,7 +232,10 @@
     "no_tests_hint": "A test is created when a control is validated",
     "evidence": "Evidence / supporting files",
     "ai_suggest": "🤖 AI control suggestions",
-    "ai_loading": "Generating…"
+    "ai_loading": "Generating…",
+    "import_catalog": "Import from catalog",
+    "import_catalog_title": "Import controls from catalog",
+    "import_catalog_empty": "No catalog controls for this process"
   },
   "control_fields": {
     "purpose": "Purpose",
@@ -305,5 +308,24 @@
     "cancel": "Cancel",
     "imported": "Control imported successfully ✓",
     "import_hint": "The control will be added with the matching process and risk selections, including the catalog defaults."
+  },
+  "nextstep": {
+    "dashboard": "Welcome. Start from Clients — pick an existing client or add a new one.",
+    "go_clients": "Go to Clients",
+    "clients_empty": "No clients yet. Add your first client to get started.",
+    "clients_pick": "Pick a client from the list to manage its audit years, contacts and controls.",
+    "client_no_years": "Next step: open the first audit year for this client.",
+    "client_pick_year": "Open an audit year to continue to subsidiaries and controls.",
+    "year_no_subs": "Next step: add subsidiaries to this audit year.",
+    "year_pick_sub": "Click 'Manage' on a subsidiary to choose processes, risks and controls.",
+    "sub_no_proc": "Start by adding a process — type a name, or import a process and controls from the catalog.",
+    "sub_pick_proc": "Select a process from the list to add its risks.",
+    "sub_no_risk": "Next step: add a risk to the selected process.",
+    "sub_pick_risk": "Select a risk to add its controls.",
+    "sub_no_control": "Add a control manually, or click 'Import from catalog' to pick ready-made controls.",
+    "sub_validate": "Send the controls for validation; tests open once approved.",
+    "sub_pick_control": "Select a validated control to manage its tests and evidence.",
+    "sub_tests": "Advance the test status and upload evidence until closed.",
+    "catalog": "Filter by process and search, then click 'Import to audit year' to add a control."
   }
 }

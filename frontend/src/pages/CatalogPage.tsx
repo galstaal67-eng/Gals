@@ -14,6 +14,7 @@ import {
   listSubsidiaries,
 } from "../api/sox";
 import type { Client } from "../api/types";
+import { NextStep } from "../components/NextStep";
 import { StatusBadge } from "../components/StatusBadge";
 
 export function CatalogPage() {
@@ -68,7 +69,8 @@ export function CatalogPage() {
   return (
     <div>
       <h1 className="page-title mb-1">{t("catalog.title")}</h1>
-      <p className="text-muted mb-4">{t("catalog.subtitle")}</p>
+      <p className="text-muted mb-3">{t("catalog.subtitle")}</p>
+      <NextStep text={t("nextstep.catalog")} />
       {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="card mb-4">

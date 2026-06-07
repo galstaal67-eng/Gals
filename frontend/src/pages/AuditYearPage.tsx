@@ -14,6 +14,7 @@ import {
   scopeDecision,
 } from "../api/sox";
 import { useAuth } from "../auth/AuthContext";
+import { NextStep } from "../components/NextStep";
 
 const PARAM_TYPES = [
   "sales",
@@ -107,6 +108,9 @@ export function AuditYearPage() {
         </div>
       </div>
       {error && <div className="alert alert-danger">{error}</div>}
+      <NextStep
+        text={t(subs.length === 0 ? "nextstep.year_no_subs" : "nextstep.year_pick_sub")}
+      />
 
       {/* materiality */}
       <div className="card mb-4">
