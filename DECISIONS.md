@@ -134,10 +134,13 @@ WAF של Microsoft, וקישורי SharePoint/Planner. נעילה ל-Azure מפ�
 
 ### C9 — קטלוג RCM גלובלי (seed מ-sox-controls-dashboard)
 מקור הנתונים: ענף `sox-controls-dashboard` במאגר `Dashboards` — מטריצת RCM של
-**9 תהליכים / 167 בקרות**. נזרע אל הבנקים הגלובליים (`processes`, `sub_activities`,
+**9 תהליכים / 192 בקרות**. נזרע אל הבנקים הגלובליים (`processes`, `sub_activities`,
 `risks`, `control_bank`) עם `is_global=true` ו-`tenant_id=NULL`, חשוף לכל ה-tenants
 דרך RLS. הקובץ `backend/app/scripts/data/sox_catalog.json` הוא מקור האמת לזריעה
-(`app.scripts.seed_catalog`, אידמפוטנטי, מורץ ב-entrypoint).
+(`app.scripts.seed_catalog`, מורץ ב-entrypoint).
+- **סנכרון (לא insert-only)** — כל הרצה מיישבת את הקטלוג הגלובלי מול קובץ ה-JSON:
+  מוסיפה חדשים, מעדכנת שורות שהשתנו, ומבצעת soft-delete לשורות שהוסרו מהמקור.
+  כך עדכון בדשבורד מתעדכן כאן בריצת ה-entrypoint הבאה.
 - **הרחבת `control_bank`** — נוספו `process_id`, `step`, `risk_description`,
   `owner_hint`, `default_purpose`, `default_type`, `default_frequency`,
   `is_key_default`, כדי לשמר את מאפייני הבקרה מהקטלוג ולמלא אוטומטית את מופע

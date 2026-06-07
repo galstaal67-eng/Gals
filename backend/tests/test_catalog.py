@@ -7,6 +7,8 @@ from app.models.enums import (
     ProcessCategory,
 )
 from app.models.process import Process
+from app.scripts.seed_catalog import seed_catalog
+from sqlalchemy import func, select
 
 from tests.conftest import auth_headers
 
@@ -144,3 +146,56 @@ async def test_import_rejects_cross_tenant_subsidiary(client, seed, sessionmaker
         headers=auth_headers(token_b),
     )
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_seed_catalog_sync_is_idempotent(sessionmaker):
+    """First sync populates the global banks; a second sync is a no-op."""
+    first = await seed_catalog(session_factory=sessionmaker)
+    assert first["controls_added"] > 0
+    assert first["processes_added"] == 9
+
+    second = await seed_catalog(session_factory=sessionmaker)
+    assert all(v == 0 for v in second.values()), second
+
+    async with sessionmaker() as s:
+        total = (
+            await s.execute(
+                select(func.count(ControlBank.id)).where(
+                    ControlBank.is_global.is_(True), ControlBank.deleted_at.is_(None)
+                )
+            )
+        ).scalar_one()
+    assert total == first["controls_added"]
+
+
+@pytest.mark.asyncio
+async def test_seed_catalog_sync_repairs_changed_row(sessionmaker):
+    """A drifted global control_bank row is restored on the next sync."""
+    await seed_catalog(session_factory=sessionmaker)
+
+    async with sessionmaker() as s:
+        bank = (
+            await s.execute(
+                select(ControlBank).where(
+                    ControlBank.is_global.is_(True), ControlBank.code == "PL-1"
+                )
+            )
+        ).scalar_one()
+        original = bank.name_he
+        bank.name_he = "drifted"
+        bank.is_key_default = not bank.is_key_default
+        await s.commit()
+
+    counts = await seed_catalog(session_factory=sessionmaker)
+    assert counts["controls_updated"] >= 1
+
+    async with sessionmaker() as s:
+        bank = (
+            await s.execute(
+                select(ControlBank).where(
+                    ControlBank.is_global.is_(True), ControlBank.code == "PL-1"
+                )
+            )
+        ).scalar_one()
+    assert bank.name_he == original
