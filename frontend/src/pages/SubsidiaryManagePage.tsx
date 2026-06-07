@@ -53,6 +53,26 @@ const RISK_PROB = ["low", "medium", "high", "very_high"];
 const RISK_RATING = ["low", "medium", "high", "very_high"];
 const ONE_TO_FIVE = [1, 2, 3, 4, 5];
 
+// Test FSM (mirrors backend state_machine.py). Manual overrides
+// (needs_attention/round_b_pending/not_relevant) are reachable from any
+// non-terminal state and appended below. The backend remains the authority.
+const TEST_TERMINAL = ["internally_closed", "deficiency_closed", "not_relevant"];
+const TEST_MANUAL = ["needs_attention", "round_b_pending", "not_relevant"];
+const TEST_NEXT: Record<string, string[]> = {
+  pending_receipt: ["consultant_handling"],
+  consultant_handling: ["company_completion", "reviewed_approved", "deficiency_open"],
+  company_completion: ["consultant_handling", "additional_evidence"],
+  additional_evidence: ["consultant_handling", "company_completion", "reviewed_approved", "deficiency_open"],
+  reviewed_approved: ["consultant_handling", "internally_closed", "deficiency_open"],
+  deficiency_open: ["additional_evidence", "deficiency_compensated", "deficiency_closed"],
+  deficiency_compensated: ["deficiency_closed"],
+};
+const testTargets = (status: string): string[] => {
+  if (TEST_TERMINAL.includes(status)) return [];
+  const base = TEST_NEXT[status] ?? [];
+  return [...base, ...TEST_MANUAL.filter((m) => !base.includes(m))];
+};
+
 export function SubsidiaryManagePage() {
   const { t } = useTranslation();
   const { clientId = "", yearId = "", subId = "" } = useParams();
@@ -524,19 +544,27 @@ export function SubsidiaryManagePage() {
               {tests.map((tst) => (
                 <li key={tst.id} className="list-group-item">
                   <span className="badge bg-info text-dark">{t(`test_status.${tst.status}`)}</span>
-                  {tst.status === "pending_receipt" && (
-                    <button
-                      className="btn btn-sm btn-outline-secondary ms-2"
-                      onClick={async () => {
-                        await transitionTest(tst.id, "consultant_handling");
+                  {testTargets(tst.status).length > 0 && (
+                    <select
+                      className="form-select form-select-sm mt-1"
+                      value=""
+                      onChange={async (e) => {
+                        const target = e.target.value;
+                        if (!target) return;
+                        await transitionTest(tst.id, target).catch((err) => setError(String(err)));
                         loadTests(selControl!);
                       }}
                     >
-                      {t("manage.start_test")}
-                    </button>
+                      <option value="">{t("manage.advance_status")}</option>
+                      {testTargets(tst.status).map((s) => (
+                        <option key={s} value={s}>
+                          {t(`test_status.${s}`)}
+                        </option>
+                      ))}
+                    </select>
                   )}
                   <button
-                    className="btn btn-sm btn-outline-info ms-2"
+                    className="btn btn-sm btn-outline-info mt-1 w-100"
                     onClick={() =>
                       requestEvidence(tst.id).catch((err) => setError(String(err)))
                     }

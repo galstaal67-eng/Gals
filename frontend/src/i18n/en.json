@@ -194,6 +194,7 @@
     "request_validation": "Request validation",
     "validate": "Validate",
     "start_test": "Start test",
+    "advance_status": "↪ Update status…",
     "request_evidence": "📧 Request evidence",
     "pick_control": "Select a control to see tests",
     "no_tests_hint": "A test is created when a control is validated",

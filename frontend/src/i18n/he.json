@@ -194,6 +194,7 @@
     "request_validation": "שלח לתיקוף",
     "validate": "אשר תיקוף",
     "start_test": "התחל טסט",
+    "advance_status": "↪ עדכן סטטוס…",
     "request_evidence": "📧 בקש ראיות",
     "pick_control": "בחר בקרה כדי לראות טסטים",
     "no_tests_hint": "טסט נוצר אוטומטית כשבקרה מאושרת",
