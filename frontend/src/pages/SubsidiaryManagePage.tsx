@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { type ControlSuggestion, suggestControls } from "../api/ai";
 import { type Contact, listContacts } from "../api/contacts";
+import { StatusBadge } from "../components/StatusBadge";
 import {
   type BankItem,
   type Control,
@@ -259,7 +260,7 @@ export function SubsidiaryManagePage() {
           ← {t("subsidiaries.title")}
         </Link>
       </nav>
-      <h1 className="h4 mb-3">{t("manage.title")}</h1>
+      <h1 className="page-title mb-3">{t("manage.title")}</h1>
       {error && <div className="alert alert-danger">{error}</div>}
 
       {/* qualitative significance questions (C8) */}
@@ -499,10 +500,8 @@ export function SubsidiaryManagePage() {
               {controls.map((c) => (
                 <li key={c.id} className={`list-group-item ${selControl === c.id ? "active" : ""}`}>
                   <div role="button" onClick={() => setSelControl(c.id)}>
-                    {c.control_name}
-                    <span className="badge bg-secondary ms-2">
-                      {t(`control_status.${c.status}`)}
-                    </span>
+                    {c.control_name}{" "}
+                    <StatusBadge value={c.status} prefix="control_status" />
                   </div>
                   <div className="mt-1">
                     {c.status === "draft" && (
@@ -547,7 +546,7 @@ export function SubsidiaryManagePage() {
             <ul className="list-group list-group-flush">
               {tests.map((tst) => (
                 <li key={tst.id} className="list-group-item">
-                  <span className="badge bg-info text-dark">{t(`test_status.${tst.status}`)}</span>
+                  <StatusBadge value={tst.status} prefix="test_status" />
                   {testTargets(tst.status).length > 0 && (
                     <select
                       className="form-select form-select-sm mt-1"

@@ -17,7 +17,7 @@ export function NotificationsPage() {
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h1 className="h4 mb-0">{t("notifications.title")}</h1>
+        <h1 className="page-title mb-0">{t("notifications.title")}</h1>
         <button
           className="btn btn-sm btn-outline-secondary"
           onClick={async () => {
@@ -36,12 +36,18 @@ export function NotificationsPage() {
           {items.map((n) => (
             <li
               key={n.id}
-              className={`list-group-item d-flex justify-content-between align-items-start ${
-                n.read_at ? "" : "fw-bold"
-              }`}
+              className="list-group-item d-flex justify-content-between align-items-start"
+              style={
+                n.read_at
+                  ? undefined
+                  : { borderInlineStart: "3px solid var(--sox-primary)", background: "var(--sox-primary-soft)" }
+              }
             >
               <div>
-                <div>{n.title}</div>
+                <div className={n.read_at ? "" : "fw-semibold"}>
+                  {!n.read_at && <span className="me-2">🔵</span>}
+                  {n.title}
+                </div>
                 {n.body && <small className="text-muted">{n.body}</small>}
               </div>
               {!n.read_at && (

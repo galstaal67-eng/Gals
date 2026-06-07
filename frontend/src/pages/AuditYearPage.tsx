@@ -74,7 +74,7 @@ export function AuditYearPage() {
         </Link>
       </nav>
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h1 className="h4 mb-0">{t("audit_years.year_title")}</h1>
+        <h1 className="page-title mb-0">{t("audit_years.year_title")}</h1>
         <div className="btn-group">
           {canManage && (
             <button

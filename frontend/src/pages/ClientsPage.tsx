@@ -31,7 +31,7 @@ export function ClientsPage() {
 
   return (
     <div>
-      <h1 className="h4 mb-3">{t("clients.title")}</h1>
+      <h1 className="page-title mb-4">{t("clients.title")}</h1>
       {error && <div className="alert alert-danger">{error}</div>}
 
       {canManage && (
@@ -50,44 +50,59 @@ export function ClientsPage() {
         </form>
       )}
 
-      {clients.length === 0 ? (
-        <p className="text-muted">{t("clients.empty")}</p>
-      ) : (
-        <table className="table table-striped">
-          <thead>
-            <tr>
-              <th>{t("clients.name")}</th>
-              <th>{t("clients.industry")}</th>
-              <th>{t("clients.is_public")}</th>
-              {claims?.role === "admin" && <th />}
-            </tr>
-          </thead>
-          <tbody>
-            {clients.map((c) => (
-              <tr key={c.id}>
-                <td>
-                  <Link to={`/clients/${c.id}`}>{c.name}</Link>
-                </td>
-                <td>{c.industry ?? "—"}</td>
-                <td>{c.is_public ? "✓" : "—"}</td>
-                {claims?.role === "admin" && (
-                  <td>
-                    <button
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={async () => {
-                        await deleteClient(c.id);
-                        refresh();
-                      }}
-                    >
-                      {t("clients.delete")}
-                    </button>
-                  </td>
-                )}
+      <div className="card">
+        <div className="card-body p-0">
+          <table className="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th className="ps-3">{t("clients.name")}</th>
+                <th>{t("clients.industry")}</th>
+                <th>{t("clients.is_public")}</th>
+                {claims?.role === "admin" && <th />}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {clients.map((c) => (
+                <tr key={c.id}>
+                  <td className="ps-3">
+                    <Link to={`/clients/${c.id}`} className="fw-semibold text-decoration-none">
+                      {c.name}
+                    </Link>
+                  </td>
+                  <td>{c.industry ? t(`sectors.${c.industry}`, c.industry) : "—"}</td>
+                  <td>
+                    {c.is_public ? (
+                      <span className="badge text-bg-light">✓</span>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </td>
+                  {claims?.role === "admin" && (
+                    <td className="text-end pe-3">
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={async () => {
+                          await deleteClient(c.id);
+                          refresh();
+                        }}
+                      >
+                        {t("clients.delete")}
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+              {clients.length === 0 && (
+                <tr>
+                  <td colSpan={claims?.role === "admin" ? 4 : 3} className="text-muted text-center py-4">
+                    {t("clients.empty")}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

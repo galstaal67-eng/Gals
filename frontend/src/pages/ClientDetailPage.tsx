@@ -108,7 +108,7 @@ export function ClientDetailPage() {
           ← {t("clients.title")}
         </Link>
       </nav>
-      <h1 className="h4 mb-3">{client.name}</h1>
+      <h1 className="page-title mb-3">{client.name}</h1>
       {error && <div className="alert alert-danger">{error}</div>}
       {saved && <div className="alert alert-success py-2">{t("common.save")} ✓</div>}
 
