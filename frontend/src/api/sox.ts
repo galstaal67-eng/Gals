@@ -81,6 +81,15 @@ export const createProcessSelection = (yearId: string, subId: string, process_id
 export interface RiskSelection {
   id: string;
   risk_id: string;
+  classification: string | null;
+  complexity: string | null;
+  frequency: string | null;
+  inherent_probability: string | null;
+  financial_damage: number | null;
+  reputation: number | null;
+  regulation: number | null;
+  inherent_rating: string | null;
+  residual_rating: string | null;
   description: string | null;
 }
 export const listRiskBank = () => api<BankItem[]>(`/risks/bank`);
@@ -90,6 +99,8 @@ export const listRiskSelections = (pselId: string) =>
   api<RiskSelection[]>(`/process-selections/${pselId}/risks`);
 export const createRiskSelection = (pselId: string, risk_id: string) =>
   api<RiskSelection>(`/process-selections/${pselId}/risks`, { method: "POST", body: { risk_id } });
+export const updateRiskSelection = (rselId: string, body: Record<string, unknown>) =>
+  api<RiskSelection>(`/risk-selections/${rselId}`, { method: "PATCH", body });
 
 // ---- controls ----
 export interface Control {
@@ -103,6 +114,8 @@ export const createControl = (rselId: string, body: Record<string, unknown>) =>
   api<Control>(`/risk-selections/${rselId}/controls`, { method: "POST", body });
 export const transitionControl = (cid: string, target_state: string) =>
   api<Control>(`/controls/${cid}/transition`, { method: "POST", body: { target_state } });
+export const requestValidation = (cid: string) =>
+  api<unknown>(`/controls/${cid}/request-validation`, { method: "POST", body: {} });
 
 // ---- tests + evidence ----
 export interface ControlTest {
@@ -122,6 +135,11 @@ export const listTestsForYear = (yearId: string) =>
   api<ControlTest[]>(`/audit-years/${yearId}/tests`);
 export const transitionTest = (tid: string, target_state: string) =>
   api<ControlTest>(`/tests/${tid}/transition`, { method: "POST", body: { target_state } });
+export const requestEvidence = (tid: string, due_date?: string) =>
+  api<unknown>(`/tests/${tid}/request-evidence`, {
+    method: "POST",
+    body: due_date ? { due_date } : {},
+  });
 export const listEvidences = (tid: string) => api<Evidence[]>(`/tests/${tid}/evidences`);
 
 export async function uploadEvidence(testId: string, file: File): Promise<Evidence> {

@@ -4,9 +4,43 @@
     "dashboard": "Dashboard",
     "clients": "Clients",
     "users": "Users",
+    "outbox": "Emails",
     "notifications": "Notifications",
     "logout": "Logout"
   },
+  "outbox": {
+    "title": "Outbox",
+    "dispatch": "Send pending",
+    "to": "To",
+    "subject": "Subject",
+    "status": "Status",
+    "empty": "No emails"
+  },
+  "risk_fields": {
+    "title": "Risk details",
+    "classification": "Classification",
+    "complexity": "Complexity",
+    "frequency": "Frequency",
+    "probability": "Inherent probability",
+    "inherent": "Inherent rating",
+    "residual": "Residual rating",
+    "financial_damage": "Financial damage",
+    "reputation": "Reputation",
+    "regulation": "Regulation",
+    "description": "Risk description",
+    "itgc_hint": "Rating fields apply to non-ITGC processes (kept empty for ITGC)."
+  },
+  "risk_class": { "financial": "Financial", "operational": "Operational" },
+  "risk_complexity": { "medium": "Medium", "medium_high": "Medium-high", "high": "High" },
+  "risk_freq": {
+    "daily": "Daily",
+    "multiple_daily": "Multiple/day",
+    "multiple_monthly": "Multiple/month",
+    "multiple_yearly": "Multiple/year",
+    "annual_plus": "Annual+"
+  },
+  "risk_prob": { "low": "Low", "medium": "Medium", "high": "High", "very_high": "Very high" },
+  "risk_rating": { "low": "Low", "medium": "Medium", "high": "High", "very_high": "Very high" },
   "dashboard": {
     "title": "Dashboard",
     "loading": "Loading…",
@@ -146,6 +180,7 @@
     "request_validation": "Request validation",
     "validate": "Validate",
     "start_test": "Start test",
+    "request_evidence": "📧 Request evidence",
     "pick_control": "Select a control to see tests",
     "no_tests_hint": "A test is created when a control is validated",
     "evidence": "Evidence / supporting files"

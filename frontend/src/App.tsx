@@ -9,6 +9,7 @@ import { ClientsPage } from "./pages/ClientsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
+import { OutboxPage } from "./pages/OutboxPage";
 import { SubsidiaryManagePage } from "./pages/SubsidiaryManagePage";
 import { UsersPage } from "./pages/UsersPage";
 
@@ -34,6 +35,7 @@ export default function App() {
               element={<SubsidiaryManagePage />}
             />
             <Route path="/users" element={<UsersPage />} />
+            <Route path="/outbox" element={<OutboxPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -21,14 +21,24 @@ import {
   listRiskBank,
   listRiskSelections,
   listTestsForControl,
+  requestEvidence,
+  requestValidation,
   transitionControl,
   transitionTest,
+  updateRiskSelection,
   uploadEvidence,
 } from "../api/sox";
 
 const PURPOSES = ["preventive", "directive", "detective", "compensating"];
 const CTRL_TYPES = ["manual", "automatic", "hybrid"];
 const CTRL_FREQ = ["ongoing", "automatic", "monthly", "quarterly", "semiannual", "annual"];
+
+const RISK_CLASS = ["financial", "operational"];
+const RISK_COMPLEXITY = ["medium", "medium_high", "high"];
+const RISK_FREQ = ["daily", "multiple_daily", "multiple_monthly", "multiple_yearly", "annual_plus"];
+const RISK_PROB = ["low", "medium", "high", "very_high"];
+const RISK_RATING = ["low", "medium", "high", "very_high"];
+const ONE_TO_FIVE = [1, 2, 3, 4, 5];
 
 export function SubsidiaryManagePage() {
   const { t } = useTranslation();
@@ -84,6 +94,16 @@ export function SubsidiaryManagePage() {
     setSelControl(null);
     setTests([]);
   }, [selRisk]);
+
+  const selectedRisk = risks.find((r) => r.id === selRisk) ?? null;
+  const patchRisk = async (field: string, value: string | number | null) => {
+    if (!selRisk) return;
+    const updated = await updateRiskSelection(selRisk, { [field]: value }).catch((e) => {
+      setError(String(e));
+      return null;
+    });
+    if (updated && selProc) listRiskSelections(selProc).then(setRisks);
+  };
 
   const loadTests = (cid: string) =>
     listTestsForControl(cid).then(async (ts) => {
@@ -294,7 +314,13 @@ export function SubsidiaryManagePage() {
                       <button
                         className="btn btn-sm btn-outline-secondary"
                         onClick={async () => {
-                          await transitionControl(c.id, "needs_validation");
+                          // Try the email-queueing flow; fall back to a plain
+                          // transition when the control has no owner contact.
+                          try {
+                            await requestValidation(c.id);
+                          } catch {
+                            await transitionControl(c.id, "needs_validation");
+                          }
                           listControls(selRisk!).then(setControls);
                         }}
                       >
@@ -338,6 +364,14 @@ export function SubsidiaryManagePage() {
                       {t("manage.start_test")}
                     </button>
                   )}
+                  <button
+                    className="btn btn-sm btn-outline-info ms-2"
+                    onClick={() =>
+                      requestEvidence(tst.id).catch((err) => setError(String(err)))
+                    }
+                  >
+                    {t("manage.request_evidence")}
+                  </button>
 
                   {/* evidence */}
                   <div className="mt-2">
@@ -370,6 +404,74 @@ export function SubsidiaryManagePage() {
           </div>
         </div>
       </div>
+
+      {/* full risk fields editor */}
+      {selectedRisk && (
+        <div className="card mt-3">
+          <div className="card-header fw-bold">{t("risk_fields.title")}</div>
+          <div className="card-body">
+            <div className="row g-2">
+              {[
+                ["classification", RISK_CLASS, "risk_fields.classification", "risk_class"],
+                ["complexity", RISK_COMPLEXITY, "risk_fields.complexity", "risk_complexity"],
+                ["frequency", RISK_FREQ, "risk_fields.frequency", "risk_freq"],
+                ["inherent_probability", RISK_PROB, "risk_fields.probability", "risk_prob"],
+                ["inherent_rating", RISK_RATING, "risk_fields.inherent", "risk_rating"],
+                ["residual_rating", RISK_RATING, "risk_fields.residual", "risk_rating"],
+              ].map(([field, opts, label, tkey]) => (
+                <div className="col-6 col-md-4 col-xl-2" key={field as string}>
+                  <label className="form-label small">{t(label as string)}</label>
+                  <select
+                    className="form-select form-select-sm"
+                    value={(selectedRisk[field as keyof typeof selectedRisk] as string) ?? ""}
+                    onChange={(e) => patchRisk(field as string, e.target.value || null)}
+                  >
+                    <option value="">—</option>
+                    {(opts as string[]).map((o) => (
+                      <option key={o} value={o}>
+                        {t(`${tkey}.${o}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+              {[
+                ["financial_damage", "risk_fields.financial_damage"],
+                ["reputation", "risk_fields.reputation"],
+                ["regulation", "risk_fields.regulation"],
+              ].map(([field, label]) => (
+                <div className="col-6 col-md-4 col-xl-2" key={field}>
+                  <label className="form-label small">{t(label)}</label>
+                  <select
+                    className="form-select form-select-sm"
+                    value={(selectedRisk[field as keyof typeof selectedRisk] as number) ?? ""}
+                    onChange={(e) =>
+                      patchRisk(field, e.target.value ? Number(e.target.value) : null)
+                    }
+                  >
+                    <option value="">—</option>
+                    {ONE_TO_FIVE.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+              <div className="col-12">
+                <label className="form-label small">{t("risk_fields.description")}</label>
+                <textarea
+                  className="form-control form-control-sm"
+                  rows={2}
+                  defaultValue={selectedRisk.description ?? ""}
+                  onBlur={(e) => patchRisk("description", e.target.value || null)}
+                />
+              </div>
+            </div>
+            <div className="form-text mt-2">{t("risk_fields.itgc_hint")}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

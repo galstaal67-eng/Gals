@@ -29,6 +29,9 @@ export function Layout() {
           <Link className="nav-link" to="/users">
             {t("nav.users")}
           </Link>
+          <Link className="nav-link" to="/outbox">
+            {t("nav.outbox")}
+          </Link>
           <Link className="nav-link" to="/notifications">
             {t("nav.notifications")}
           </Link>
