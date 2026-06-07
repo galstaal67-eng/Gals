@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 
+import { type Contact, listContacts } from "../api/contacts";
 import {
   type BankItem,
   type Control,
@@ -42,7 +43,8 @@ const ONE_TO_FIVE = [1, 2, 3, 4, 5];
 
 export function SubsidiaryManagePage() {
   const { t } = useTranslation();
-  const { yearId = "", subId = "" } = useParams();
+  const { clientId = "", yearId = "", subId = "" } = useParams();
+  const [contacts, setContacts] = useState<Contact[]>([]);
 
   const [procs, setProcs] = useState<ProcessSelection[]>([]);
   const [procBank, setProcBank] = useState<BankItem[]>([]);
@@ -62,6 +64,8 @@ export function SubsidiaryManagePage() {
     purpose: "",
     control_type: "",
     frequency: "",
+    owner_contact_id: "",
+    operator_contact_id: "",
   });
 
   const [tests, setTests] = useState<ControlTest[]>([]);
@@ -76,7 +80,8 @@ export function SubsidiaryManagePage() {
   };
   useEffect(() => {
     loadProcs();
-  }, [yearId, subId]);
+    if (clientId) listContacts(clientId).then(setContacts).catch(() => {});
+  }, [yearId, subId, clientId]);
 
   useEffect(() => {
     if (!selProc) return;
@@ -142,8 +147,18 @@ export function SubsidiaryManagePage() {
     if (ctrl.purpose) body.purpose = ctrl.purpose;
     if (ctrl.control_type) body.control_type = ctrl.control_type;
     if (ctrl.frequency) body.frequency = ctrl.frequency;
+    if (ctrl.owner_contact_id) body.owner_contact_id = ctrl.owner_contact_id;
+    if (ctrl.operator_contact_id) body.operator_contact_id = ctrl.operator_contact_id;
     await createControl(selRisk, body);
-    setCtrl({ control_name: "", is_key_control: false, purpose: "", control_type: "", frequency: "" });
+    setCtrl({
+      control_name: "",
+      is_key_control: false,
+      purpose: "",
+      control_type: "",
+      frequency: "",
+      owner_contact_id: "",
+      operator_contact_id: "",
+    });
     listControls(selRisk).then(setControls);
   };
 
@@ -152,7 +167,7 @@ export function SubsidiaryManagePage() {
   return (
     <div>
       <nav className="mb-3">
-        <Link to={`/audit-years/${yearId}`} className="text-decoration-none">
+        <Link to={`/clients/${clientId}/years/${yearId}`} className="text-decoration-none">
           ← {t("subsidiaries.title")}
         </Link>
       </nav>
@@ -293,6 +308,36 @@ export function SubsidiaryManagePage() {
                       />
                       <label className="form-check-label small">{t("control_fields.key")}</label>
                     </div>
+                  </div>
+                  <div className="col-6">
+                    <select
+                      className="form-select form-select-sm"
+                      value={ctrl.owner_contact_id}
+                      disabled={!selRisk}
+                      onChange={(e) => setCtrl({ ...ctrl, owner_contact_id: e.target.value })}
+                    >
+                      <option value="">{t("control_fields.owner")}</option>
+                      {contacts.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.full_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-6">
+                    <select
+                      className="form-select form-select-sm"
+                      value={ctrl.operator_contact_id}
+                      disabled={!selRisk}
+                      onChange={(e) => setCtrl({ ...ctrl, operator_contact_id: e.target.value })}
+                    >
+                      <option value="">{t("control_fields.operator")}</option>
+                      {contacts.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.full_name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <button className="btn btn-sm btn-primary w-100 mt-1" disabled={!selRisk}>

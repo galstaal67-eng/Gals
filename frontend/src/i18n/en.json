@@ -190,6 +190,8 @@
     "type": "Type",
     "frequency": "Frequency",
     "key": "Key",
+    "owner": "Control owner",
+    "operator": "Control operator",
     "purposes": {
       "preventive": "Preventive",
       "directive": "Directive",

@@ -316,7 +316,7 @@ export function ClientDetailPage() {
                   </td>
                   <td className="text-end">
                     <Link
-                      to={`/audit-years/${y.id}`}
+                      to={`/clients/${clientId}/years/${y.id}`}
                       className="btn btn-sm btn-outline-primary me-2"
                     >
                       {t("audit_years.open")}

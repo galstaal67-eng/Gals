@@ -27,7 +27,7 @@ const PARAM_TYPES = [
 
 export function AuditYearPage() {
   const { t } = useTranslation();
-  const { yearId = "" } = useParams();
+  const { clientId = "", yearId = "" } = useParams();
   const { claims } = useAuth();
   const [params, setParams] = useState<MaterialityParam[]>([]);
   const [subs, setSubs] = useState<Subsidiary[]>([]);
@@ -67,6 +67,11 @@ export function AuditYearPage() {
 
   return (
     <div>
+      <nav className="mb-2">
+        <Link to={`/clients/${clientId}`} className="text-decoration-none">
+          ← {t("audit_years.title")}
+        </Link>
+      </nav>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h1 className="h4 mb-0">{t("audit_years.year_title")}</h1>
         <div className="btn-group">
@@ -209,7 +214,7 @@ export function AuditYearPage() {
                   <td>{s.scope_approved ? "✓" : "—"}</td>
                   <td className="text-end">
                     <Link
-                      to={`/audit-years/${yearId}/subsidiaries/${s.id}`}
+                      to={`/clients/${clientId}/years/${yearId}/subs/${s.id}`}
                       className="btn btn-sm btn-outline-primary me-2"
                     >
                       {t("subsidiaries.manage")}

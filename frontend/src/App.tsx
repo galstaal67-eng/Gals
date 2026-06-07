@@ -29,9 +29,9 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/clients" element={<ClientsPage />} />
             <Route path="/clients/:clientId" element={<ClientDetailPage />} />
-            <Route path="/audit-years/:yearId" element={<AuditYearPage />} />
+            <Route path="/clients/:clientId/years/:yearId" element={<AuditYearPage />} />
             <Route
-              path="/audit-years/:yearId/subsidiaries/:subId"
+              path="/clients/:clientId/years/:yearId/subs/:subId"
               element={<SubsidiaryManagePage />}
             />
             <Route path="/users" element={<UsersPage />} />

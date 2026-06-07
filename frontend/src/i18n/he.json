@@ -190,6 +190,8 @@
     "type": "סוג בקרה",
     "frequency": "תדירות",
     "key": "מפתח",
+    "owner": "אחראי בקרה",
+    "operator": "מבצע בקרה",
     "purposes": {
       "preventive": "מונעת",
       "directive": "מנחה",
