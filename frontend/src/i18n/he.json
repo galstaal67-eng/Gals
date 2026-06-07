@@ -183,7 +183,9 @@
     "request_evidence": "📧 בקש ראיות",
     "pick_control": "בחר בקרה כדי לראות טסטים",
     "no_tests_hint": "טסט נוצר אוטומטית כשבקרה מאושרת",
-    "evidence": "ראיות / קבצים תומכים"
+    "evidence": "ראיות / קבצים תומכים",
+    "ai_suggest": "🤖 הצעות בקרה (AI)",
+    "ai_loading": "מחשב הצעות…"
   },
   "control_fields": {
     "purpose": "מטרת הבקרה",

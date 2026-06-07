@@ -183,7 +183,9 @@
     "request_evidence": "📧 Request evidence",
     "pick_control": "Select a control to see tests",
     "no_tests_hint": "A test is created when a control is validated",
-    "evidence": "Evidence / supporting files"
+    "evidence": "Evidence / supporting files",
+    "ai_suggest": "🤖 AI control suggestions",
+    "ai_loading": "Generating…"
   },
   "control_fields": {
     "purpose": "Purpose",

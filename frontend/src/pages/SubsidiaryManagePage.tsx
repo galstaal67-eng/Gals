@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 
+import { type ControlSuggestion, suggestControls } from "../api/ai";
 import { type Contact, listContacts } from "../api/contacts";
 import {
   type BankItem,
@@ -70,6 +71,8 @@ export function SubsidiaryManagePage() {
 
   const [tests, setTests] = useState<ControlTest[]>([]);
   const [evidence, setEvidence] = useState<Record<string, Evidence[]>>({});
+  const [suggestions, setSuggestions] = useState<ControlSuggestion[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const bankName = (bank: BankItem[], id: string) => bank.find((b) => b.id === id)?.name_he ?? id;
@@ -98,6 +101,7 @@ export function SubsidiaryManagePage() {
     listControls(selRisk).then(setControls).catch((e) => setError(String(e)));
     setSelControl(null);
     setTests([]);
+    setSuggestions([]);
   }, [selRisk]);
 
   const selectedRisk = risks.find((r) => r.id === selRisk) ?? null;
@@ -161,6 +165,25 @@ export function SubsidiaryManagePage() {
     });
     listControls(selRisk).then(setControls);
   };
+
+  const loadSuggestions = async () => {
+    if (!selectedRisk) return;
+    setAiLoading(true);
+    setError(null);
+    try {
+      const out = await suggestControls(
+        bankName(riskBank, selectedRisk.risk_id),
+        selectedRisk.description,
+      );
+      setSuggestions(out);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setAiLoading(false);
+    }
+  };
+  const applySuggestion = (s: ControlSuggestion) =>
+    setCtrl({ ...ctrl, control_name: s.name, control_type: s.control_type ?? "" });
 
   const col = "col-12 col-xl-3";
 
@@ -344,6 +367,29 @@ export function SubsidiaryManagePage() {
                   {t("manage.new_control")}
                 </button>
               </form>
+              <button
+                className="btn btn-sm btn-outline-info w-100 mt-1"
+                disabled={!selRisk || aiLoading}
+                onClick={loadSuggestions}
+              >
+                {aiLoading ? t("manage.ai_loading") : t("manage.ai_suggest")}
+              </button>
+              {suggestions.length > 0 && (
+                <ul className="list-unstyled small mt-2 mb-0">
+                  {suggestions.map((s, i) => (
+                    <li key={i} className="border rounded p-1 mb-1">
+                      <button
+                        type="button"
+                        className="btn btn-link btn-sm p-0 text-start fw-bold"
+                        onClick={() => applySuggestion(s)}
+                      >
+                        ✨ {s.name}
+                      </button>
+                      {s.description && <div className="text-muted">{s.description}</div>}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
             <ul className="list-group list-group-flush">
               {controls.map((c) => (
