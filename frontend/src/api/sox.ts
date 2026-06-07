@@ -136,6 +136,8 @@ export interface Evidence {
   file_hash: string | null;
   is_sample: boolean;
 }
+export const updateTest = (tid: string, body: Record<string, unknown>) =>
+  api<ControlTest>(`/tests/${tid}`, { method: "PATCH", body });
 export const listTestsForControl = (cid: string) => api<ControlTest[]>(`/controls/${cid}/tests`);
 export const listTestsForYear = (yearId: string) =>
   api<ControlTest[]>(`/audit-years/${yearId}/tests`);

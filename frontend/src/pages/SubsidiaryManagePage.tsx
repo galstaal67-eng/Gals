@@ -31,6 +31,7 @@ import {
   transitionControl,
   transitionTest,
   updateRiskSelection,
+  updateTest,
   uploadEvidence,
 } from "../api/sox";
 
@@ -58,6 +59,8 @@ const ONE_TO_FIVE = [1, 2, 3, 4, 5];
 // non-terminal state and appended below. The backend remains the authority.
 const TEST_TERMINAL = ["internally_closed", "deficiency_closed", "not_relevant"];
 const TEST_MANUAL = ["needs_attention", "round_b_pending", "not_relevant"];
+const SEVERITIES = ["deficiency", "material_deficiency", "material_weakness"];
+const TEST_DEFICIENCY = ["deficiency_open", "deficiency_compensated", "deficiency_closed"];
 const TEST_NEXT: Record<string, string[]> = {
   pending_receipt: ["consultant_handling"],
   consultant_handling: ["company_completion", "reviewed_approved", "deficiency_open"],
@@ -559,6 +562,25 @@ export function SubsidiaryManagePage() {
                       {testTargets(tst.status).map((s) => (
                         <option key={s} value={s}>
                           {t(`test_status.${s}`)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {TEST_DEFICIENCY.includes(tst.status) && (
+                    <select
+                      className="form-select form-select-sm mt-1"
+                      value={tst.severity ?? ""}
+                      onChange={async (e) => {
+                        await updateTest(tst.id, { severity: e.target.value || null }).catch(
+                          (err) => setError(String(err)),
+                        );
+                        loadTests(selControl!);
+                      }}
+                    >
+                      <option value="">{t("severity.label")}</option>
+                      {SEVERITIES.map((s) => (
+                        <option key={s} value={s}>
+                          {t(`severity.${s}`)}
                         </option>
                       ))}
                     </select>

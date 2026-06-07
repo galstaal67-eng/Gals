@@ -180,6 +180,12 @@
       "fraud_or_error": "Material fraud/embezzlement/errors"
     }
   },
+  "severity": {
+    "label": "Deficiency severity…",
+    "deficiency": "Deficiency",
+    "material_deficiency": "Material deficiency",
+    "material_weakness": "Material weakness"
+  },
   "nav_tabs": {
     "processes": "Processes",
     "risks": "Risks",

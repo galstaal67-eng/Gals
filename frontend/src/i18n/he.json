@@ -180,6 +180,12 @@
       "fraud_or_error": "הונאות/מעילות/טעויות מהותיות"
     }
   },
+  "severity": {
+    "label": "חומרת ליקוי…",
+    "deficiency": "ליקוי",
+    "material_deficiency": "ליקוי מהותי",
+    "material_weakness": "חולשה מהותית"
+  },
   "nav_tabs": {
     "processes": "תהליכים",
     "risks": "סיכונים",
