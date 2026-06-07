@@ -203,6 +203,7 @@ export function SubsidiaryManagePage() {
     const bank = await createBankRisk(newRisk);
     await createRiskSelection(selProc, bank.id);
     setNewRisk("");
+    setRiskBank((prev) => (prev.some((b) => b.id === bank.id) ? prev : [...prev, bank]));
     listRiskSelections(selProc).then(setRisks);
   };
   const addControl = async (e: React.FormEvent) => {
