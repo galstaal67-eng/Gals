@@ -135,6 +135,7 @@
     "add": "הוסף שנה",
     "open": "פתח",
     "lock": "נעל",
+    "clone_previous": "שכפל משנה קודמת",
     "empty": "אין שנות ביקורת"
   },
   "materiality": {

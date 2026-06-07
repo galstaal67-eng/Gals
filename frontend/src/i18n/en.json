@@ -135,6 +135,7 @@
     "add": "Add year",
     "open": "Open",
     "lock": "Lock",
+    "clone_previous": "Clone from previous year",
     "empty": "No audit years"
   },
   "materiality": {

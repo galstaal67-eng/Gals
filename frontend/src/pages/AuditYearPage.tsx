@@ -6,6 +6,7 @@ import { downloadReport } from "../api/reports";
 import {
   type MaterialityParam,
   type Subsidiary,
+  cloneFromPrevious,
   createMateriality,
   createSubsidiary,
   listMateriality,
@@ -75,6 +76,22 @@ export function AuditYearPage() {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h1 className="h4 mb-0">{t("audit_years.year_title")}</h1>
         <div className="btn-group">
+          {canManage && (
+            <button
+              className="btn btn-sm btn-outline-primary"
+              onClick={async () => {
+                setError(null);
+                try {
+                  await cloneFromPrevious(yearId);
+                  refresh();
+                } catch (e) {
+                  setError(String(e));
+                }
+              }}
+            >
+              {t("audit_years.clone_previous")}
+            </button>
+          )}
           <button
             className="btn btn-sm btn-outline-secondary"
             onClick={() => downloadReport("controls-matrix", yearId, "xlsx").catch((e) => setError(String(e)))}
