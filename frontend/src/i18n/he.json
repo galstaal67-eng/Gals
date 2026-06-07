@@ -59,6 +59,7 @@
   },
   "login": {
     "title": "התחברות",
+    "subtitle": "מערכת ניהול בקרות SOX",
     "subdomain": "מזהה ארגון",
     "email": "דוא\"ל",
     "password": "סיסמה",

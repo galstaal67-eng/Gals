@@ -1,11 +1,19 @@
 import { useTranslation } from "react-i18next";
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
 
+const NAV = [
+  { to: "/dashboard", key: "dashboard", ico: "📊" },
+  { to: "/clients", key: "clients", ico: "🏢" },
+  { to: "/users", key: "users", ico: "👥" },
+  { to: "/outbox", key: "outbox", ico: "✉️" },
+  { to: "/notifications", key: "notifications", ico: "🔔" },
+];
+
 export function Layout() {
   const { t, i18n } = useTranslation();
-  const { signOut } = useAuth();
+  const { signOut, claims } = useAuth();
   const navigate = useNavigate();
 
   const toggleLang = () => i18n.changeLanguage(i18n.language === "he" ? "en" : "he");
@@ -16,36 +24,42 @@ export function Layout() {
   };
 
   return (
-    <div className="d-flex flex-column min-vh-100">
-      <nav className="navbar navbar-expand bg-light border-bottom px-3">
-        <span className="navbar-brand">{t("app.title")}</span>
-        <div className="navbar-nav me-auto">
-          <Link className="nav-link" to="/dashboard">
-            {t("nav.dashboard")}
-          </Link>
-          <Link className="nav-link" to="/clients">
-            {t("nav.clients")}
-          </Link>
-          <Link className="nav-link" to="/users">
-            {t("nav.users")}
-          </Link>
-          <Link className="nav-link" to="/outbox">
-            {t("nav.outbox")}
-          </Link>
-          <Link className="nav-link" to="/notifications">
-            {t("nav.notifications")}
-          </Link>
+    <div className="app-shell">
+      <aside className="app-sidebar">
+        <div className="app-brand">
+          <span className="brand-badge">✓</span>
+          <span>{t("app.title")}</span>
         </div>
-        <button className="btn btn-sm btn-outline-secondary mx-2" onClick={toggleLang}>
-          {t("common.language")}
-        </button>
-        <button className="btn btn-sm btn-outline-danger" onClick={onLogout}>
-          {t("nav.logout")}
-        </button>
-      </nav>
-      <main className="container py-4 flex-grow-1">
-        <Outlet />
-      </main>
+        <nav className="app-nav">
+          {NAV.map((item) => (
+            <NavLink key={item.to} to={item.to}>
+              <span className="nav-ico">{item.ico}</span>
+              <span>{t(`nav.${item.key}`)}</span>
+            </NavLink>
+          ))}
+        </nav>
+        <div className="app-sidebar-foot">
+          <button className="btn btn-sm btn-outline-light w-100" onClick={onLogout}>
+            {t("nav.logout")}
+          </button>
+        </div>
+      </aside>
+
+      <div className="app-main">
+        <header className="app-topbar">
+          <button className="btn btn-sm btn-outline-secondary ms-auto" onClick={toggleLang}>
+            {t("common.language")}
+          </button>
+          {claims?.role && (
+            <span className="badge rounded-pill text-bg-light ms-2">
+              {t(`roles.${claims.role}`)}
+            </span>
+          )}
+        </header>
+        <main className="app-content">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

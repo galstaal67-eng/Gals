@@ -1,4 +1,5 @@
 import "bootstrap/dist/css/bootstrap.min.css";
+import "./styles/theme.css";
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

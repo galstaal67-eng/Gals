@@ -55,9 +55,15 @@ export function LoginPage() {
   };
 
   return (
-    <div className="container" style={{ maxWidth: 420, marginTop: "10vh" }}>
-      <h1 className="h4 mb-4">{t("login.title")}</h1>
-      {error && <div className="alert alert-danger">{error}</div>}
+    <div className="auth-wrap">
+      <div className="auth-card">
+        <div className="auth-brand">
+          <span className="brand-badge">✓</span>
+          <span>{t("app.title")}</span>
+        </div>
+        <h1 className="h5 mb-1">{t("login.title")}</h1>
+        <p className="text-muted small mb-4">{t("login.subtitle")}</p>
+        {error && <div className="alert alert-danger py-2">{error}</div>}
 
       {!mfaToken ? (
         <form onSubmit={onSubmit}>
@@ -92,6 +98,7 @@ export function LoginPage() {
           </button>
         </form>
       )}
+      </div>
     </div>
   );
 }

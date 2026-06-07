@@ -59,6 +59,7 @@
   },
   "login": {
     "title": "Sign in",
+    "subtitle": "SOX controls management system",
     "subdomain": "Organization ID",
     "email": "Email",
     "password": "Password",
