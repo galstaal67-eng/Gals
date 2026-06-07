@@ -166,6 +166,19 @@
     "approve_scope": "אשר תיחום",
     "empty": "אין חברות בנות"
   },
+  "qualitative": {
+    "title": "שאלות איכותיות (מהותיות חברת בת)",
+    "hint": "מהותית כאשר ‎4 מתוך 5 התשובות חיוביות",
+    "result_pass": "מהותית",
+    "result_fail": "לא מהותית",
+    "questions": {
+      "separate_location": "מיקום פיזי נפרד",
+      "separate_management": "הנהלה/דירקטוריון נפרדים",
+      "separate_systems": "מערכות מידע מופרדות",
+      "unique_reporting_risk": "סיכון ייחודי בדיווח/גילוי",
+      "fraud_or_error": "הונאות/מעילות/טעויות מהותיות"
+    }
+  },
   "nav_tabs": {
     "processes": "תהליכים",
     "risks": "סיכונים",

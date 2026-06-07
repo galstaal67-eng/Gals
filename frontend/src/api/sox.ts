@@ -46,7 +46,13 @@ export const listSubsidiaries = (yearId: string) =>
   api<Subsidiary[]>(`/audit-years/${yearId}/subsidiaries`);
 export const createSubsidiary = (yearId: string, name: string) =>
   api<Subsidiary>(`/audit-years/${yearId}/subsidiaries`, { method: "POST", body: { name } });
-export const setQualitative = (subId: string, answers: { question_key: string; answer: boolean }[]) =>
+export interface QualitativeAnswer {
+  question_key: string;
+  answer: boolean;
+}
+export const getQualitative = (subId: string) =>
+  api<QualitativeAnswer[]>(`/subsidiaries/${subId}/qualitative-answers`);
+export const setQualitative = (subId: string, answers: QualitativeAnswer[]) =>
   api<Subsidiary>(`/subsidiaries/${subId}/qualitative-answers`, { method: "PUT", body: { answers } });
 export const scopeDecision = (subId: string, is_significant: boolean, approve: boolean) =>
   api<Subsidiary>(`/subsidiaries/${subId}/scope-decision`, {

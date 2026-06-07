@@ -166,6 +166,19 @@
     "approve_scope": "Approve scope",
     "empty": "No subsidiaries"
   },
+  "qualitative": {
+    "title": "Qualitative questions (subsidiary significance)",
+    "hint": "Significant when 4 of 5 answers are yes",
+    "result_pass": "Significant",
+    "result_fail": "Not significant",
+    "questions": {
+      "separate_location": "Separate physical location",
+      "separate_management": "Separate management/board",
+      "separate_systems": "Separate information systems",
+      "unique_reporting_risk": "Unique reporting/disclosure risk",
+      "fraud_or_error": "Material fraud/embezzlement/errors"
+    }
+  },
   "nav_tabs": {
     "processes": "Processes",
     "risks": "Risks",

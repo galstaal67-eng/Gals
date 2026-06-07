@@ -10,12 +10,14 @@ import {
   type ControlTest,
   type Evidence,
   type ProcessSelection,
+  type QualitativeAnswer,
   type RiskSelection,
   createBankProcess,
   createBankRisk,
   createControl,
   createProcessSelection,
   createRiskSelection,
+  getQualitative,
   listControls,
   listEvidences,
   listProcessBank,
@@ -25,11 +27,20 @@ import {
   listTestsForControl,
   requestEvidence,
   requestValidation,
+  setQualitative,
   transitionControl,
   transitionTest,
   updateRiskSelection,
   uploadEvidence,
 } from "../api/sox";
+
+const QUALITATIVE_QUESTIONS = [
+  "separate_location",
+  "separate_management",
+  "separate_systems",
+  "unique_reporting_risk",
+  "fraud_or_error",
+];
 
 const PURPOSES = ["preventive", "directive", "detective", "compensating"];
 const CTRL_TYPES = ["manual", "automatic", "hybrid"];
@@ -73,6 +84,9 @@ export function SubsidiaryManagePage() {
   const [evidence, setEvidence] = useState<Record<string, Evidence[]>>({});
   const [suggestions, setSuggestions] = useState<ControlSuggestion[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [qual, setQual] = useState<Record<string, boolean>>({});
+  const [qualResult, setQualResult] = useState<string | null>(null);
+  const [qualSaved, setQualSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const bankName = (bank: BankItem[], id: string) => bank.find((b) => b.id === id)?.name_he ?? id;
@@ -81,10 +95,37 @@ export function SubsidiaryManagePage() {
     listProcessSelections(yearId, subId).then(setProcs).catch((e) => setError(String(e)));
     listProcessBank().then(setProcBank).catch(() => {});
   };
+  const loadQual = () => {
+    if (!subId) return;
+    getQualitative(subId)
+      .then((rows: QualitativeAnswer[]) => {
+        const map: Record<string, boolean> = {};
+        for (const r of rows) map[r.question_key] = r.answer;
+        setQual(map);
+      })
+      .catch(() => {});
+  };
   useEffect(() => {
     loadProcs();
+    loadQual();
     if (clientId) listContacts(clientId).then(setContacts).catch(() => {});
   }, [yearId, subId, clientId]);
+
+  const saveQual = async () => {
+    setError(null);
+    try {
+      const answers: QualitativeAnswer[] = QUALITATIVE_QUESTIONS.map((q) => ({
+        question_key: q,
+        answer: !!qual[q],
+      }));
+      const sub = await setQualitative(subId, answers);
+      setQualResult(sub.qualitative_result);
+      setQualSaved(true);
+      setTimeout(() => setQualSaved(false), 1500);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
 
   useEffect(() => {
     if (!selProc) return;
@@ -196,6 +237,45 @@ export function SubsidiaryManagePage() {
       </nav>
       <h1 className="h4 mb-3">{t("manage.title")}</h1>
       {error && <div className="alert alert-danger">{error}</div>}
+
+      {/* qualitative significance questions (C8) */}
+      <div className="card mb-3">
+        <div className="card-header fw-bold d-flex justify-content-between align-items-center">
+          <span>{t("qualitative.title")}</span>
+          {qualResult && (
+            <span className={`badge ${qualResult === "PASS" ? "bg-success" : "bg-secondary"}`}>
+              {t(`qualitative.result_${qualResult.toLowerCase()}`)}
+            </span>
+          )}
+        </div>
+        <div className="card-body">
+          <div className="row g-2">
+            {QUALITATIVE_QUESTIONS.map((q) => (
+              <div className="col-12 col-md-6" key={q}>
+                <div className="form-check">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    id={`qual-${q}`}
+                    checked={!!qual[q]}
+                    onChange={(e) => setQual({ ...qual, [q]: e.target.checked })}
+                  />
+                  <label className="form-check-label" htmlFor={`qual-${q}`}>
+                    {t(`qualitative.questions.${q}`)}
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="d-flex align-items-center gap-2 mt-2">
+            <button className="btn btn-sm btn-primary" onClick={saveQual}>
+              {t("common.save")}
+            </button>
+            {qualSaved && <span className="text-success small">✓</span>}
+            <span className="form-text mb-0 ms-auto">{t("qualitative.hint")}</span>
+          </div>
+        </div>
+      </div>
 
       <div className="row g-3">
         {/* processes */}
