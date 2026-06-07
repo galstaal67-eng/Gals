@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 
+import { downloadReport } from "../api/reports";
 import {
   type MaterialityParam,
   type Subsidiary,
@@ -66,7 +67,23 @@ export function AuditYearPage() {
 
   return (
     <div>
-      <h1 className="h4 mb-3">{t("audit_years.year_title")}</h1>
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h1 className="h4 mb-0">{t("audit_years.year_title")}</h1>
+        <div className="btn-group">
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            onClick={() => downloadReport("controls-matrix", yearId, "xlsx").catch((e) => setError(String(e)))}
+          >
+            {t("reports.controls_xlsx")}
+          </button>
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            onClick={() => downloadReport("test-status", yearId, "xlsx").catch((e) => setError(String(e)))}
+          >
+            {t("reports.tests_xlsx")}
+          </button>
+        </div>
+      </div>
       {error && <div className="alert alert-danger">{error}</div>}
 
       {/* materiality */}

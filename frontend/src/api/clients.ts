@@ -3,6 +3,8 @@ import type { Client } from "./types";
 
 export const listClients = () => api<Client[]>("/clients");
 
+export const getClient = (id: string) => api<Client>(`/clients/${id}`);
+
 export const createClient = (body: Partial<Client>) =>
   api<Client>("/clients", { method: "POST", body });
 

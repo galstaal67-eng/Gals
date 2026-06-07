@@ -61,6 +61,35 @@
     "auditor": "Auditor"
   },
   "common": { "save": "Save", "cancel": "Cancel", "language": "עברית" },
+  "client_info": {
+    "title": "General info",
+    "activity": "Activity description",
+    "regulations": "Relevant regulations"
+  },
+  "contacts": {
+    "title": "Contacts",
+    "name": "Full name",
+    "role": "Role",
+    "email": "Email",
+    "phone": "Phone",
+    "add": "Add contact",
+    "empty": "No contacts"
+  },
+  "sectors": {
+    "hitech": "Hi-tech",
+    "credit": "Credit",
+    "education": "Education",
+    "insurance": "Insurance",
+    "finance": "Finance",
+    "banking": "Banking",
+    "health": "Health",
+    "retail": "Retail",
+    "government": "Government"
+  },
+  "reports": {
+    "controls_xlsx": "Controls report (Excel)",
+    "tests_xlsx": "Tests report (Excel)"
+  },
   "audit_years": {
     "title": "Audit years",
     "year_title": "Audit year",

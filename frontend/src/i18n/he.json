@@ -61,6 +61,35 @@
     "auditor": "רו\"ח מבקר"
   },
   "common": { "save": "שמור", "cancel": "ביטול", "language": "English" },
+  "client_info": {
+    "title": "מידע כללי",
+    "activity": "תיאור הפעילות",
+    "regulations": "רגולציות רלוונטיות"
+  },
+  "contacts": {
+    "title": "אנשי קשר",
+    "name": "שם מלא",
+    "role": "תפקיד",
+    "email": "דוא\"ל",
+    "phone": "טלפון",
+    "add": "הוסף איש קשר",
+    "empty": "אין אנשי קשר"
+  },
+  "sectors": {
+    "hitech": "הייטק",
+    "credit": "אשראי",
+    "education": "חינוך",
+    "insurance": "ביטוח",
+    "finance": "פיננסים",
+    "banking": "בנקאות",
+    "health": "בריאות",
+    "retail": "קמעונאות",
+    "government": "ממשלתי"
+  },
+  "reports": {
+    "controls_xlsx": "דוח בקרות (Excel)",
+    "tests_xlsx": "דוח טסטים (Excel)"
+  },
   "audit_years": {
     "title": "שנות ביקורת",
     "year_title": "שנת ביקורת",
