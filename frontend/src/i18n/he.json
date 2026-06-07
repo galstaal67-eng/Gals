@@ -60,5 +60,84 @@
     "client": "לקוח",
     "auditor": "רו\"ח מבקר"
   },
-  "common": { "save": "שמור", "cancel": "ביטול", "language": "English" }
+  "common": { "save": "שמור", "cancel": "ביטול", "language": "English" },
+  "audit_years": {
+    "title": "שנות ביקורת",
+    "year_title": "שנת ביקורת",
+    "year": "שנה",
+    "status": "סטטוס",
+    "status_open": "פתוחה",
+    "status_locked": "נעולה",
+    "status_archived": "בארכיון",
+    "add": "הוסף שנה",
+    "open": "פתח",
+    "lock": "נעל",
+    "empty": "אין שנות ביקורת"
+  },
+  "materiality": {
+    "title": "ספי מהותיות",
+    "slot": "סף",
+    "param": "פרמטר",
+    "value": "ערך",
+    "percentage": "אחוז",
+    "threshold": "סף מחושב",
+    "types": {
+      "sales": "מכירות",
+      "net_income": "רווח (הפסד) נקי",
+      "assets": "נכסים",
+      "operating_income": "רווח תפעולי",
+      "equity": "הון עצמי",
+      "pretax_income": "רווח לפני מס",
+      "cash": "מזומנים",
+      "operating_expenses": "הוצאות תפעוליות"
+    }
+  },
+  "subsidiaries": {
+    "title": "חברות בנות",
+    "name": "שם חברת הבת",
+    "qualitative": "תוצאה איכותית",
+    "significant": "מהותית",
+    "approved": "תיחום מאושר",
+    "add": "הוסף חברת בת",
+    "manage": "נהל",
+    "approve_scope": "אשר תיחום",
+    "empty": "אין חברות בנות"
+  },
+  "nav_tabs": {
+    "processes": "תהליכים",
+    "risks": "סיכונים",
+    "controls": "בקרות",
+    "tests": "טסטים"
+  },
+  "manage": {
+    "title": "ניהול תהליכים",
+    "new_process": "שם תהליך חדש",
+    "new_risk": "שם סיכון חדש",
+    "new_control": "שם בקרה חדשה",
+    "request_validation": "שלח לתיקוף",
+    "validate": "אשר תיקוף",
+    "start_test": "התחל טסט",
+    "pick_control": "בחר בקרה כדי לראות טסטים",
+    "no_tests_hint": "טסט נוצר אוטומטית כשבקרה מאושרת"
+  },
+  "control_status": {
+    "draft": "בעריכה",
+    "needs_validation": "נדרש תיקוף",
+    "needs_fix": "נדרש תיקון",
+    "validated": "מאושר"
+  },
+  "test_status": {
+    "pending_receipt": "טרם התקבל",
+    "consultant_handling": "לטיפול היועץ",
+    "company_completion": "בהשלמת החברה",
+    "additional_evidence": "ראיות נוספות",
+    "reviewed_approved": "נבדקה ואושרה",
+    "internally_closed": "סגורה פנימית",
+    "needs_attention": "דורש טיפול",
+    "deficiency_open": "ליקוי פתוח",
+    "deficiency_compensated": "ליקוי עם בקרה מפצה",
+    "deficiency_closed": "ליקוי סגור",
+    "round_b_pending": "ייבדק בסבב ב'",
+    "not_relevant": "לא רלוונטי"
+  }
 }

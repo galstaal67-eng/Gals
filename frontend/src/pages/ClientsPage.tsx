@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 
 import { createClient, deleteClient, listClients } from "../api/clients";
 import type { Client } from "../api/types";
@@ -64,7 +65,9 @@ export function ClientsPage() {
           <tbody>
             {clients.map((c) => (
               <tr key={c.id}>
-                <td>{c.name}</td>
+                <td>
+                  <Link to={`/clients/${c.id}`}>{c.name}</Link>
+                </td>
                 <td>{c.industry ?? "—"}</td>
                 <td>{c.is_public ? "✓" : "—"}</td>
                 {claims?.role === "admin" && (

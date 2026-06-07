@@ -60,5 +60,84 @@
     "client": "Client",
     "auditor": "Auditor"
   },
-  "common": { "save": "Save", "cancel": "Cancel", "language": "עברית" }
+  "common": { "save": "Save", "cancel": "Cancel", "language": "עברית" },
+  "audit_years": {
+    "title": "Audit years",
+    "year_title": "Audit year",
+    "year": "Year",
+    "status": "Status",
+    "status_open": "Open",
+    "status_locked": "Locked",
+    "status_archived": "Archived",
+    "add": "Add year",
+    "open": "Open",
+    "lock": "Lock",
+    "empty": "No audit years"
+  },
+  "materiality": {
+    "title": "Materiality thresholds",
+    "slot": "Slot",
+    "param": "Parameter",
+    "value": "Value",
+    "percentage": "Percent",
+    "threshold": "Computed",
+    "types": {
+      "sales": "Sales",
+      "net_income": "Net income",
+      "assets": "Assets",
+      "operating_income": "Operating income",
+      "equity": "Equity",
+      "pretax_income": "Pretax income",
+      "cash": "Cash",
+      "operating_expenses": "Operating expenses"
+    }
+  },
+  "subsidiaries": {
+    "title": "Subsidiaries",
+    "name": "Subsidiary name",
+    "qualitative": "Qualitative",
+    "significant": "Significant",
+    "approved": "Scope approved",
+    "add": "Add subsidiary",
+    "manage": "Manage",
+    "approve_scope": "Approve scope",
+    "empty": "No subsidiaries"
+  },
+  "nav_tabs": {
+    "processes": "Processes",
+    "risks": "Risks",
+    "controls": "Controls",
+    "tests": "Tests"
+  },
+  "manage": {
+    "title": "Process management",
+    "new_process": "New process name",
+    "new_risk": "New risk name",
+    "new_control": "New control name",
+    "request_validation": "Request validation",
+    "validate": "Validate",
+    "start_test": "Start test",
+    "pick_control": "Select a control to see tests",
+    "no_tests_hint": "A test is created when a control is validated"
+  },
+  "control_status": {
+    "draft": "Draft",
+    "needs_validation": "Needs validation",
+    "needs_fix": "Needs fix",
+    "validated": "Validated"
+  },
+  "test_status": {
+    "pending_receipt": "Pending receipt",
+    "consultant_handling": "Consultant handling",
+    "company_completion": "Company completion",
+    "additional_evidence": "Additional evidence",
+    "reviewed_approved": "Reviewed & approved",
+    "internally_closed": "Internally closed",
+    "needs_attention": "Needs attention",
+    "deficiency_open": "Deficiency open",
+    "deficiency_compensated": "Deficiency compensated",
+    "deficiency_closed": "Deficiency closed",
+    "round_b_pending": "Round B pending",
+    "not_relevant": "Not relevant"
+  }
 }
