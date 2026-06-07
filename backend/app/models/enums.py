@@ -138,10 +138,12 @@ class ControlType(str, enum.Enum):
 class ControlFrequency(str, enum.Enum):
     ONGOING = "ongoing"  # שוטף
     AUTOMATIC = "automatic"  # אוטומטית
+    WEEKLY = "weekly"  # שבועית
     MONTHLY = "monthly"  # חודשית
     QUARTERLY = "quarterly"  # רבעונית
     SEMIANNUAL = "semiannual"  # חצי שנתית
     ANNUAL = "annual"  # שנתית
+    AD_HOC = "ad_hoc"  # אד-הוק
 
 
 class MaterialityParameterType(str, enum.Enum):

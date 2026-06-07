@@ -34,6 +34,9 @@ python -m app.scripts.bootstrap \
   --name "Entropy Demo" --subdomain demo \
   --admin-email admin@demo.com --admin-password "Demo12345!" || true
 
+echo "==> seeding global RCM catalog (idempotent)..."
+python -m app.scripts.seed_catalog || true
+
 echo "==> seeding demo client with full data (idempotent)..."
 python -m app.scripts.seed_demo || true
 

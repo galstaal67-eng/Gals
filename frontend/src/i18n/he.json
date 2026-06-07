@@ -1,12 +1,15 @@
 {
-  "app": { "title": "מערכת SOX" },
+  "app": {
+    "title": "מערכת SOX"
+  },
   "nav": {
     "dashboard": "דשבורד",
     "clients": "לקוחות",
     "users": "משתמשים",
     "outbox": "מיילים",
     "notifications": "התראות",
-    "logout": "התנתקות"
+    "logout": "התנתקות",
+    "catalog": "קטלוג בקרות"
   },
   "outbox": {
     "title": "תיבת דואר יוצא",
@@ -30,8 +33,15 @@
     "description": "תיאור הסיכון",
     "itgc_hint": "שדות הדירוג רלוונטיים לתהליך שאינו ITGC (נשמרים ריקים ל-ITGC)."
   },
-  "risk_class": { "financial": "כספי", "operational": "תפעולי" },
-  "risk_complexity": { "medium": "בינונית", "medium_high": "בינונית-גבוהה", "high": "גבוהה" },
+  "risk_class": {
+    "financial": "כספי",
+    "operational": "תפעולי"
+  },
+  "risk_complexity": {
+    "medium": "בינונית",
+    "medium_high": "בינונית-גבוהה",
+    "high": "גבוהה"
+  },
   "risk_freq": {
     "daily": "יומית",
     "multiple_daily": "רב פעמי ביום",
@@ -39,8 +49,18 @@
     "multiple_yearly": "מספר פעמים בשנה",
     "annual_plus": "שנתית ומעלה"
   },
-  "risk_prob": { "low": "נמוכה", "medium": "בינונית", "high": "גבוהה", "very_high": "גבוהה מאוד" },
-  "risk_rating": { "low": "קל", "medium": "בינוני", "high": "גבוה", "very_high": "גבוה מאוד" },
+  "risk_prob": {
+    "low": "נמוכה",
+    "medium": "בינונית",
+    "high": "גבוהה",
+    "very_high": "גבוהה מאוד"
+  },
+  "risk_rating": {
+    "low": "קל",
+    "medium": "בינוני",
+    "high": "גבוה",
+    "very_high": "גבוה מאוד"
+  },
   "dashboard": {
     "title": "דשבורד",
     "loading": "טוען…",
@@ -95,7 +115,12 @@
     "client": "לקוח",
     "auditor": "רו\"ח מבקר"
   },
-  "common": { "save": "שמור", "cancel": "ביטול", "language": "English" },
+  "common": {
+    "save": "שמור",
+    "cancel": "ביטול",
+    "language": "English",
+    "close": "סגור"
+  },
   "client_info": {
     "title": "מידע כללי",
     "activity": "תיאור הפעילות",
@@ -222,14 +247,20 @@
       "detective": "מגלה",
       "compensating": "מפצה"
     },
-    "types": { "manual": "ידנית", "automatic": "אוטומטית", "hybrid": "משולבת" },
+    "types": {
+      "manual": "ידנית",
+      "automatic": "אוטומטית",
+      "hybrid": "משולבת"
+    },
     "freqs": {
       "ongoing": "שוטף",
       "automatic": "אוטומטית",
       "monthly": "חודשית",
       "quarterly": "רבעונית",
       "semiannual": "חצי שנתית",
-      "annual": "שנתית"
+      "annual": "שנתית",
+      "weekly": "שבועית",
+      "ad_hoc": "אד-הוק"
     }
   },
   "control_status": {
@@ -251,5 +282,28 @@
     "deficiency_closed": "ליקוי סגור",
     "round_b_pending": "ייבדק בסבב ב'",
     "not_relevant": "לא רלוונטי"
+  },
+  "catalog": {
+    "title": "קטלוג בקרות",
+    "subtitle": "מאגר תהליכים ובקרות גלובלי — לעיון ולייבוא אל שנת ביקורת",
+    "search": "חיפוש לפי בקרה / סיכון / קוד",
+    "all_processes": "כל התהליכים",
+    "key_only": "בקרות מפתח בלבד",
+    "controls_count": "{{count}} בקרות",
+    "total_count": "{{count}} בקרות ב-{{procs}} תהליכים",
+    "import": "ייבא לשנת ביקורת",
+    "empty": "לא נמצאו בקרות התואמות לסינון",
+    "risk": "סיכון",
+    "owner": "אחראי מומלץ",
+    "step": "שלב",
+    "key_badge": "בקרת מפתח",
+    "import_title": "ייבוא בקרה לשנת ביקורת",
+    "pick_client": "בחר לקוח",
+    "pick_year": "בחר שנת ביקורת",
+    "pick_sub": "בחר חברה־בת",
+    "import_confirm": "ייבא בקרה",
+    "cancel": "ביטול",
+    "imported": "הבקרה יובאה בהצלחה ✓",
+    "import_hint": "הבקרה תיווסף עם בחירת התהליך והסיכון המתאימים, ותכלול את ברירות המחדל מהקטלוג."
   }
 }

@@ -24,6 +24,11 @@ const COLORS: Record<string, string> = {
   deficiency: "warning",
   material_deficiency: "danger",
   material_weakness: "dark",
+  // control purpose
+  preventive: "primary",
+  detective: "info",
+  directive: "secondary",
+  compensating: "warning",
 };
 
 export function StatusBadge({ value, prefix }: { value: string; prefix: string }) {

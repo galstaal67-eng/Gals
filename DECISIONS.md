@@ -132,6 +132,22 @@ WAF של Microsoft, וקישורי SharePoint/Planner. נעילה ל-Azure מפ�
 פירוש מילולי: **≥4 מתוך 5** "כן" → מהותי איכותית. מיושם כקבוע יחיד
 (`QUALITATIVE_YES_THRESHOLD=4`) הניתן לשינוי במקום אחד.
 
+### C9 — קטלוג RCM גלובלי (seed מ-sox-controls-dashboard)
+מקור הנתונים: ענף `sox-controls-dashboard` במאגר `Dashboards` — מטריצת RCM של
+**9 תהליכים / 167 בקרות**. נזרע אל הבנקים הגלובליים (`processes`, `sub_activities`,
+`risks`, `control_bank`) עם `is_global=true` ו-`tenant_id=NULL`, חשוף לכל ה-tenants
+דרך RLS. הקובץ `backend/app/scripts/data/sox_catalog.json` הוא מקור האמת לזריעה
+(`app.scripts.seed_catalog`, אידמפוטנטי, מורץ ב-entrypoint).
+- **הרחבת `control_bank`** — נוספו `process_id`, `step`, `risk_description`,
+  `owner_hint`, `default_purpose`, `default_type`, `default_frequency`,
+  `is_key_default`, כדי לשמר את מאפייני הבקרה מהקטלוג ולמלא אוטומטית את מופע
+  הבקרה בעת בחירה.
+- **`ControlFrequency`** — נוספו `weekly` ו-`ad_hoc` (migration `0011_catalog`,
+  `ALTER TYPE ... ADD VALUE` ב-PostgreSQL בלבד).
+- **ייבוא** — `POST /audit-years/{y}/subsidiaries/{s}/import-control` בונה את כל
+  השרשרת החסרה (process_selection ← risk_selection ← control) ומעתיק את ברירות
+  המחדל. מסך `קטלוג בקרות` (`/catalog`) מאפשר עיון, סינון וייבוא.
+
 ---
 
 ## 7. סטטוס פאזות

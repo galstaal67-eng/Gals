@@ -79,8 +79,17 @@
 
 > שדות הדירוג (complexity..residual_rating) רלוונטיים רק כשהתהליך **אינו** ITGC.
 
+### control_bank
+בנק/קטלוג בקרות לבחירה — שורות גלובליות (`is_global=true`, `tenant_id=NULL`)
+נזרעות מקטלוג ה-RCM (ראה DECISIONS C9) ומשמרות את מאפייני הבקרה לבחירה.
+`id` (PK), `tenant_id` (FK, nullable), `code`, `name_he`, `desired_description`,
+`is_global` (bool), `process_id` (FK processes, nullable), `step`,
+`risk_description`, `owner_hint`, `default_purpose`, `default_type`,
+`default_frequency`, `is_key_default` (bool). בעת ייבוא בקרה מהקטלוג מועתקים
+שדות ה-`default_*` אל מופע ה-`controls`.
+
 ### controls
-`id` (PK), `tenant_id` (FK), `risk_id` (FK), `subsidiary_id` (FK), `audit_year_id` (FK), `code`, `previous_code`, `system_name`, `control_name`, `desired_description`, `actual_description`, `purpose` (preventive/directive/detective/compensating), `control_type` (manual/automatic/hybrid), `frequency` (continuous/automatic/monthly/quarterly/semiannual/annual), `owner_user_id`, `operator_user_id`, `is_key_control` (bool), `status` (draft/in_validation/needs_validation/needs_fix/validated)
+`id` (PK), `tenant_id` (FK), `risk_id` (FK), `subsidiary_id` (FK), `audit_year_id` (FK), `code`, `previous_code`, `system_name`, `control_name`, `desired_description`, `actual_description`, `purpose` (preventive/directive/detective/compensating), `control_type` (manual/automatic/hybrid), `frequency` (ongoing/automatic/weekly/monthly/quarterly/semiannual/annual/ad_hoc), `owner_user_id`, `operator_user_id`, `is_key_control` (bool), `status` (draft/in_validation/needs_validation/needs_fix/validated)
 
 ### control_tests
 `id` (PK), `tenant_id` (FK), `control_id` (FK), `audit_year_id` (FK), `test_round` (round_a/round_b/both/not_required), `required_evidence` (jsonb), `test_method`, `results`, `notes`, `status` (ראה §3 — enum 12 סטטוסים), `severity` (deficiency/material_deficiency/material_weakness, nullable), `effectiveness` (effective/ineffective/not_relevant, nullable), `compensating_control`, `company_response`, `assigned_to_user_id`, `due_date`, `no_due_date` (bool), `ready_to_send` (bool), `completed_at`

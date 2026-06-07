@@ -26,6 +26,20 @@ class ControlBankOut(BaseModel):
     name_he: str
     desired_description: str | None
     is_global: bool
+    process_id: uuid.UUID | None = None
+    step: str | None = None
+    risk_description: str | None = None
+    owner_hint: str | None = None
+    default_purpose: ControlPurpose | None = None
+    default_type: ControlType | None = None
+    default_frequency: ControlFrequency | None = None
+    is_key_default: bool = False
+
+
+class ControlImportRequest(BaseModel):
+    """ייבוא בקרה מהקטלוג הגלובלי אל חברה־בת בשנת ביקורת."""
+
+    control_bank_id: uuid.UUID
 
 
 # ----- instances -----

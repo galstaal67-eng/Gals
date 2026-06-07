@@ -15,12 +15,16 @@ from app.models.contact import Contact
 from app.models.control import Control, ControlBank
 from app.models.control_test import ControlTest
 from app.models.enums import AuditAction, AuditYearStatus, ControlStatus, UserRole
-from app.models.risk import RiskSelection
+from app.models.process import Process
+from app.models.process_selection import ProcessSelection
+from app.models.risk import Risk, RiskSelection
+from app.models.subsidiary import Subsidiary
 from app.models.user import User
 from app.schemas.control import (
     ControlBankCreate,
     ControlBankOut,
     ControlCreate,
+    ControlImportRequest,
     ControlOut,
     ControlTransition,
     ControlUpdate,
@@ -88,16 +92,14 @@ async def _get_control(db: AsyncSession, user: CurrentUser, cid: uuid.UUID) -> C
 
 @router.get("/controls/bank", response_model=list[ControlBankOut])
 async def list_bank(
+    process_id: uuid.UUID | None = None,
     user: CurrentUser = Depends(require(Permission.CONTROL_VIEW)),
     db: AsyncSession = Depends(get_db),
 ):
-    rows = (
-        await db.execute(
-            select(ControlBank)
-            .where(_visible_bank(user), ControlBank.deleted_at.is_(None))
-            .order_by(ControlBank.name_he)
-        )
-    ).scalars().all()
+    stmt = select(ControlBank).where(_visible_bank(user), ControlBank.deleted_at.is_(None))
+    if process_id is not None:
+        stmt = stmt.where(ControlBank.process_id == process_id)
+    rows = (await db.execute(stmt.order_by(ControlBank.code, ControlBank.name_he))).scalars().all()
     return rows
 
 
@@ -193,6 +195,157 @@ async def create_control(
         tenant_id=user.tenant_id,
         user_id=user.id,
         after={"control_name": body.control_name},
+    )
+    await db.commit()
+    await db.refresh(ctrl)
+    return ctrl
+
+
+@router.post(
+    "/audit-years/{year_id}/subsidiaries/{sub_id}/import-control",
+    response_model=ControlOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_control_from_catalog(
+    year_id: uuid.UUID,
+    sub_id: uuid.UUID,
+    body: ControlImportRequest,
+    user: CurrentUser = Depends(require(Permission.CONTROL_CREATE)),
+    db: AsyncSession = Depends(get_db),
+):
+    """ייבוא בקרה מהקטלוג אל חברה־בת בשנת ביקורת.
+
+    בונה את כל השרשרת כשהיא חסרה — בחירת תהליך ← בחירת סיכון ← מופע בקרה —
+    ומעתיק את ברירות המחדל מהקטלוג (סוג/תדירות/מטרה/בקרת מפתח) לבקרה החדשה.
+    """
+    await _ensure_year_open(db, user, year_id)
+    sub = (
+        await db.execute(
+            select(Subsidiary).where(
+                Subsidiary.id == sub_id,
+                Subsidiary.audit_year_id == year_id,
+                Subsidiary.tenant_id == user.tenant_id,
+                Subsidiary.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if not sub:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "subsidiary not found")
+
+    bank = (
+        await db.execute(
+            select(ControlBank).where(
+                ControlBank.id == body.control_bank_id,
+                _visible_bank(user),
+                ControlBank.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if not bank:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "control not found in catalog")
+    if bank.process_id is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "catalog control has no process")
+
+    # Ensure the bank process is itself visible (global or tenant) — guards against
+    # importing a control whose process belongs to another tenant.
+    proc = (
+        await db.execute(
+            select(Process).where(
+                Process.id == bank.process_id,
+                or_(Process.is_global.is_(True), Process.tenant_id == user.tenant_id),
+                Process.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if not proc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "process not found in bank")
+
+    # 1) process selection — find or create.
+    psel = (
+        await db.execute(
+            select(ProcessSelection).where(
+                ProcessSelection.audit_year_id == year_id,
+                ProcessSelection.subsidiary_id == sub_id,
+                ProcessSelection.process_id == bank.process_id,
+                ProcessSelection.tenant_id == user.tenant_id,
+                ProcessSelection.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if not psel:
+        psel = ProcessSelection(
+            tenant_id=user.tenant_id,
+            audit_year_id=year_id,
+            subsidiary_id=sub_id,
+            process_id=bank.process_id,
+        )
+        db.add(psel)
+        await db.flush()
+
+    # 2) risk (find global/tenant, else create tenant copy) + risk selection.
+    risk_name = bank.risk_description or bank.name_he
+    risk = (
+        await db.execute(
+            select(Risk).where(
+                Risk.name_he == risk_name,
+                or_(Risk.is_global.is_(True), Risk.tenant_id == user.tenant_id),
+                Risk.deleted_at.is_(None),
+            )
+        )
+    ).scalars().first()
+    if not risk:
+        risk = Risk(tenant_id=user.tenant_id, name_he=risk_name, is_global=False)
+        db.add(risk)
+        await db.flush()
+
+    rsel = (
+        await db.execute(
+            select(RiskSelection).where(
+                RiskSelection.process_selection_id == psel.id,
+                RiskSelection.risk_id == risk.id,
+                RiskSelection.tenant_id == user.tenant_id,
+                RiskSelection.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if not rsel:
+        rsel = RiskSelection(
+            tenant_id=user.tenant_id,
+            process_selection_id=psel.id,
+            subsidiary_id=sub_id,
+            audit_year_id=year_id,
+            risk_id=risk.id,
+        )
+        db.add(rsel)
+        await db.flush()
+
+    # 3) control instance — copy catalog defaults.
+    ctrl = Control(
+        tenant_id=user.tenant_id,
+        audit_year_id=year_id,
+        subsidiary_id=sub_id,
+        risk_selection_id=rsel.id,
+        process_selection_id=psel.id,
+        control_bank_id=bank.id,
+        existing_code=bank.code,
+        control_name=bank.name_he,
+        desired_description=bank.desired_description,
+        purpose=bank.default_purpose,
+        control_type=bank.default_type,
+        frequency=bank.default_frequency,
+        is_key_control=bank.is_key_default,
+        status=ControlStatus.DRAFT,
+    )
+    db.add(ctrl)
+    await db.flush()
+    await record_audit(
+        db,
+        action=AuditAction.CREATE,
+        entity_type="control",
+        entity_id=ctrl.id,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        after={"imported_from_bank": str(bank.id), "control_name": bank.name_he},
     )
     await db.commit()
     await db.refresh(ctrl)

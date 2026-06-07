@@ -123,6 +123,34 @@ export const transitionControl = (cid: string, target_state: string) =>
 export const requestValidation = (cid: string) =>
   api<unknown>(`/controls/${cid}/request-validation`, { method: "POST", body: {} });
 
+// ---- control catalog (global bank) ----
+export interface CatalogControl {
+  id: string;
+  code: string | null;
+  name_he: string;
+  desired_description: string | null;
+  is_global: boolean;
+  process_id: string | null;
+  step: string | null;
+  risk_description: string | null;
+  owner_hint: string | null;
+  default_purpose: string | null;
+  default_type: string | null;
+  default_frequency: string | null;
+  is_key_default: boolean;
+}
+export const listControlCatalog = (processId?: string) =>
+  api<CatalogControl[]>(`/controls/bank${processId ? `?process_id=${processId}` : ""}`);
+export const importControlFromCatalog = (
+  yearId: string,
+  subId: string,
+  control_bank_id: string,
+) =>
+  api<Control>(`/audit-years/${yearId}/subsidiaries/${subId}/import-control`, {
+    method: "POST",
+    body: { control_bank_id },
+  });
+
 // ---- tests + evidence ----
 export interface ControlTest {
   id: string;

@@ -1,12 +1,15 @@
 {
-  "app": { "title": "SOX System" },
+  "app": {
+    "title": "SOX System"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "clients": "Clients",
     "users": "Users",
     "outbox": "Emails",
     "notifications": "Notifications",
-    "logout": "Logout"
+    "logout": "Logout",
+    "catalog": "Controls Catalog"
   },
   "outbox": {
     "title": "Outbox",
@@ -30,8 +33,15 @@
     "description": "Risk description",
     "itgc_hint": "Rating fields apply to non-ITGC processes (kept empty for ITGC)."
   },
-  "risk_class": { "financial": "Financial", "operational": "Operational" },
-  "risk_complexity": { "medium": "Medium", "medium_high": "Medium-high", "high": "High" },
+  "risk_class": {
+    "financial": "Financial",
+    "operational": "Operational"
+  },
+  "risk_complexity": {
+    "medium": "Medium",
+    "medium_high": "Medium-high",
+    "high": "High"
+  },
   "risk_freq": {
     "daily": "Daily",
     "multiple_daily": "Multiple/day",
@@ -39,8 +49,18 @@
     "multiple_yearly": "Multiple/year",
     "annual_plus": "Annual+"
   },
-  "risk_prob": { "low": "Low", "medium": "Medium", "high": "High", "very_high": "Very high" },
-  "risk_rating": { "low": "Low", "medium": "Medium", "high": "High", "very_high": "Very high" },
+  "risk_prob": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "very_high": "Very high"
+  },
+  "risk_rating": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "very_high": "Very high"
+  },
   "dashboard": {
     "title": "Dashboard",
     "loading": "Loading…",
@@ -95,7 +115,12 @@
     "client": "Client",
     "auditor": "Auditor"
   },
-  "common": { "save": "Save", "cancel": "Cancel", "language": "עברית" },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "language": "עברית",
+    "close": "Close"
+  },
   "client_info": {
     "title": "General info",
     "activity": "Activity description",
@@ -222,14 +247,20 @@
       "detective": "Detective",
       "compensating": "Compensating"
     },
-    "types": { "manual": "Manual", "automatic": "Automatic", "hybrid": "Hybrid" },
+    "types": {
+      "manual": "Manual",
+      "automatic": "Automatic",
+      "hybrid": "Hybrid"
+    },
     "freqs": {
       "ongoing": "Ongoing",
       "automatic": "Automatic",
       "monthly": "Monthly",
       "quarterly": "Quarterly",
       "semiannual": "Semiannual",
-      "annual": "Annual"
+      "annual": "Annual",
+      "weekly": "Weekly",
+      "ad_hoc": "Ad-hoc"
     }
   },
   "control_status": {
@@ -251,5 +282,28 @@
     "deficiency_closed": "Deficiency closed",
     "round_b_pending": "Round B pending",
     "not_relevant": "Not relevant"
+  },
+  "catalog": {
+    "title": "Controls Catalog",
+    "subtitle": "Global library of processes and controls — browse and import into an audit year",
+    "search": "Search by control / risk / code",
+    "all_processes": "All processes",
+    "key_only": "Key controls only",
+    "controls_count": "{{count}} controls",
+    "total_count": "{{count}} controls across {{procs}} processes",
+    "import": "Import to audit year",
+    "empty": "No controls match the filter",
+    "risk": "Risk",
+    "owner": "Suggested owner",
+    "step": "Step",
+    "key_badge": "Key control",
+    "import_title": "Import control into audit year",
+    "pick_client": "Select client",
+    "pick_year": "Select audit year",
+    "pick_sub": "Select subsidiary",
+    "import_confirm": "Import control",
+    "cancel": "Cancel",
+    "imported": "Control imported successfully ✓",
+    "import_hint": "The control will be added with the matching process and risk selections, including the catalog defaults."
   }
 }

@@ -4,6 +4,7 @@ import { AuthProvider } from "./auth/AuthContext";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuditYearPage } from "./pages/AuditYearPage";
+import { CatalogPage } from "./pages/CatalogPage";
 import { ClientDetailPage } from "./pages/ClientDetailPage";
 import { ClientsPage } from "./pages/ClientsPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -28,6 +29,7 @@ export default function App() {
           >
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/clients" element={<ClientsPage />} />
+            <Route path="/catalog" element={<CatalogPage />} />
             <Route path="/clients/:clientId" element={<ClientDetailPage />} />
             <Route path="/clients/:clientId/years/:yearId" element={<AuditYearPage />} />
             <Route

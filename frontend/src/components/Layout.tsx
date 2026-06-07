@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 const NAV = [
   { to: "/dashboard", key: "dashboard", ico: "📊" },
   { to: "/clients", key: "clients", ico: "🏢" },
+  { to: "/catalog", key: "catalog", ico: "📚" },
   { to: "/users", key: "users", ico: "👥" },
   { to: "/outbox", key: "outbox", ico: "✉️" },
   { to: "/notifications", key: "notifications", ico: "🔔" },

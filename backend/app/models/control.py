@@ -16,7 +16,11 @@ from app.models.enums import (
 
 
 class ControlBank(Base, TimestampMixin, SoftDeleteMixin):
-    """בנק בקרות — קטלוג גלובלי/לקוח של בקרות לבחירה (Q6)."""
+    """בנק בקרות — קטלוג גלובלי/לקוח של בקרות לבחירה (Q6).
+
+    שורות גלובליות (is_global) נזרעות מקטלוג ה-RCM ומשמרות את מאפייני
+    הבקרה (סוג/תדירות/בקרת מפתח) כדי למלא אוטומטית את מופע הבקרה בבחירה.
+    """
 
     __tablename__ = "control_bank"
 
@@ -28,6 +32,24 @@ class ControlBank(Base, TimestampMixin, SoftDeleteMixin):
     name_he: Mapped[str] = mapped_column(String(255), nullable=False)
     desired_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_global: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # Catalog enrichment — link to the global process bank + default attributes.
+    process_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("processes.id"), nullable=True, index=True
+    )
+    step: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    risk_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    owner_hint: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    default_purpose: Mapped[ControlPurpose | None] = mapped_column(
+        SAEnum(ControlPurpose, name="control_purpose"), nullable=True
+    )
+    default_type: Mapped[ControlType | None] = mapped_column(
+        SAEnum(ControlType, name="control_type"), nullable=True
+    )
+    default_frequency: Mapped[ControlFrequency | None] = mapped_column(
+        SAEnum(ControlFrequency, name="control_frequency"), nullable=True
+    )
+    is_key_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
 class Control(Base, TimestampMixin, SoftDeleteMixin):
