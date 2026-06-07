@@ -1,5 +1,4 @@
-import { api } from "./client";
-
+import { api, getToken } from "./client";
 // ---- audit years ----
 export interface AuditYear {
   id: string;
@@ -100,20 +99,41 @@ export interface Control {
 }
 export const listControls = (rselId: string) =>
   api<Control[]>(`/risk-selections/${rselId}/controls`);
-export const createControl = (rselId: string, control_name: string) =>
-  api<Control>(`/risk-selections/${rselId}/controls`, { method: "POST", body: { control_name } });
+export const createControl = (rselId: string, body: Record<string, unknown>) =>
+  api<Control>(`/risk-selections/${rselId}/controls`, { method: "POST", body });
 export const transitionControl = (cid: string, target_state: string) =>
   api<Control>(`/controls/${cid}/transition`, { method: "POST", body: { target_state } });
 
-// ---- tests ----
+// ---- tests + evidence ----
 export interface ControlTest {
   id: string;
   control_id: string;
   status: string;
   severity: string | null;
 }
+export interface Evidence {
+  id: string;
+  filename: string;
+  file_hash: string | null;
+  is_sample: boolean;
+}
 export const listTestsForControl = (cid: string) => api<ControlTest[]>(`/controls/${cid}/tests`);
 export const listTestsForYear = (yearId: string) =>
   api<ControlTest[]>(`/audit-years/${yearId}/tests`);
 export const transitionTest = (tid: string, target_state: string) =>
   api<ControlTest>(`/tests/${tid}/transition`, { method: "POST", body: { target_state } });
+export const listEvidences = (tid: string) => api<Evidence[]>(`/tests/${tid}/evidences`);
+
+export async function uploadEvidence(testId: string, file: File): Promise<Evidence> {
+  const base = import.meta.env.VITE_API_BASE ?? "/api/v1";
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("is_sample", "false");
+  const resp = await fetch(`${base}/tests/${testId}/evidences/upload`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+    body: fd,
+  });
+  if (!resp.ok) throw new Error(`upload failed: ${resp.status}`);
+  return resp.json();
+}

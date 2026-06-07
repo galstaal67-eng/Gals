@@ -142,12 +142,34 @@
     "title": "Process management",
     "new_process": "New process name",
     "new_risk": "New risk name",
-    "new_control": "New control name",
+    "new_control": "Add control",
     "request_validation": "Request validation",
     "validate": "Validate",
     "start_test": "Start test",
     "pick_control": "Select a control to see tests",
-    "no_tests_hint": "A test is created when a control is validated"
+    "no_tests_hint": "A test is created when a control is validated",
+    "evidence": "Evidence / supporting files"
+  },
+  "control_fields": {
+    "purpose": "Purpose",
+    "type": "Type",
+    "frequency": "Frequency",
+    "key": "Key",
+    "purposes": {
+      "preventive": "Preventive",
+      "directive": "Directive",
+      "detective": "Detective",
+      "compensating": "Compensating"
+    },
+    "types": { "manual": "Manual", "automatic": "Automatic", "hybrid": "Hybrid" },
+    "freqs": {
+      "ongoing": "Ongoing",
+      "automatic": "Automatic",
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "semiannual": "Semiannual",
+      "annual": "Annual"
+    }
   },
   "control_status": {
     "draft": "Draft",

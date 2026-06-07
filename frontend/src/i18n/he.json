@@ -142,12 +142,34 @@
     "title": "ניהול תהליכים",
     "new_process": "שם תהליך חדש",
     "new_risk": "שם סיכון חדש",
-    "new_control": "שם בקרה חדשה",
+    "new_control": "הוסף בקרה",
     "request_validation": "שלח לתיקוף",
     "validate": "אשר תיקוף",
     "start_test": "התחל טסט",
     "pick_control": "בחר בקרה כדי לראות טסטים",
-    "no_tests_hint": "טסט נוצר אוטומטית כשבקרה מאושרת"
+    "no_tests_hint": "טסט נוצר אוטומטית כשבקרה מאושרת",
+    "evidence": "ראיות / קבצים תומכים"
+  },
+  "control_fields": {
+    "purpose": "מטרת הבקרה",
+    "type": "סוג בקרה",
+    "frequency": "תדירות",
+    "key": "מפתח",
+    "purposes": {
+      "preventive": "מונעת",
+      "directive": "מנחה",
+      "detective": "מגלה",
+      "compensating": "מפצה"
+    },
+    "types": { "manual": "ידנית", "automatic": "אוטומטית", "hybrid": "משולבת" },
+    "freqs": {
+      "ongoing": "שוטף",
+      "automatic": "אוטומטית",
+      "monthly": "חודשית",
+      "quarterly": "רבעונית",
+      "semiannual": "חצי שנתית",
+      "annual": "שנתית"
+    }
   },
   "control_status": {
     "draft": "בעריכה",
