@@ -40,6 +40,13 @@ export async function api<T>(
   if (resp.status === 204) return undefined as T;
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) {
+    // Expired/invalid token → clear it and bounce to login instead of erroring.
+    if (resp.status === 401 && auth) {
+      setToken(null);
+      if (!window.location.pathname.startsWith("/login")) {
+        window.location.assign("/login");
+      }
+    }
     throw new ApiError(resp.status, (data as { detail?: string }).detail ?? resp.statusText);
   }
   return data as T;

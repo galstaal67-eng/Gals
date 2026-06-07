@@ -22,6 +22,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://sox:sox@db:5432/sox
       JWT_SECRET_KEY: dev-secret-change-me
+      ACCESS_TOKEN_EXPIRE_MINUTES: "480"
       EMAIL_PROVIDER: console
       AI_PROVIDER: heuristic
     depends_on:
