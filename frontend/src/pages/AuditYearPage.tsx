@@ -108,9 +108,16 @@ export function AuditYearPage() {
         </div>
       </div>
       {error && <div className="alert alert-danger">{error}</div>}
-      <NextStep
-        text={t(subs.length === 0 ? "nextstep.year_no_subs" : "nextstep.year_pick_sub")}
-      />
+      {(() => {
+        const allApproved = subs.length > 0 && subs.every((s) => s.scope_approved);
+        const key =
+          subs.length === 0
+            ? "year_no_subs"
+            : allApproved
+              ? "year_done"
+              : "year_pick_sub";
+        return <NextStep text={t(`nextstep.${key}`)} tone={allApproved ? "done" : "do"} />;
+      })()}
 
       {/* materiality */}
       <div className="card mb-4">

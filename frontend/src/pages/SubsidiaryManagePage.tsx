@@ -269,17 +269,20 @@ export function SubsidiaryManagePage() {
   });
 
   // Next-step guidance ("תמרור") for the current state of the 4-column flow.
-  const nextStepKey = (): string => {
-    if (procs.length === 0) return "sub_no_proc";
-    if (!selProc) return "sub_pick_proc";
-    if (risks.length === 0) return "sub_no_risk";
-    if (!selRisk) return "sub_pick_risk";
-    if (controls.length === 0) return "sub_no_control";
+  const nextStep = (): { key: string; tone: "do" | "done" } => {
+    if (procs.length === 0) return { key: "sub_no_proc", tone: "do" };
+    if (!selProc) return { key: "sub_pick_proc", tone: "do" };
+    if (risks.length === 0) return { key: "sub_no_risk", tone: "do" };
+    if (!selRisk) return { key: "sub_pick_risk", tone: "do" };
+    if (controls.length === 0) return { key: "sub_no_control", tone: "do" };
     if (controls.some((c) => c.status === "draft" || c.status === "needs_validation"))
-      return "sub_validate";
-    if (!selControl) return "sub_pick_control";
-    return "sub_tests";
+      return { key: "sub_validate", tone: "do" };
+    if (!selControl) return { key: "sub_pick_control", tone: "do" };
+    if (tests.length > 0 && tests.every((tst) => TEST_TERMINAL.includes(tst.status)))
+      return { key: "sub_done", tone: "done" };
+    return { key: "sub_tests", tone: "do" };
   };
+  const step = nextStep();
 
   const loadSuggestions = async () => {
     if (!selectedRisk) return;
@@ -310,7 +313,7 @@ export function SubsidiaryManagePage() {
         </Link>
       </nav>
       <h1 className="page-title mb-3">{t("manage.title")}</h1>
-      <NextStep text={t(`nextstep.${nextStepKey()}`)} />
+      <NextStep text={t(`nextstep.${step.key}`)} tone={step.tone} />
       {error && <div className="alert alert-danger">{error}</div>}
 
       {/* qualitative significance questions (C8) */}

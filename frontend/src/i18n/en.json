@@ -326,6 +326,8 @@
     "sub_validate": "Send the controls for validation; tests open once approved.",
     "sub_pick_control": "Select a validated control to manage its tests and evidence.",
     "sub_tests": "Advance the test status and upload evidence until closed.",
-    "catalog": "Filter by process and search, then click 'Import to audit year' to add a control."
+    "catalog": "Filter by process and search, then click 'Import to audit year' to add a control.",
+    "sub_done": "All tests for this control are complete. Pick another control, or return to the audit year.",
+    "year_done": "All subsidiaries are scope-approved. The audit year is ready — export reports or lock it."
   }
 }
