@@ -141,6 +141,8 @@ export interface CatalogControl {
 }
 export const listControlCatalog = (processId?: string) =>
   api<CatalogControl[]>(`/controls/bank${processId ? `?process_id=${processId}` : ""}`);
+export const syncCatalog = () =>
+  api<Record<string, number>>(`/catalog/sync`, { method: "POST", body: {} });
 export const importControlFromCatalog = (
   yearId: string,
   subId: string,

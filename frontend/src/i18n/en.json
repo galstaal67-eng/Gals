@@ -307,7 +307,11 @@
     "import_confirm": "Import control",
     "cancel": "Cancel",
     "imported": "Control imported successfully ✓",
-    "import_hint": "The control will be added with the matching process and risk selections, including the catalog defaults."
+    "import_hint": "The control will be added with the matching process and risk selections, including the catalog defaults.",
+    "sync": "Refresh catalog",
+    "syncing": "Syncing…",
+    "sync_done": "Catalog synced — {{count}} controls added/updated",
+    "empty_sync": "The catalog is still empty. Click 'Refresh catalog' to load processes and controls."
   },
   "nextstep": {
     "dashboard": "Welcome. Start from Clients — pick an existing client or add a new one.",

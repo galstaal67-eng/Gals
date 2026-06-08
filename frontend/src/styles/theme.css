@@ -246,3 +246,10 @@ body {
 }
 .next-step-cta:hover { background: var(--sox-primary-dark); color: #fff; }
 .next-step-done .next-step-cta { background: #067647; }
+
+/* catalog step sub-header (process → step → controls) */
+.catalog-step {
+  background: var(--sox-primary-soft);
+  border-top: 1px solid var(--sox-border);
+  color: var(--sox-primary-dark);
+}

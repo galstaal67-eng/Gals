@@ -59,7 +59,10 @@ def _bank_fields(c: dict, process_id) -> dict:
     }
 
 
-async def seed_catalog(session_factory=SessionLocal) -> dict[str, int]:
+async def sync_catalog(db) -> dict[str, int]:
+    """Reconcile the global banks with the catalog file, using an existing
+    session. Flushes but does NOT commit — the caller owns the transaction.
+    """
     catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
     now = datetime.now(UTC)
     counts = {
@@ -73,7 +76,7 @@ async def seed_catalog(session_factory=SessionLocal) -> dict[str, int]:
         "controls_removed": 0,
     }
 
-    async with session_factory() as db:
+    if True:
         # 1) Processes (global), keyed by code — add or update. ------------------
         proc_by_code: dict[str, Process] = {}
         for p in catalog["processes"]:
@@ -186,8 +189,16 @@ async def seed_catalog(session_factory=SessionLocal) -> dict[str, int]:
                 bank.deleted_at = now
                 counts["controls_removed"] += 1
 
-        await db.commit()
+        await db.flush()
 
+    return counts
+
+
+async def seed_catalog(session_factory=SessionLocal) -> dict[str, int]:
+    """CLI/entrypoint entry: open a session, sync, commit, report."""
+    async with session_factory() as db:
+        counts = await sync_catalog(db)
+        await db.commit()
     print("catalog sync: " + ", ".join(f"{k}={v}" for k, v in counts.items() if v))
     return counts
 

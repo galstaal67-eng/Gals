@@ -12,13 +12,17 @@ import {
   listControlCatalog,
   listProcessBank,
   listSubsidiaries,
+  syncCatalog,
 } from "../api/sox";
 import type { Client } from "../api/types";
+import { useAuth } from "../auth/AuthContext";
 import { NextStep } from "../components/NextStep";
 import { StatusBadge } from "../components/StatusBadge";
 
 export function CatalogPage() {
   const { t } = useTranslation();
+  const { claims } = useAuth();
+  const canManage = claims?.role === "admin" || claims?.role === "manager";
   const [controls, setControls] = useState<CatalogControl[]>([]);
   const [processes, setProcesses] = useState<BankItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -26,13 +30,32 @@ export function CatalogPage() {
   const [search, setSearch] = useState("");
   const [processFilter, setProcessFilter] = useState("");
   const [keyOnly, setKeyOnly] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   const [importing, setImporting] = useState<CatalogControl | null>(null);
 
-  useEffect(() => {
+  const reload = () => {
     listControlCatalog().then(setControls).catch((e) => setError(String(e)));
     listProcessBank().then(setProcesses).catch(() => {});
-  }, []);
+  };
+  useEffect(reload, []);
+
+  const onSync = async () => {
+    setSyncing(true);
+    setSyncMsg(null);
+    setError(null);
+    try {
+      const c = await syncCatalog();
+      const added = (c.controls_added ?? 0) + (c.controls_updated ?? 0);
+      setSyncMsg(t("catalog.sync_done", { count: added }));
+      reload();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const procName = useMemo(() => {
     const m = new Map<string, string>();
@@ -55,23 +78,38 @@ export function CatalogPage() {
     });
   }, [controls, search, processFilter, keyOnly]);
 
-  // Group filtered controls by process, preserving the bank process order.
+  // Group filtered controls by process, then by flow step within each process —
+  // mirroring the dashboard's "process → step → controls" structure.
   const groups = useMemo(() => {
-    const byProc = new Map<string, CatalogControl[]>();
+    const byProc = new Map<string, { count: number; steps: Map<string, CatalogControl[]> }>();
     for (const c of filtered) {
-      const key = c.process_id ?? "_none";
-      if (!byProc.has(key)) byProc.set(key, []);
-      byProc.get(key)!.push(c);
+      const pk = c.process_id ?? "_none";
+      const sk = c.step ?? "—";
+      if (!byProc.has(pk)) byProc.set(pk, { count: 0, steps: new Map() });
+      const g = byProc.get(pk)!;
+      g.count += 1;
+      if (!g.steps.has(sk)) g.steps.set(sk, []);
+      g.steps.get(sk)!.push(c);
     }
-    return [...byProc.entries()];
+    return [...byProc.entries()].map(
+      ([pk, g]) => [pk, g.count, [...g.steps.entries()]] as const,
+    );
   }, [filtered]);
 
   return (
     <div>
-      <h1 className="page-title mb-1">{t("catalog.title")}</h1>
+      <div className="d-flex justify-content-between align-items-start mb-1">
+        <h1 className="page-title">{t("catalog.title")}</h1>
+        {canManage && (
+          <button className="btn btn-sm btn-outline-primary" disabled={syncing} onClick={onSync}>
+            {syncing ? t("catalog.syncing") : `🔄 ${t("catalog.sync")}`}
+          </button>
+        )}
+      </div>
       <p className="text-muted mb-3">{t("catalog.subtitle")}</p>
       <NextStep text={t("nextstep.catalog")} />
       {error && <div className="alert alert-danger">{error}</div>}
+      {syncMsg && <div className="alert alert-success py-2">{syncMsg}</div>}
 
       <div className="card mb-4">
         <div className="card-body">
@@ -120,70 +158,94 @@ export function CatalogPage() {
       </div>
 
       {groups.length === 0 ? (
-        <p className="text-muted">{t("catalog.empty")}</p>
+        <div className="card">
+          <div className="card-body text-center py-5">
+            <div className="mb-2" style={{ fontSize: "2rem" }}>
+              📚
+            </div>
+            <p className="text-muted">
+              {controls.length === 0 && canManage ? t("catalog.empty_sync") : t("catalog.empty")}
+            </p>
+            {controls.length === 0 && canManage && (
+              <button className="btn btn-primary" disabled={syncing} onClick={onSync}>
+                {syncing ? t("catalog.syncing") : t("catalog.sync")}
+              </button>
+            )}
+          </div>
+        </div>
       ) : (
-        groups.map(([pid, items]) => (
+        groups.map(([pid, count, steps]) => (
           <div className="card mb-4" key={pid}>
             <div className="card-header d-flex justify-content-between align-items-center">
               <span className="fw-bold">{procName.get(pid) ?? "—"}</span>
               <span className="badge text-bg-light">
-                {t("catalog.controls_count", { count: items.length })}
+                {t("catalog.controls_count", { count })}
               </span>
             </div>
             <div className="card-body p-0">
-              <table className="table table-hover align-middle mb-0">
-                <tbody>
-                  {items.map((c) => (
-                    <tr key={c.id}>
-                      <td className="ps-3" style={{ width: 90 }}>
-                        <span className="badge text-bg-secondary">{c.code}</span>
-                      </td>
-                      <td>
-                        <div className="fw-semibold">
-                          {c.name_he}
-                          {c.is_key_default && (
-                            <span className="badge text-bg-warning ms-2">
-                              {t("catalog.key_badge")}
-                            </span>
-                          )}
-                        </div>
-                        {c.risk_description && (
-                          <div className="small text-muted">
-                            {t("catalog.risk")}: {c.risk_description}
-                          </div>
-                        )}
-                        <div className="mt-1 d-flex flex-wrap gap-1">
-                          {c.step && <span className="badge text-bg-light">{c.step}</span>}
-                          {c.default_purpose && (
-                            <StatusBadge value={c.default_purpose} prefix="control_fields.purposes" />
-                          )}
-                          {c.default_type && (
-                            <span className="badge text-bg-light">
-                              {t(`control_fields.types.${c.default_type}`)}
-                            </span>
-                          )}
-                          {c.default_frequency && (
-                            <span className="badge text-bg-light">
-                              {t(`control_fields.freqs.${c.default_frequency}`)}
-                            </span>
-                          )}
-                          {c.owner_hint && (
-                            <span className="badge text-bg-light">👤 {c.owner_hint}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="text-end pe-3" style={{ width: 160 }}>
-                        <button
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={() => setImporting(c)}
-                        >
-                          {t("catalog.import")}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {steps.map(([step, items]) => (
+                <div key={step}>
+                  <div className="catalog-step px-3 py-1 small fw-semibold">
+                    🔹 {step}
+                    <span className="text-muted fw-normal ms-2">({items.length})</span>
+                  </div>
+                  <table className="table table-hover align-middle mb-0">
+                    <tbody>
+                      {items.map((c) => (
+                        <tr key={c.id}>
+                          <td className="ps-3" style={{ width: 90 }}>
+                            <span className="badge text-bg-secondary">{c.code}</span>
+                          </td>
+                          <td>
+                            <div className="fw-semibold">
+                              {c.name_he}
+                              {c.is_key_default && (
+                                <span className="badge text-bg-warning ms-2">
+                                  {t("catalog.key_badge")}
+                                </span>
+                              )}
+                            </div>
+                            {c.risk_description && (
+                              <div className="small text-muted">
+                                {t("catalog.risk")}: {c.risk_description}
+                              </div>
+                            )}
+                            <div className="mt-1 d-flex flex-wrap gap-1">
+                              {c.default_purpose && (
+                                <StatusBadge
+                                  value={c.default_purpose}
+                                  prefix="control_fields.purposes"
+                                />
+                              )}
+                              {c.default_type && (
+                                <span className="badge text-bg-light">
+                                  {t(`control_fields.types.${c.default_type}`)}
+                                </span>
+                              )}
+                              {c.default_frequency && (
+                                <span className="badge text-bg-light">
+                                  {t(`control_fields.freqs.${c.default_frequency}`)}
+                                </span>
+                              )}
+                              {c.owner_hint && (
+                                <span className="badge text-bg-light">👤 {c.owner_hint}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="text-end pe-3" style={{ width: 160 }}>
+                            <button
+                              className="btn btn-sm btn-outline-primary"
+                              onClick={() => setImporting(c)}
+                            >
+                              {t("catalog.import")}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
             </div>
           </div>
         ))

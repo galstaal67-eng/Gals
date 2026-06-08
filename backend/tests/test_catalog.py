@@ -199,3 +199,26 @@ async def test_seed_catalog_sync_repairs_changed_row(sessionmaker):
             )
         ).scalar_one()
     assert bank.name_he == original
+
+
+@pytest.mark.asyncio
+async def test_catalog_sync_endpoint_populates_bank(client, seed):
+    """Admin can populate the running instance's catalog via the API."""
+    token = await _login(client, "admin@a.com", "tenant-a")
+    before = (await client.get("/api/v1/controls/bank", headers=auth_headers(token))).json()
+    assert before == []
+
+    resp = await client.post("/api/v1/catalog/sync", headers=auth_headers(token))
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["controls_added"] > 0
+
+    after = (await client.get("/api/v1/controls/bank", headers=auth_headers(token))).json()
+    assert len(after) == resp.json()["controls_added"]
+
+
+@pytest.mark.asyncio
+async def test_catalog_sync_requires_bank_manage_permission(client, seed):
+    """A client-role user cannot trigger a catalog sync."""
+    token = await _login(client, "client@a.com", "tenant-a")
+    resp = await client.post("/api/v1/catalog/sync", headers=auth_headers(token))
+    assert resp.status_code == 403

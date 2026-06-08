@@ -30,6 +30,7 @@ from app.schemas.control import (
     ControlUpdate,
 )
 from app.schemas.email_message import EmailMessageOut, RequestValidationIn
+from app.scripts.seed_catalog import sync_catalog
 
 router = APIRouter(tags=["controls"])
 
@@ -86,6 +87,29 @@ async def _get_control(db: AsyncSession, user: CurrentUser, cid: uuid.UUID) -> C
     if not ctrl:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "control not found")
     return ctrl
+
+
+# ------------------------------------------------------------------ catalog sync
+
+@router.post("/catalog/sync", response_model=dict)
+async def sync_global_catalog(
+    user: CurrentUser = Depends(require(Permission.CONTROL_BANK_MANAGE)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Populate/refresh the global RCM catalog (processes/risks/control_bank)
+    from the bundled data file — lets an admin seed a running instance without
+    redeploying. Idempotent sync (add/update/soft-delete)."""
+    counts = await sync_catalog(db)
+    await record_audit(
+        db,
+        action=AuditAction.UPDATE,
+        entity_type="catalog_sync",
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        after={k: v for k, v in counts.items() if v},
+    )
+    await db.commit()
+    return counts
 
 
 # ------------------------------------------------------------------ bank
