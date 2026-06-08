@@ -101,12 +101,51 @@ export interface RiskSelection {
 export const listRiskBank = () => api<BankItem[]>(`/risks/bank`);
 export const createBankRisk = (name_he: string) =>
   api<BankItem>(`/risks/bank`, { method: "POST", body: { name_he } });
-export const listRiskSelections = (pselId: string) =>
-  api<RiskSelection[]>(`/process-selections/${pselId}/risks`);
-export const createRiskSelection = (pselId: string, risk_id: string) =>
-  api<RiskSelection>(`/process-selections/${pselId}/risks`, { method: "POST", body: { risk_id } });
+export const listRiskSelections = (pselId: string, stepId?: string) =>
+  api<RiskSelection[]>(
+    `/process-selections/${pselId}/risks${stepId ? `?step_id=${stepId}` : ""}`,
+  );
+export const createRiskSelection = (pselId: string, risk_id: string, process_step_id?: string) =>
+  api<RiskSelection>(`/process-selections/${pselId}/risks`, {
+    method: "POST",
+    body: process_step_id ? { risk_id, process_step_id } : { risk_id },
+  });
 export const updateRiskSelection = (rselId: string, body: Record<string, unknown>) =>
   api<RiskSelection>(`/risk-selections/${rselId}`, { method: "PATCH", body });
+
+// ---- process flow steps ----
+export interface ProcessStep {
+  id: string;
+  process_selection_id: string;
+  name_he: string;
+  order_index: number;
+  source_sub_activity_id: string | null;
+}
+export interface StepFlow {
+  id: string;
+  name_he: string;
+  order_index: number;
+  risk_count: number;
+  control_count: number;
+  test_count: number;
+  tests_passed: number;
+  tests_failed: number;
+  tests_pending: number;
+  tests_in_progress: number;
+  status: "empty" | "pending" | "in_progress" | "failed" | "passed";
+}
+export const listSteps = (pselId: string) =>
+  api<ProcessStep[]>(`/process-selections/${pselId}/steps`);
+export const addStep = (pselId: string, name_he: string) =>
+  api<ProcessStep>(`/process-selections/${pselId}/steps`, { method: "POST", body: { name_he } });
+export const updateStep = (stepId: string, name_he: string) =>
+  api<ProcessStep>(`/process-steps/${stepId}`, { method: "PATCH", body: { name_he } });
+export const deleteStep = (stepId: string) =>
+  api<void>(`/process-steps/${stepId}`, { method: "DELETE" });
+export const getProcessFlow = (pselId: string) =>
+  api<{ process_selection_id: string; steps: StepFlow[] }>(
+    `/process-selections/${pselId}/flow`,
+  );
 
 // ---- controls ----
 export interface Control {

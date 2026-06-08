@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { type ControlSuggestion, suggestControls } from "../api/ai";
 import { type Contact, listContacts } from "../api/contacts";
+import { FlowDiagram } from "../components/FlowDiagram";
 import { NextStep } from "../components/NextStep";
 import { StatusBadge } from "../components/StatusBadge";
 import {
@@ -15,11 +16,15 @@ import {
   type ProcessSelection,
   type QualitativeAnswer,
   type RiskSelection,
+  type StepFlow,
+  addStep,
   createBankProcess,
   createBankRisk,
   createControl,
   createProcessSelection,
   createRiskSelection,
+  deleteStep,
+  getProcessFlow,
   getQualitative,
   listControlCatalog,
   listControls,
@@ -89,6 +94,10 @@ export function SubsidiaryManagePage() {
   const [procBank, setProcBank] = useState<BankItem[]>([]);
   const [selProc, setSelProc] = useState<string | null>(null);
   const [newProc, setNewProc] = useState("");
+  const [catProc, setCatProc] = useState("");
+
+  const [flow, setFlow] = useState<StepFlow[]>([]);
+  const [selStep, setSelStep] = useState<string | null>(null);
 
   const [risks, setRisks] = useState<RiskSelection[]>([]);
   const [riskBank, setRiskBank] = useState<BankItem[]>([]);
@@ -157,15 +166,35 @@ export function SubsidiaryManagePage() {
     }
   };
 
+  const loadFlow = (pselId: string) =>
+    getProcessFlow(pselId).then((r) => setFlow(r.steps)).catch(() => setFlow([]));
+
   useEffect(() => {
-    if (!selProc) return;
-    listRiskSelections(selProc).then(setRisks).catch((e) => setError(String(e)));
+    if (!selProc) {
+      setFlow([]);
+      setSelStep(null);
+      return;
+    }
+    loadFlow(selProc);
     listRiskBank().then(setRiskBank).catch(() => {});
+    setSelStep(null);
     setSelRisk(null);
     setControls([]);
     setSelControl(null);
     setTests([]);
   }, [selProc]);
+
+  // Risks are scoped to the selected flow step (or all, when none selected).
+  useEffect(() => {
+    if (!selProc) return;
+    listRiskSelections(selProc, selStep ?? undefined)
+      .then(setRisks)
+      .catch((e) => setError(String(e)));
+    setSelRisk(null);
+    setControls([]);
+    setSelControl(null);
+    setTests([]);
+  }, [selProc, selStep]);
 
   useEffect(() => {
     if (!selRisk) return;
@@ -204,14 +233,36 @@ export function SubsidiaryManagePage() {
     setNewProc("");
     loadProcs();
   };
+  // Add a process straight from the global catalog (auto-seeds its flow steps).
+  const addProcFromCatalog = async () => {
+    if (!catProc) return;
+    await createProcessSelection(yearId, subId, catProc).catch((e) => setError(String(e)));
+    setCatProc("");
+    loadProcs();
+  };
+  const refreshRisksAndFlow = () => {
+    if (!selProc) return;
+    listRiskSelections(selProc, selStep ?? undefined).then(setRisks);
+    loadFlow(selProc);
+  };
   const addRisk = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selProc || !newRisk.trim()) return;
     const bank = await createBankRisk(newRisk);
-    await createRiskSelection(selProc, bank.id);
+    await createRiskSelection(selProc, bank.id, selStep ?? undefined);
     setNewRisk("");
     setRiskBank((prev) => (prev.some((b) => b.id === bank.id) ? prev : [...prev, bank]));
-    listRiskSelections(selProc).then(setRisks);
+    refreshRisksAndFlow();
+  };
+  const handleAddStep = async (name: string) => {
+    if (!selProc) return;
+    await addStep(selProc, name).catch((e) => setError(String(e)));
+    loadFlow(selProc);
+  };
+  const handleDeleteStep = async (stepId: string) => {
+    await deleteStep(stepId).catch((e) => setError(String(e)));
+    if (selStep === stepId) setSelStep(null);
+    if (selProc) loadFlow(selProc);
   };
   const addControl = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,6 +287,7 @@ export function SubsidiaryManagePage() {
       operator_contact_id: "",
     });
     listControls(selRisk).then(setControls);
+    if (selProc) loadFlow(selProc);
   };
 
   const openCatalog = () => {
@@ -257,6 +309,7 @@ export function SubsidiaryManagePage() {
     if (c.default_frequency) body.frequency = c.default_frequency;
     await createControl(selRisk, body).catch((e) => setError(String(e)));
     listControls(selRisk).then(setControls);
+    if (selProc) loadFlow(selProc);
   };
   const catalogFiltered = catalog.filter((c) => {
     const q = catalogSearch.trim().toLowerCase();
@@ -272,6 +325,7 @@ export function SubsidiaryManagePage() {
   const nextStep = (): { key: string; tone: "do" | "done" } => {
     if (procs.length === 0) return { key: "sub_no_proc", tone: "do" };
     if (!selProc) return { key: "sub_pick_proc", tone: "do" };
+    if (flow.length > 0 && !selStep) return { key: "sub_pick_step", tone: "do" };
     if (risks.length === 0) return { key: "sub_no_risk", tone: "do" };
     if (!selRisk) return { key: "sub_pick_risk", tone: "do" };
     if (controls.length === 0) return { key: "sub_no_control", tone: "do" };
@@ -355,12 +409,61 @@ export function SubsidiaryManagePage() {
         </div>
       </div>
 
+      {/* flow diagram of the selected process */}
+      {selProc && (
+        <div className="card mb-3">
+          <div className="card-header fw-bold d-flex justify-content-between align-items-center">
+            <span>
+              {t("flow.title")} — {bankName(procBank, procs.find((p) => p.id === selProc)?.process_id ?? "")}
+            </span>
+            {selStep && (
+              <button
+                className="btn btn-sm btn-link p-0"
+                onClick={() => setSelStep(null)}
+              >
+                {t("flow.show_all")}
+              </button>
+            )}
+          </div>
+          <div className="card-body">
+            <FlowDiagram
+              steps={flow}
+              selected={selStep}
+              onSelect={(id) => setSelStep((cur) => (cur === id ? null : id))}
+              onAdd={handleAddStep}
+              onDelete={handleDeleteStep}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="row g-3">
         {/* processes */}
         <div className={col}>
           <div className="card h-100">
             <div className="card-header fw-bold">{t("nav_tabs.processes")}</div>
             <div className="card-body py-2">
+              <div className="input-group input-group-sm mb-2">
+                <select
+                  className="form-select"
+                  value={catProc}
+                  onChange={(e) => setCatProc(e.target.value)}
+                >
+                  <option value="">{t("manage.process_from_catalog")}</option>
+                  {procBank.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name_he}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="btn btn-outline-primary"
+                  disabled={!catProc}
+                  onClick={addProcFromCatalog}
+                >
+                  +
+                </button>
+              </div>
               <form className="input-group input-group-sm mb-2" onSubmit={addProc}>
                 <input
                   className="form-control"
@@ -576,6 +679,7 @@ export function SubsidiaryManagePage() {
                             await transitionControl(c.id, "needs_validation");
                           }
                           listControls(selRisk!).then(setControls);
+                          if (selProc) loadFlow(selProc);
                         }}
                       >
                         {t("manage.request_validation")}
@@ -587,6 +691,7 @@ export function SubsidiaryManagePage() {
                         onClick={async () => {
                           await transitionControl(c.id, "validated");
                           listControls(selRisk!).then(setControls);
+                          if (selProc) loadFlow(selProc);
                         }}
                       >
                         {t("manage.validate")}
@@ -616,6 +721,7 @@ export function SubsidiaryManagePage() {
                         if (!target) return;
                         await transitionTest(tst.id, target).catch((err) => setError(String(err)));
                         loadTests(selControl!);
+                        if (selProc) loadFlow(selProc);
                       }}
                     >
                       <option value="">{t("manage.advance_status")}</option>

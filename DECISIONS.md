@@ -150,6 +150,17 @@ WAF של Microsoft, וקישורי SharePoint/Planner. נעילה ל-Azure מפ�
 - **ייבוא** — `POST /audit-years/{y}/subsidiaries/{s}/import-control` בונה את כל
   השרשרת החסרה (process_selection ← risk_selection ← control) ומעתיק את ברירות
   המחדל. מסך `קטלוג בקרות` (`/catalog`) מאפשר עיון, סינון וייבוא.
+- **סנכרון ידני** — `POST /catalog/sync` (CONTROL_BANK_MANAGE) מריץ את הזריעה על
+  המופע הרץ ללא redeploy (כפתור "רענן קטלוג" במסך הקטלוג).
+
+### C10 — תרשים זרימה של תהליכים (process flow)
+מופע תהליך (`process_selection`) מחזיק **שלבים** (`process_steps`) הניתנים לעריכה —
+נזרעים מברירת המחדל של הקטלוג (`sub_activities`, עם `order_index`) וניתן להוסיף/
+לשנות/למחוק/לסדר. כל סיכון (`risk_selections.process_step_id`) משויך לשלב, ומכאן
+גם הבקרות והטסטים שתחתיו. `GET /process-selections/{id}/flow` מסכם לכל שלב את
+מספרי הסיכונים/בקרות/טסטים וסטטוס מצרפי: `empty | in_progress | failed | passed`
+(failed אם יש `deficiency_open`; passed אם כל הטסטים סגורים/אושרו). ה-UI מציג
+תרשים זרימה ויזואלי, ובחירת שלב ממקדת את עמודות הסיכונים/בקרות לאותו שלב.
 
 ---
 

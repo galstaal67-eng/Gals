@@ -79,6 +79,12 @@
 
 > שדות הדירוג (complexity..residual_rating) רלוונטיים רק כשהתהליך **אינו** ITGC.
 
+### process_steps (תרשים זרימה)
+שלבי תרשים הזרימה של מופע תהליך (ראה DECISIONS C10).
+`id` (PK), `tenant_id` (FK), `audit_year_id`, `subsidiary_id`,
+`process_selection_id` (FK), `name_he`, `order_index`, `source_sub_activity_id`
+(מקור הקטלוג, nullable). `risk_selections.process_step_id` משייך סיכון לשלב.
+
 ### control_bank
 בנק/קטלוג בקרות לבחירה — שורות גלובליות (`is_global=true`, `tenant_id=NULL`)
 נזרעות מקטלוג ה-RCM (ראה DECISIONS C9) ומשמרות את מאפייני הבקרה לבחירה.

@@ -235,7 +235,8 @@
     "ai_loading": "Generating…",
     "import_catalog": "Import from catalog",
     "import_catalog_title": "Import controls from catalog",
-    "import_catalog_empty": "No catalog controls for this process"
+    "import_catalog_empty": "No catalog controls for this process",
+    "process_from_catalog": "Pick a process from the catalog…"
   },
   "control_fields": {
     "purpose": "Purpose",
@@ -332,6 +333,23 @@
     "sub_tests": "Advance the test status and upload evidence until closed.",
     "catalog": "Filter by process and search, then click 'Import to audit year' to add a control.",
     "sub_done": "All tests for this control are complete. Pick another control, or return to the audit year.",
-    "year_done": "All subsidiaries are scope-approved. The audit year is ready — export reports or lock it."
+    "year_done": "All subsidiaries are scope-approved. The audit year is ready — export reports or lock it.",
+    "sub_pick_step": "Select a step in the flow diagram to manage its risks and controls."
+  },
+  "flow": {
+    "title": "Flow diagram",
+    "show_all": "Show all",
+    "add_step": "New step",
+    "delete_step": "Delete step",
+    "empty": "No steps — add one or pick a process from the catalog",
+    "risks": "Risks",
+    "controls": "Controls",
+    "status": {
+      "empty": "Empty",
+      "pending": "Pending",
+      "in_progress": "In progress",
+      "failed": "Failed",
+      "passed": "Passed"
+    }
   }
 }

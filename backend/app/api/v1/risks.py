@@ -123,18 +123,18 @@ async def _open_selection(
 )
 async def list_risk_selections(
     psel_id: uuid.UUID,
+    step_id: uuid.UUID | None = None,
     user: CurrentUser = Depends(require(Permission.RISK_VIEW)),
     db: AsyncSession = Depends(get_db),
 ):
-    rows = (
-        await db.execute(
-            select(RiskSelection).where(
-                RiskSelection.process_selection_id == psel_id,
-                RiskSelection.tenant_id == user.tenant_id,
-                RiskSelection.deleted_at.is_(None),
-            )
-        )
-    ).scalars().all()
+    stmt = select(RiskSelection).where(
+        RiskSelection.process_selection_id == psel_id,
+        RiskSelection.tenant_id == user.tenant_id,
+        RiskSelection.deleted_at.is_(None),
+    )
+    if step_id is not None:
+        stmt = stmt.where(RiskSelection.process_step_id == step_id)
+    rows = (await db.execute(stmt)).scalars().all()
     return rows
 
 

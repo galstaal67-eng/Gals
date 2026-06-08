@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy import Boolean, ForeignKey, Integer, String
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -40,4 +40,5 @@ class SubActivity(Base, TimestampMixin, SoftDeleteMixin):
     )
     name_he: Mapped[str] = mapped_column(String(255), nullable=False)
     name_en: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    order_index: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_global: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

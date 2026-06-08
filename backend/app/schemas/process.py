@@ -36,6 +36,7 @@ class SubActivityOut(BaseModel):
     process_id: uuid.UUID
     name_he: str
     name_en: str | None
+    order_index: int
     is_global: bool
 
 
@@ -65,3 +66,52 @@ class ProcessSelectionOut(BaseModel):
     itgc_layer: ItgcLayer | None
     is_in_scope: bool
     is_material: bool
+
+
+# ----- flow-diagram steps -----
+class ProcessStepCreate(BaseModel):
+    name_he: str
+    order_index: int | None = None
+
+
+class ProcessStepUpdate(BaseModel):
+    name_he: str | None = None
+    order_index: int | None = None
+
+
+class ProcessStepOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    process_selection_id: uuid.UUID
+    name_he: str
+    order_index: int
+    source_sub_activity_id: uuid.UUID | None
+
+
+class ProcessStepReorder(BaseModel):
+    """New order of step ids, first to last."""
+
+    step_ids: list[uuid.UUID]
+
+
+class StepFlowOut(BaseModel):
+    """A step plus the aggregated status of its risks/controls/tests, for the
+    flow diagram."""
+
+    id: uuid.UUID
+    name_he: str
+    order_index: int
+    risk_count: int
+    control_count: int
+    test_count: int
+    tests_passed: int
+    tests_failed: int
+    tests_pending: int
+    tests_in_progress: int
+    status: str  # empty | pending | in_progress | failed | passed
+
+
+class ProcessFlowOut(BaseModel):
+    process_selection_id: uuid.UUID
+    steps: list[StepFlowOut]

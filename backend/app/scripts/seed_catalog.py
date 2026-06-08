@@ -124,13 +124,16 @@ async def sync_catalog(db) -> dict[str, int]:
             ).scalars().all()
             existing_by_name = {s.name_he: s for s in existing_subs}
             wanted = list(dict.fromkeys(p.get("steps", [])))
-            for step in wanted:
-                if step not in existing_by_name:
+            for i, step in enumerate(wanted):
+                if step in existing_by_name:
+                    existing_by_name[step].order_index = i  # keep catalog order
+                else:
                     db.add(
                         SubActivity(
                             tenant_id=None,
                             process_id=proc.id,
                             name_he=step,
+                            order_index=i,
                             is_global=True,
                         )
                     )

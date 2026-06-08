@@ -253,3 +253,76 @@ body {
   border-top: 1px solid var(--sox-border);
   color: var(--sox-primary-dark);
 }
+
+/* process flow diagram */
+.flow-wrap {
+  background: var(--sox-surface);
+  border: 1px solid var(--sox-border);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+}
+.flow-track {
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+}
+.flow-node-group { display: flex; align-items: center; }
+.flow-arrow { color: var(--sox-muted); font-size: 1.4rem; padding: 0 0.15rem; }
+.flow-node {
+  position: relative;
+  min-width: 140px;
+  max-width: 180px;
+  text-align: start;
+  background: #fff;
+  border: 1.5px solid var(--sox-border);
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.flow-node.active {
+  border-color: var(--sox-primary);
+  box-shadow: 0 0 0 3px rgba(var(--sox-primary-rgb), 0.15);
+}
+.flow-node-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-inline-end: 6px;
+  vertical-align: middle;
+}
+.flow-node-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  display: inline;
+}
+.flow-node-meta {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--sox-muted);
+  margin-top: 0.35rem;
+}
+.flow-node-del {
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 6px;
+  color: var(--sox-muted);
+  font-size: 1rem;
+  line-height: 1;
+}
+.flow-node-del:hover { color: #ef4444; }
+.flow-add { display: flex; gap: 0.4rem; margin-top: 0.6rem; max-width: 280px; }
+.flow-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 0.6rem;
+  font-size: 0.72rem;
+  color: var(--sox-muted);
+}
+.flow-legend span { display: inline-flex; align-items: center; }

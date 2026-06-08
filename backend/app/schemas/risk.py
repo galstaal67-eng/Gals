@@ -34,6 +34,7 @@ class RiskBankOut(BaseModel):
 # ----- instances -----
 class RiskSelectionCreate(BaseModel):
     risk_id: uuid.UUID
+    process_step_id: uuid.UUID | None = None
     classification: RiskClassification | None = None
     complexity: RiskComplexity | None = None
     frequency: RiskFrequency | None = None
@@ -64,6 +65,7 @@ class RiskSelectionOut(BaseModel):
 
     id: uuid.UUID
     process_selection_id: uuid.UUID
+    process_step_id: uuid.UUID | None
     subsidiary_id: uuid.UUID
     audit_year_id: uuid.UUID
     risk_id: uuid.UUID

@@ -49,6 +49,10 @@ class RiskSelection(Base, TimestampMixin, SoftDeleteMixin):
     process_selection_id: Mapped[uuid.UUID] = mapped_column(
         GUID(), ForeignKey("process_selections.id"), nullable=False, index=True
     )
+    # Flow step this risk sits on (NULL = unassigned / legacy).
+    process_step_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("process_steps.id"), nullable=True, index=True
+    )
     subsidiary_id: Mapped[uuid.UUID] = mapped_column(GUID(), nullable=False, index=True)
     audit_year_id: Mapped[uuid.UUID] = mapped_column(GUID(), nullable=False, index=True)
     risk_id: Mapped[uuid.UUID] = mapped_column(GUID(), ForeignKey("risks.id"), nullable=False)
