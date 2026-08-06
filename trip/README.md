@@ -15,8 +15,46 @@ python3 -m http.server 8000
 # ואז http://localhost:8000
 ```
 
-לפרסום — כל שירות אחסון סטטי (GitHub Pages, Netlify, Cloudflare Pages)
-יעבוד ישירות מהתיקייה הזו ללא הגדרות.
+## פריסה ל-Netlify
+
+פרויקט Netlify כבר קיים ומחכה לפריסה ראשונה:
+
+- **שם:** `manchester-scotland-trip`
+- **Site ID:** `651d6e81-b92a-47fa-801a-c1cddbc36df5`
+- **כתובת:** https://manchester-scotland-trip.netlify.app
+- **לוח בקרה:** https://app.netlify.com/projects/manchester-scotland-trip
+
+`netlify.toml` שבתיקייה הזו כבר מגדיר את הכול: אין שלב בנייה, מפרסמים את
+התיקייה כמו שהיא, עם כותרות מטמון (Leaflet לשנה, קוד האתר ללא מטמון)
+וכותרות אבטחה בסיסיות.
+
+### אפשרות א' — חיבור למאגר (מומלץ)
+
+פריסה אוטומטית בכל דחיפה. בלוח הבקרה של הפרויקט:
+**Project configuration → Build & deploy → Link repository** → בחירת
+`galstaal67-eng/SOX`, ואז:
+
+| שדה | ערך |
+| --- | --- |
+| Base directory | `trip` |
+| Build command | *(ריק)* |
+| Publish directory | `trip` |
+| Branch to deploy | `claude/manchester-scotland-trip-site-a5e60v` |
+
+ה-`netlify.toml` ייקרא אוטומטית מתוך `trip/` ברגע ש-Base directory מוגדר.
+
+### אפשרות ב' — פריסה ידנית מהמחשב
+
+```bash
+npx netlify-cli login                       # פעם אחת
+cd trip
+npx netlify-cli deploy --prod --dir=. --site=651d6e81-b92a-47fa-801a-c1cddbc36df5
+```
+
+### שירותים אחרים
+
+האתר סטטי לחלוטין, כך ש-GitHub Pages או Cloudflare Pages יעבדו גם הם
+ישירות מהתיקייה הזו — צריך רק להצביע על `trip/` כספריית הפרסום.
 
 ## מה יש באתר
 
