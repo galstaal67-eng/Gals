@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מנצ'סטר וסקוטלנד · 28.8–6.9.2026</title>
+  <meta name="description" content="מסלול טיול מפורט: מנצ'סטר, אדינבורו, גלנקו, האי סקאי, לוך נס וקיירנגורמס — כולל מפה אינטראקטיבית, ניהול הוצאות וקיזוז בין זוגות." />
+  <meta name="color-scheme" content="dark light" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏔️</text></svg>" />
+</head>
+<body>
+
+<!-- ==================================================== HERO ========= -->
+<header class="hero">
+  <svg class="hero__ridge" viewBox="0 0 1440 140" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 140 L0 96 L120 58 L235 92 L360 34 L470 78 L600 22 L720 70 L845 30 L980 84 L1105 46 L1230 90 L1340 52 L1440 88 L1440 140 Z"
+          fill="rgba(76,201,164,.14)" />
+    <path d="M0 140 L0 116 L145 88 L280 112 L415 74 L545 106 L680 66 L810 104 L950 78 L1085 112 L1215 82 L1340 108 L1440 84 L1440 140 Z"
+          fill="rgba(176,136,249,.12)" />
+  </svg>
+
+  <div class="wrap hero__inner">
+    <span class="hero__eyebrow">🏴󠁧󠁢󠁳󠁣󠁴󠁿 28 באוגוסט – 6 בספטמבר 2026</span>
+    <h1>מנצ'סטר וסקוטלנד</h1>
+    <p class="hero__sub">
+      עשרה ימים מהתעלות של מנצ'סטר, דרך הרויאל מייל של אדינבורו, אל עמק גלנקו,
+      האי סקאי, לוך נס ויערות הקיירנגורמס — וחזרה.
+    </p>
+
+    <div class="hero__stats">
+      <div class="stat"><div class="stat__val countdown" id="countdown">—</div><div class="stat__lbl">עד היציאה</div></div>
+      <div class="stat"><div class="stat__val">10</div><div class="stat__lbl">ימים</div></div>
+      <div class="stat"><div class="stat__val">1,190</div><div class="stat__lbl">ק"מ נהיגה (מוערך)</div></div>
+      <div class="stat"><div class="stat__val">5</div><div class="stat__lbl">מלונות</div></div>
+      <div class="stat"><div class="stat__val">2</div><div class="stat__lbl">מדינות</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- ===================================================== NAV ========== -->
+<nav class="nav" aria-label="ניווט ראשי">
+  <div class="nav__inner" role="tablist">
+    <button class="tab" role="tab" id="tab-map"      aria-controls="view-map"      aria-selected="true">🗺️ מפה</button>
+    <button class="tab" role="tab" id="tab-route"    aria-controls="view-route"    aria-selected="false">📅 מסלול יומי</button>
+    <button class="tab" role="tab" id="tab-tips"     aria-controls="view-tips"     aria-selected="false">💡 שיפורים</button>
+    <button class="tab" role="tab" id="tab-expenses" aria-controls="view-expenses" aria-selected="false">💷 הוצאות</button>
+    <button class="tab" role="tab" id="tab-info"     aria-controls="view-info"     aria-selected="false">ℹ️ מידע וציוד</button>
+    <span class="nav__spacer"></span>
+    <button class="icon-btn" id="themeToggle" title="מצב בהיר / כהה" aria-label="החלפת ערכת צבעים">🌙</button>
+    <button class="icon-btn" id="printBtn" title="הדפסה" aria-label="הדפסה">🖨️</button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- ================================================= VIEW: MAP ===== -->
+  <section class="view is-active" id="view-map" role="tabpanel" aria-labelledby="tab-map">
+    <div class="section-head">
+      <h2>מפת המסלול</h2>
+      <p>לחצו על יום כדי להתמקד בו. הקווים מציינים את אופן המעבר: טיסה, רכבת או נהיגה.</p>
+    </div>
+
+    <div class="map-filter" id="mapFilter"></div>
+
+    <div class="map-shell">
+      <div id="map"></div>
+      <div class="map-fallback card pad" id="mapFallback">
+        <h3>לא ניתן לטעון את המפה</h3>
+        <p>ספריית המפות לא נטענה. כל שאר האתר עובד כרגיל, ובכל יום במסלול
+           יש כפתור "ניווט ב-Google Maps" עם כל נקודות העצירה.</p>
+      </div>
+    </div>
+
+    <div class="map-legend" id="mapLegend"></div>
+
+    <div class="grid-2 mt-3">
+      <div class="card pad">
+        <h3>ק"מ נהיגה לפי אזור</h3>
+        <p class="muted">רק ימי הנהיגה (4–10). ימי הטיסה, הרכבת והעיר אינם נספרים.</p>
+        <div class="bar-list mt-1" id="regionBars"></div>
+      </div>
+      <div class="card pad">
+        <h3>עומס נהיגה יומי</h3>
+        <p class="muted">שעות נהיגה נטו, ללא עצירות. יום 9 הוא החריג — ראו את לשונית השיפורים.</p>
+        <div class="spark mt-1" id="driveSpark"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============================================== VIEW: ROUTE ===== -->
+  <section class="view" id="view-route" role="tabpanel" aria-labelledby="tab-route">
+    <div class="section-head row-between">
+      <div>
+        <h2>המסלול יום אחר יום</h2>
+        <p>לחצו על יום כדי לפתוח את התוכנית המלאה, המלון והטיפים.</p>
+      </div>
+      <div class="pill-row">
+        <button class="btn btn--sm" id="expandAll">פתח הכול</button>
+        <button class="btn btn--sm" id="collapseAll">סגור הכול</button>
+      </div>
+    </div>
+    <div class="day-list" id="dayList"></div>
+  </section>
+
+  <!-- ================================================ VIEW: TIPS ===== -->
+  <section class="view" id="view-tips" role="tabpanel" aria-labelledby="tab-tips">
+    <div class="section-head">
+      <h2>המלצות לשיפור המסלול</h2>
+      <p>עברתי על המסלול שהצעתם. הוא טוב — אלה הנקודות שהייתי משנה או מוודא מראש,
+         מסודרות לפי דחיפות.</p>
+    </div>
+    <div class="imp-list" id="impList"></div>
+  </section>
+
+  <!-- ============================================ VIEW: EXPENSES ===== -->
+  <section class="view" id="view-expenses" role="tabpanel" aria-labelledby="tab-expenses">
+    <div class="section-head">
+      <h2>ניהול הוצאות וקיזוז</h2>
+      <p>מבוסס על גיליון ההוצאות מהטיול הקודם: הזנת הוצאות במטבע המקורי, המרה אוטומטית לשקל,
+         סיכום לפי אדם ולפי זוג, וחישוב ההעברה הנדרשת בסוף. הנתונים נשמרים בדפדפן שלכם בלבד.</p>
+    </div>
+
+    <div class="exp-grid">
+
+      <!-- סיכום -->
+      <div class="exp-summary" id="expSummary"></div>
+
+      <div class="settle-note" id="settleNote">עדיין לא הוזנו הוצאות.</div>
+
+      <!-- הזנת הוצאה -->
+      <div class="card pad">
+        <h3>הוספת הוצאה</h3>
+        <form class="form-grid mt-1" id="expForm" autocomplete="off">
+          <div class="field">
+            <label for="exDate">תאריך</label>
+            <input type="date" id="exDate" required />
+          </div>
+          <div class="field">
+            <label for="exAmount">סכום</label>
+            <input type="number" id="exAmount" step="0.01" min="0" placeholder="0.00" required />
+          </div>
+          <div class="field">
+            <label for="exCurrency">מטבע</label>
+            <select id="exCurrency"></select>
+          </div>
+          <div class="field">
+            <label for="exCategory">סעיף הוצאה</label>
+            <select id="exCategory"></select>
+          </div>
+          <div class="field">
+            <label for="exPayer">מי שילם</label>
+            <select id="exPayer"></select>
+          </div>
+          <div class="field" style="grid-column: span 2; min-width: 180px;">
+            <label for="exNote">תיאור / הערות</label>
+            <input type="text" id="exNote" placeholder="ארוחת ערב בפורטרי" />
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button class="btn btn--primary" type="submit">➕ הוסף</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- טבלת הוצאות -->
+      <div class="card">
+        <div class="pad row-between" style="padding-bottom:.6rem">
+          <h3 style="margin:0">כל ההוצאות (<span id="expCount">0</span>)</h3>
+          <div class="pill-row">
+            <button class="btn btn--sm" id="exportCsv">⬇️ ייצוא CSV</button>
+            <label class="btn btn--sm" for="importCsv">⬆️ ייבוא CSV</label>
+            <input type="file" id="importCsv" accept=".csv,text/csv" class="sr-only" />
+            <button class="btn btn--sm btn--danger" id="clearExp">🗑️ נקה הכול</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>תאריך</th><th>סעיף</th><th>מי שילם</th>
+                <th>סכום</th><th>מטבע</th><th>בש"ח</th><th>הערות</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="expBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ניתוחים -->
+      <div class="grid-2">
+        <div class="card pad">
+          <h3>חלוקה לסעיפים</h3>
+          <div class="bar-list mt-1" id="catBars"><p class="muted">אין נתונים עדיין.</p></div>
+        </div>
+        <div class="card pad">
+          <h3>הוצאה לפי אדם</h3>
+          <div class="bar-list mt-1" id="personBars"><p class="muted">אין נתונים עדיין.</p></div>
+        </div>
+      </div>
+
+      <div class="card pad">
+        <h3>הוצאה יומית</h3>
+        <p class="muted">סך ההוצאות בכל יום של הטיול, בשקלים.</p>
+        <div class="spark mt-1" id="dailySpark"></div>
+      </div>
+
+      <!-- הגדרות -->
+      <div class="grid-2">
+        <div class="card pad">
+          <h3>שערי המרה לשקל</h3>
+          <p class="muted">עדכנו לפי השער בפועל ביום הטיול. השינוי מחשב מחדש את כל הטבלה.</p>
+          <div class="rate-grid mt-1" id="rateGrid"></div>
+        </div>
+
+        <div class="card pad">
+          <h3>מטיילים וזוגות</h3>
+          <p class="muted">מי משתתף ולאיזה זוג הוא שייך. הקיזוז מחושב בין הזוגות.</p>
+          <div id="peopleList" class="mt-1"></div>
+          <form class="form-grid mt-2" id="personForm" autocomplete="off">
+            <div class="field">
+              <label for="pName">שם</label>
+              <input type="text" id="pName" placeholder="שם המטייל" required />
+            </div>
+            <div class="field">
+              <label for="pGroup">זוג</label>
+              <select id="pGroup">
+                <option value="1">זוג 1</option>
+                <option value="2">זוג 2</option>
+                <option value="3">זוג 3</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button class="btn btn--sm" type="submit">הוסף מטייל</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card pad">
+        <h3>תקציב יעד</h3>
+        <p class="muted">אופציונלי — קבעו תקציב כולל לטיול כדי לעקוב אחרי הניצול.</p>
+        <div class="form-grid mt-1">
+          <div class="field">
+            <label for="budgetInput">תקציב כולל (₪)</label>
+            <input type="number" id="budgetInput" min="0" step="100" placeholder="20000" />
+          </div>
+        </div>
+        <div class="progress mt-2"><div class="progress__fill" id="budgetBar" style="width:0%"></div></div>
+        <p class="muted" id="budgetText">לא הוגדר תקציב.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================ VIEW: INFO ===== -->
+  <section class="view" id="view-info" role="tabpanel" aria-labelledby="tab-info">
+    <div class="section-head">
+      <h2>מידע שימושי</h2>
+      <p>נהיגה, מזג אוויר, כסף, הזמנות מראש — כל מה שכדאי לדעת לפני היציאה.</p>
+    </div>
+    <div class="info-grid" id="infoGrid"></div>
+
+    <div class="section-head mt-3">
+      <h2>רשימת ציוד</h2>
+      <p>סמנו פריטים תוך כדי אריזה — הסימון נשמר בדפדפן.</p>
+    </div>
+    <div class="progress"><div class="progress__fill" id="packBar" style="width:0%"></div></div>
+    <p class="muted mb-2" id="packText"></p>
+    <div class="pack-grid" id="packGrid"></div>
+  </section>
+
+</main>
+
+<footer class="foot wrap">
+  <p>נבנה עבור הטיול · אוגוסט–ספטמבר 2026 · כל הנתונים נשמרים מקומית בדפדפן</p>
+</footer>
+
+<script src="assets/vendor/leaflet/leaflet.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
