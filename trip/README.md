@@ -28,24 +28,23 @@ python3 -m http.server 8000
 - **כתובת:** https://manchester-scotland-trip.netlify.app
 - **לוח בקרה:** https://app.netlify.com/projects/manchester-scotland-trip
 
-`netlify.toml` שבתיקייה הזו כבר מגדיר את הכול: אין שלב בנייה, מפרסמים את
-התיקייה כמו שהיא, עם כותרות מטמון (Leaflet לשנה, קוד האתר ללא מטמון)
-וכותרות אבטחה בסיסיות.
+`netlify.toml` שבשורש המאגר כבר מגדיר הכול — `publish = "trip"`, ללא שלב בנייה,
+עם כותרות מטמון (Leaflet לשנה, קוד האתר ללא מטמון) וכותרות אבטחה בסיסיות.
+**אין צורך לקבוע Base directory או Publish directory בממשק.**
+
+> ℹ️ הפריסה אינה מתבצעת מסביבת הפיתוח הזו: מדיניות הרשת של הסביבה חוסמת את
+> `api.netlify.com`. יצירת הפרויקט עברה (היא רצה בצד השרת), אבל העלאת הקבצים
+> חייבת לצאת מכאן ולכן נחסמת.
 
 ### אפשרות א' — חיבור למאגר (מומלץ)
 
-פריסה אוטומטית בכל דחיפה. בלוח הבקרה של הפרויקט:
-**Project configuration → Build & deploy → Link repository** → בחירת
-`galstaal67-eng/SOX`, ואז:
+פריסה אוטומטית בכל דחיפה, והדבר היחיד שצריך לעשות פעם אחת:
 
-| שדה | ערך |
-| --- | --- |
-| Base directory | `trip` |
-| Build command | *(ריק)* |
-| Publish directory | `trip` |
-| Branch to deploy | `claude/manchester-scotland-trip-site-a5e60v` |
-
-ה-`netlify.toml` ייקרא אוטומטית מתוך `trip/` ברגע ש-Base directory מוגדר.
+1. https://app.netlify.com/projects/manchester-scotland-trip
+2. **Project configuration → Build & deploy → Link repository**
+3. לבחור `galstaal67-eng/SOX`
+4. **Branch to deploy:** `claude/manchester-scotland-trip-site-a5e60v`
+5. את שאר השדות להשאיר ריקים — `netlify.toml` מטפל בהם
 
 ### אפשרות ב' — פריסה ידנית מהמחשב
 
