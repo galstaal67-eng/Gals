@@ -1,6 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { getDatabase } from "@netlify/database";
-import { json, fail, num, CURRENCIES, type Currency } from "./_shared.mts";
+import { json, fail, num, CURRENCIES, type Currency } from "../lib/shared.mts";
 
 /**
  * PUT /api/settings

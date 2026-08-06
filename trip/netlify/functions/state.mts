@@ -1,6 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { getDatabase } from "@netlify/database";
-import { json, fail, num, isoDate } from "./_shared.mts";
+import { json, fail, num, isoDate } from "../lib/shared.mts";
 
 /**
  * GET /api/state

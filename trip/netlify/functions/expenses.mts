@@ -1,6 +1,6 @@
 import type { Config, Context } from "@netlify/functions";
 import { getDatabase } from "@netlify/database";
-import { json, fail, num, isoDate, newId, parseExpense } from "./_shared.mts";
+import { json, fail, num, isoDate, newId, parseExpense } from "../lib/shared.mts";
 
 /**
  * POST   /api/expenses          הוספת הוצאה אחת

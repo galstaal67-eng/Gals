@@ -155,7 +155,7 @@ fx_rates    currency, ils_per_unit, updated_at
 
 > ⚠️ **אין אימות משתמשים.** כל מי שמגיע לכתובת יכול לקרוא ולערוך את ההוצאות.
 > זו הייתה החלטה מודעת. להוספת קוד טיול משותף בהמשך צריך לבדוק משתנה סביבה
-> אחד ב-`netlify/functions/_shared.mts` ולהוסיף מסך כניסה — שינוי קטן.
+> אחד ב-`netlify/lib/shared.mts` ולהוסיף מסך כניסה — שינוי קטן.
 
 ## מבנה
 
@@ -171,8 +171,8 @@ trip/
 │   │   └── app.js              # רינדור, מפה, תכנון עלויות, הוצאות וקיזוז
 │   └── vendor/leaflet/         # Leaflet 1.9.4 (BSD-2-Clause), מקומי
 ├── netlify/
-│   ├── functions/
-│   │   ├── _shared.mts         # אימות קלט ועזרי תגובה
+│   ├── lib/shared.mts          # אימות קלט ועזרי תגובה
+│   ├── functions/              # כל קובץ כאן נפרס כפונקציה — קוד משותף שייך ל-lib/
 │   │   ├── state.mts           # GET /api/state
 │   │   ├── expenses.mts        # POST/DELETE /api/expenses
 │   │   └── settings.mts        # PUT /api/settings
