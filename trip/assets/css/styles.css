@@ -57,7 +57,10 @@ html[data-theme="light"] {
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;   /* אייפון לא ינפח טקסט בסיבוב מסך */
+}
 
 body {
   margin: 0;
@@ -66,7 +69,21 @@ body {
   color: var(--txt);
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;                  /* רשת ביטחון מול גלישה אופקית */
 }
+
+/* פריטי grid/flex מקבלים min-width:auto כברירת מחדל, ולכן תוכן רחב
+   (טבלה עם min-width, מילה ארוכה) מנפח את כל הרשת ומוציא את הדף מהמסך
+   בנייד. אפס מפורש מונע את זה, והגלילה נשארת בתוך המכל שנועד לה. */
+.exp-grid > *,
+.grid-2 > *,
+.info-grid > *,
+.pack-grid > *,
+.panels > *,
+.exp-summary > *,
+.form-grid > *,
+.rate-grid > *,
+.bar-row > * { min-width: 0; }
 
 h1, h2, h3, h4 { line-height: 1.25; margin: 0 0 .5rem; font-weight: 800; }
 p { margin: 0 0 .8rem; }
@@ -94,8 +111,9 @@ ul { margin: 0; padding-inline-start: 1.15rem; }
 }
 
 .hero__ridge {
-  position: absolute; inset-inline: 0; bottom: -1px; height: 130px;
-  width: 100%; display: block; opacity: .5; pointer-events: none;
+  position: absolute; inset-inline-start: 0; bottom: -1px;
+  width: 100%; height: 130px;
+  display: block; opacity: .5; pointer-events: none;
 }
 
 .hero__inner { position: relative; z-index: 2; }
@@ -514,12 +532,147 @@ html[data-theme="light"] .bar-track { background: var(--ink-600); }
 .row-between { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .grid-2 { display: grid; gap: 1.1rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 
-@media (max-width: 640px) {
-  .day__head { grid-template-columns: auto 1fr auto; gap: .7rem; padding: .9rem; }
-  .day__num { width: 44px; height: 44px; }
-  .day__title { font-size: 1rem; }
-  .hero { padding: 2.2rem 0 1.8rem; }
+/* =========================================================== COST ==== */
+
+.cost-group.is-dimmed { opacity: .45; }
+.rng { white-space: nowrap; unicode-bidi: isolate; }
+.cost-input { max-width: 7rem; }
+table.data.cost-table { min-width: 560px; }
+table.data.cost-table td:first-child { min-width: 15rem; }
+
+.imp__status {
+  font-size: .68rem; font-weight: 800; letter-spacing: .03em;
+  padding: .1rem .5rem; border-radius: 5px; border: 1px solid currentColor;
 }
+.imp__status--applied { color: var(--moss); }
+.imp__status--action  { color: var(--gold); }
+
+/* ========================================================== MOBILE === */
+
+@media (max-width: 860px) {
+  #map { height: min(58vh, 460px); min-height: 320px; }
+}
+
+@media (max-width: 640px) {
+  .wrap { padding: 0 .9rem; }
+
+  .hero { padding: 2.2rem 0 1.8rem; }
+  .hero__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .day__head { gap: .7rem; padding: .9rem; }
+  .day__num { width: 48px; height: 48px; }
+  .day__num small { font-size: .74rem; }
+  .day__title { font-size: 1rem; }
+  .day__body { padding-inline: .9rem; }
+
+  .imp { padding: .9rem 1rem; }
+  .imp__level, .imp__status { font-size: .74rem; }
+
+  .info-card, .pack-card, .pad { padding: 1rem; }
+
+  /* טופס בעמודה אחת — שתי עמודות דוחסות את התוויות עד לחוסר קריאות */
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .form-grid > .field[style*="span 2"] { grid-column: span 1 !important; }
+
+  .rate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cost-input { max-width: none; }
+
+  .bar-row { grid-template-columns: minmax(4.5rem, 6rem) 1fr auto; gap: .5rem; font-size: .82rem; }
+  .bar-val { min-width: 0; font-size: .78rem; }
+
+  .spark { height: 90px; }
+  .spark__lbl { font-size: .65rem; }
+
+  /* ---- טבלאות: נפרסות לכרטיסים במקום גלילה אופקית ---- */
+  .table-scroll { overflow-x: visible; }
+
+  table.data,
+  table.data.cost-table { min-width: 0; display: block; }
+  table.data thead { display: none; }
+  table.data tbody { display: block; }
+
+  table.data tr {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .15rem .7rem;
+    padding: .8rem .9rem;
+    border-bottom: 1px solid var(--line);
+  }
+  table.data tr:hover { background: none; }
+
+  table.data td {
+    display: grid;
+    grid-template-columns: 5.5rem 1fr;
+    align-items: baseline;
+    gap: .6rem;
+    grid-column: 1 / -1;
+    padding: .12rem 0;
+    border: 0;
+    white-space: normal;
+  }
+  table.data td::before {
+    content: attr(data-label);
+    font-size: .74rem;
+    font-weight: 700;
+    color: var(--txt-mute);
+  }
+  table.data td:empty { display: none; }
+  table.data td.row-action {
+    grid-template-columns: 1fr;
+    justify-items: start;
+    margin-top: .3rem;
+  }
+  table.data td.row-action::before { content: none; }
+  table.data td.row-title { grid-template-columns: 1fr; }
+  table.data td.row-title::before { content: none; }
+
+  .empty-row td { display: block; grid-column: 1 / -1; }
+  .empty-row td::before { content: none; }
+}
+
+/* ---- אזורי מגע: על מסך מגע כל דבר לחיץ מקבל לפחות 44px ---- */
+@media (pointer: coarse) {
+  .tab { padding: .62rem 1.05rem; min-height: 44px; }
+  .icon-btn { width: 44px; height: 44px; font-size: 1.1rem; }
+  .chip { padding: .55rem .85rem; min-height: 44px; font-size: .88rem; }
+  .btn { min-height: 44px; padding: .55rem 1rem; }
+  .btn--sm { min-height: 40px; padding: .45rem .8rem; font-size: .84rem; }
+  .pack-item { padding: .5rem 0; }
+  input[type="checkbox"] { width: 22px; height: 22px; }
+
+  /* תווית שעוטפת תיבת סימון היא בעצמה אזור המגע */
+  label.pill-row { min-height: 44px; align-items: center; }
+
+  /* גופן 16px בשדות קלט — מתחת לזה ספארי מזנק זום בעת מיקוד */
+  input, select, textarea { font-size: 16px; padding: .6rem .7rem; }
+  input[type="checkbox"] { padding: 0; }
+
+  table.data [data-del] { min-height: 40px; min-width: 44px; }
+
+  /* כפתורי הזום של Leaflet קטנים מדי לאצבע */
+  .leaflet-touch .leaflet-bar a { width: 40px; height: 40px; line-height: 40px; font-size: 1.3rem; }
+}
+
+/* ---- מפה במגע: נפתחת רק אחרי הקשה, כדי שגלילת הדף לא תיתפס ---- */
+.map-shell { position: relative; }
+
+.map-touch-guard {
+  position: absolute; inset: 0; z-index: 500;
+  display: none; place-items: center;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--ink-900) 45%, transparent);
+  backdrop-filter: blur(1px);
+  cursor: pointer;
+  font-weight: 700; font-size: .95rem; color: var(--txt);
+}
+.map-touch-guard span {
+  background: var(--ink-800);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: .6rem 1.1rem;
+  box-shadow: var(--shadow);
+}
+.map-shell.is-locked .map-touch-guard { display: grid; }
 
 /* =========================================================== PRINT === */
 

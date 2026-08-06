@@ -6,6 +6,11 @@
   <title>מנצ'סטר וסקוטלנד · 28.8–6.9.2026</title>
   <meta name="description" content="מסלול טיול מפורט: מנצ'סטר, אדינבורו, גלנקו, האי סקאי, לוך נס וקיירנגורמס — כולל מפה אינטראקטיבית, ניהול הוצאות וקיזוז בין זוגות." />
   <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#080d14" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f4f6fa" media="(prefers-color-scheme: light)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="סקוטלנד 2026" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -28,18 +33,18 @@
   </svg>
 
   <div class="wrap hero__inner">
-    <span class="hero__eyebrow">🏴󠁧󠁢󠁳󠁣󠁴󠁿 28 באוגוסט – 6 בספטמבר 2026</span>
+    <span class="hero__eyebrow">🏴󠁧󠁢󠁳󠁣󠁴󠁿 2 – 13 בספטמבר 2026</span>
     <h1>מנצ'סטר וסקוטלנד</h1>
     <p class="hero__sub">
-      עשרה ימים מהתעלות של מנצ'סטר, דרך הרויאל מייל של אדינבורו, אל עמק גלנקו,
-      האי סקאי, לוך נס ויערות הקיירנגורמס — וחזרה.
+      שנים־עשר ימים מהתעלות של מנצ'סטר, דרך גלזגו ולוך לומונד, אל עמק גלנקו,
+      האי סקאי ולוך נס — וחזרה דרך אדינבורו.
     </p>
 
     <div class="hero__stats">
       <div class="stat"><div class="stat__val countdown" id="countdown">—</div><div class="stat__lbl">עד היציאה</div></div>
-      <div class="stat"><div class="stat__val">10</div><div class="stat__lbl">ימים</div></div>
-      <div class="stat"><div class="stat__val">1,190</div><div class="stat__lbl">ק"מ נהיגה (מוערך)</div></div>
-      <div class="stat"><div class="stat__val">5</div><div class="stat__lbl">מלונות</div></div>
+      <div class="stat"><div class="stat__val">12</div><div class="stat__lbl">ימים</div></div>
+      <div class="stat"><div class="stat__val">1,100</div><div class="stat__lbl">ק"מ נהיגה (מוערך)</div></div>
+      <div class="stat"><div class="stat__val">11</div><div class="stat__lbl">לילות · 5 בסיסים</div></div>
       <div class="stat"><div class="stat__val">2</div><div class="stat__lbl">מדינות</div></div>
     </div>
   </div>
@@ -51,7 +56,8 @@
     <button class="tab" role="tab" id="tab-map"      aria-controls="view-map"      aria-selected="true">🗺️ מפה</button>
     <button class="tab" role="tab" id="tab-route"    aria-controls="view-route"    aria-selected="false">📅 מסלול יומי</button>
     <button class="tab" role="tab" id="tab-tips"     aria-controls="view-tips"     aria-selected="false">💡 שיפורים</button>
-    <button class="tab" role="tab" id="tab-expenses" aria-controls="view-expenses" aria-selected="false">💷 הוצאות</button>
+    <button class="tab" role="tab" id="tab-cost"     aria-controls="view-cost"     aria-selected="false">💰 תכנון עלויות</button>
+    <button class="tab" role="tab" id="tab-expenses" aria-controls="view-expenses" aria-selected="false">💷 הוצאות בפועל</button>
     <button class="tab" role="tab" id="tab-info"     aria-controls="view-info"     aria-selected="false">ℹ️ מידע וציוד</button>
     <span class="nav__spacer"></span>
     <button class="icon-btn" id="themeToggle" title="מצב בהיר / כהה" aria-label="החלפת ערכת צבעים">🌙</button>
@@ -70,8 +76,11 @@
 
     <div class="map-filter" id="mapFilter"></div>
 
-    <div class="map-shell">
+    <div class="map-shell" id="mapShell">
       <div id="map"></div>
+      <div class="map-touch-guard" id="mapGuard" role="button" tabindex="0">
+        <span>👆 הקישו כדי להפעיל את המפה</span>
+      </div>
       <div class="map-fallback card pad" id="mapFallback">
         <h3>לא ניתן לטעון את המפה</h3>
         <p>ספריית המפות לא נטענה. כל שאר האתר עובד כרגיל, ובכל יום במסלול
@@ -114,10 +123,43 @@
   <section class="view" id="view-tips" role="tabpanel" aria-labelledby="tab-tips">
     <div class="section-head">
       <h2>המלצות לשיפור המסלול</h2>
-      <p>עברתי על המסלול שהצעתם. הוא טוב — אלה הנקודות שהייתי משנה או מוודא מראש,
-         מסודרות לפי דחיפות.</p>
+      <p>עברתי על המסלול. אלה הנקודות שהייתי משנה או מוודא מראש, מסודרות לפי דחיפות.
+         מה שסומן "יושם במסלול" כבר משוקלל בתוכנית היומית עצמה; השאר דורש החלטה או הזמנה מכם.</p>
+      <div class="pill-row mt-1" id="impCounts"></div>
     </div>
     <div class="imp-list" id="impList"></div>
+  </section>
+
+  <!-- ================================================ VIEW: COST ===== -->
+  <section class="view" id="view-cost" role="tabpanel" aria-labelledby="tab-cost">
+    <div class="section-head">
+      <h2>תכנון עלויות — לזוג</h2>
+      <p id="costNote"></p>
+    </div>
+
+    <div class="exp-summary mb-2" id="costSummary"></div>
+
+    <div class="card pad mb-2">
+      <div class="row-between">
+        <h3 style="margin:0">מה כלול</h3>
+        <label class="pill-row" style="font-size:.85rem;font-weight:700;color:var(--txt-dim);cursor:pointer">
+          <input type="checkbox" id="costIncludeExtras" checked />
+          <span>כלול גם נסיעות, כניסות וחניונים</span>
+        </label>
+      </div>
+      <p class="muted mt-1" style="margin:0">
+        טיסות, מלונות ורכב הם הליבה. אוכל ושתייה <strong>אינם</strong> כלולים —
+        אומדן נפרד לאלה נמצא בלשונית "מידע וציוד", ואת ההוצאה בפועל מנהלים בלשונית "הוצאות בפועל".
+      </p>
+    </div>
+
+    <div id="costGroups"></div>
+
+    <div class="card pad mt-2">
+      <h3>שערי המרה</h3>
+      <p class="muted">אותם שערים משמשים גם את לשונית ההוצאות בפועל.</p>
+      <div class="rate-grid mt-1" id="costRateGrid"></div>
+    </div>
   </section>
 
   <!-- ============================================ VIEW: EXPENSES ===== -->

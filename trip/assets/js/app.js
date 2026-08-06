@@ -25,6 +25,10 @@
   const ils  = (n) => nfILS.format(Math.round(n || 0));
   const ils2 = (n) => nfILS2.format(n || 0);
 
+  /** טווח סכומים. הפורמט העברי מוסיף סימני כיווניות סביב כל מספר, ולכן
+   *  מקף בין שניים נשבר בגלישת שורה ומתהפך. bdi + nowrap מבודדים אותו. */
+  const ilsRange = (a, b) => `<bdi class="rng">${ils(a)} – ${ils(b)}</bdi>`;
+
   /** dd/mm — לתצוגה קומפקטית */
   function shortDate(iso) {
     const d = new Date(iso + "T00:00:00");
@@ -58,6 +62,8 @@
     expenses: [],
     budget: null,
     packing: {},
+    costOverrides: {},        // "groupKey:index" -> { low, high }
+    costIncludeExtras: true,
   };
 
   let state = load();
@@ -113,6 +119,9 @@
     });
     // Leaflet מחשב גודל שגוי כשהמכל היה מוסתר — מרעננים בעת חשיפה
     if (tabEl.id === "tab-map" && map) setTimeout(() => map.invalidateSize(), 60);
+
+    // בנייד סרגל הלשוניות נגלל אופקית; מוודאים שהנבחרת נראית במלואה
+    tabEl.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -161,7 +170,16 @@
       return;
     }
 
-    map = L.map("map", { scrollWheelZoom: false, zoomControl: true });
+    const touch = window.matchMedia("(pointer: coarse)").matches;
+
+    map = L.map("map", {
+      scrollWheelZoom: false,
+      zoomControl: true,
+      // במסך מגע הגרירה כבויה עד שמקישים, אחרת אצבע על המפה חוטפת את
+      // גלילת הדף ואי אפשר לעבור את המפה בכלל
+      dragging: !touch,
+      tap: false,
+    });
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 18,
@@ -170,6 +188,21 @@
 
     map.on("click", () => map.scrollWheelZoom.enable());
     map.on("mouseout", () => map.scrollWheelZoom.disable());
+
+    if (touch) {
+      const shell = $("#mapShell");
+      const guard = $("#mapGuard");
+      shell.classList.add("is-locked");
+
+      const unlock = () => {
+        map.dragging.enable();
+        shell.classList.remove("is-locked");
+      };
+      guard.addEventListener("click", unlock);
+      guard.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); unlock(); }
+      });
+    }
 
     const allBounds = [];
 
@@ -267,10 +300,11 @@
   /* ==================================================================== */
 
   function renderRouteStats() {
-    // ק"מ נהיגה לפי אזור — ימי טיסה/רכבת/עירוני אינם נספרים
+    // ק"מ נהיגה לפי אזור. מסתמך על pathMode ולא על mode, כדי לתפוס גם את יום
+    // החזרה — שמסומן כיום טיסה אבל כולל נסיעה מפיטלוכרי לשדה התעופה.
     const byRegion = {};
     TRIP.days
-      .filter((d) => d.mode === "drive")
+      .filter((d) => d.pathMode === "drive")
       .forEach((d) => {
         byRegion[d.region] = (byRegion[d.region] || 0) + (d.drive?.km || 0);
       });
@@ -433,16 +467,31 @@
   /* ==================================================================== */
 
   const LEVEL_LABEL = { critical: "קריטי", high: "חשוב", medium: "כדאי", low: "לתשומת לב" };
+  const STATUS_LABEL = {
+    applied: { text: "✓ יושם במסלול", cls: "imp__status--applied" },
+    action:  { text: "↗ דורש פעולה",  cls: "imp__status--action" },
+  };
 
   function renderImprovements() {
+    const applied = TRIP.improvements.filter((i) => i.status === "applied").length;
+    const action = TRIP.improvements.length - applied;
+    $("#impCounts").innerHTML =
+      `<span class="badge" style="color:var(--moss)">✓ ${applied} יושמו במסלול</span>` +
+      `<span class="badge" style="color:var(--gold)">↗ ${action} דורשות פעולה מכם</span>`;
+
     $("#impList").innerHTML = TRIP.improvements
-      .map(
-        (imp) => `
+      .map((imp) => {
+        const st = STATUS_LABEL[imp.status] || STATUS_LABEL.action;
+        return `
         <article class="imp imp--${imp.level}">
-          <h3><span class="imp__level">${LEVEL_LABEL[imp.level]}</span> ${esc(imp.title)}</h3>
+          <h3>
+            <span class="imp__level">${LEVEL_LABEL[imp.level]}</span>
+            <span class="imp__status ${st.cls}">${st.text}</span>
+            ${esc(imp.title)}
+          </h3>
           <p>${esc(imp.body)}</p>
-        </article>`
-      )
+        </article>`;
+      })
       .join("");
   }
 
@@ -504,6 +553,169 @@
     $("#packBar").style.width = pct + "%";
     $("#packText").textContent = `${done} מתוך ${total} פריטים ארוזים`;
   }
+
+  /* ==================================================================== */
+  /*  תכנון עלויות מראש                                                   */
+  /* ==================================================================== */
+
+  /** הערך בפועל של שורה — override של המשתמש אם קיים, אחרת האומדן מהנתונים */
+  function costValue(groupKey, idx, item) {
+    const o = state.costOverrides[groupKey + ":" + idx];
+    return {
+      low: o && Number.isFinite(o.low) ? o.low : item.low,
+      high: o && Number.isFinite(o.high) ? o.high : item.high,
+    };
+  }
+
+  const rate = (cur) => Number(state.rates[cur]) || 1;
+
+  function computeCost() {
+    const groups = TRIP.costPlan.groups.map((g) => {
+      let low = 0, high = 0;
+      g.items.forEach((item, i) => {
+        const v = costValue(g.key, i, item);
+        low += v.low * rate(item.currency);
+        high += v.high * rate(item.currency);
+      });
+      return { ...g, lowILS: low, highILS: high };
+    });
+
+    const included = groups.filter((g) => g.core || state.costIncludeExtras);
+    const low = included.reduce((s, g) => s + g.lowILS, 0);
+    const high = included.reduce((s, g) => s + g.highILS, 0);
+
+    return { groups, low, high, mid: (low + high) / 2 };
+  }
+
+  function renderCostPlan() {
+    $("#costNote").textContent = TRIP.costPlan.note;
+    $("#costIncludeExtras").checked = state.costIncludeExtras;
+
+    const c = computeCost();
+    const nights = TRIP.days.filter((d) => d.hotel).length;
+
+    $("#costSummary").innerHTML = `
+      <div class="exp-tile exp-tile--settle">
+        <div class="exp-tile__lbl">סה"כ לזוג</div>
+        <div class="exp-tile__val">${ils(c.mid)}</div>
+        <div class="exp-tile__sub">טווח ${ilsRange(c.low, c.high)} · ללא אוכל</div>
+      </div>
+      <div class="exp-tile">
+        <div class="exp-tile__lbl">לאדם</div>
+        <div class="exp-tile__val">${ils(c.mid / 2)}</div>
+        <div class="exp-tile__sub">טווח ${ilsRange(c.low / 2, c.high / 2)}</div>
+      </div>
+      <div class="exp-tile">
+        <div class="exp-tile__lbl">ללילה לזוג</div>
+        <div class="exp-tile__val">${ils(c.mid / nights)}</div>
+        <div class="exp-tile__sub">על פני ${nights} לילות</div>
+      </div>
+      <div class="exp-tile">
+        <div class="exp-tile__lbl">ליום לזוג</div>
+        <div class="exp-tile__val">${ils(c.mid / TRIP.days.length)}</div>
+        <div class="exp-tile__sub">על פני ${TRIP.days.length} ימים</div>
+      </div>`;
+
+    const maxGroup = Math.max(...c.groups.map((g) => g.highILS), 1);
+
+    $("#costGroups").innerHTML = c.groups
+      .map((g) => {
+        const dimmed = !g.core && !state.costIncludeExtras;
+        const rows = g.items
+          .map((item, i) => {
+            const v = costValue(g.key, i, item);
+            const id = g.key + ":" + i;
+            return `
+            <tr>
+              <td class="note row-title">
+                <strong>${esc(item.label)}</strong>
+                <div class="muted" style="white-space:normal">${esc(item.detail)}</div>
+              </td>
+              <td data-label="מ־">
+                <input type="number" class="cost-input" data-cost="${id}" data-bound="low"
+                       value="${v.low}" min="0" step="10" aria-label="מינימום — ${esc(item.label)}" />
+              </td>
+              <td data-label="עד">
+                <input type="number" class="cost-input" data-cost="${id}" data-bound="high"
+                       value="${v.high}" min="0" step="10" aria-label="מקסימום — ${esc(item.label)}" />
+              </td>
+              <td data-label="מטבע">${esc(item.currency)}</td>
+              <td class="num" data-label="בש&quot;ח">${ilsRange(v.low * rate(item.currency), v.high * rate(item.currency))}</td>
+            </tr>`;
+          })
+          .join("");
+
+        return `
+        <div class="card mb-2 cost-group${dimmed ? " is-dimmed" : ""}">
+          <div class="pad row-between" style="padding-bottom:.5rem">
+            <h3 style="margin:0">${g.icon} ${esc(g.title)}${
+              g.core ? "" : ' <span class="badge" style="color:var(--txt-mute)">אופציונלי</span>'
+            }</h3>
+            <strong style="font-variant-numeric:tabular-nums">${ilsRange(g.lowILS, g.highILS)}</strong>
+          </div>
+          <div class="pad" style="padding-top:0;padding-bottom:.6rem">
+            <span class="bar-track"><i class="bar-fill" style="width:${(g.highILS / maxGroup) * 100}%;background:var(--moss)"></i></span>
+          </div>
+          <div class="table-scroll">
+            <table class="data cost-table">
+              <thead>
+                <tr><th>סעיף</th><th>מ־</th><th>עד</th><th>מטבע</th><th>בש"ח</th></tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>`;
+      })
+      .join("");
+
+    $$("[data-cost]").forEach((inp) =>
+      inp.addEventListener("input", () => {
+        const key = inp.dataset.cost;
+        const val = parseFloat(inp.value);
+        if (!Number.isFinite(val) || val < 0) return;
+        state.costOverrides[key] = state.costOverrides[key] || {};
+        state.costOverrides[key][inp.dataset.bound] = val;
+        save();
+        renderCostSummaryOnly();
+      })
+    );
+  }
+
+  /** מרענן רק את הסיכומים, כדי לא לאבד פוקוס בשדה שעורכים כרגע */
+  function renderCostSummaryOnly() {
+    const c = computeCost();
+    const nights = TRIP.days.filter((d) => d.hotel).length;
+    const tiles = $$("#costSummary .exp-tile__val");
+    const subs = $$("#costSummary .exp-tile__sub");
+    if (tiles.length === 4) {
+      tiles[0].textContent = ils(c.mid);
+      tiles[1].textContent = ils(c.mid / 2);
+      tiles[2].textContent = ils(c.mid / nights);
+      tiles[3].textContent = ils(c.mid / TRIP.days.length);
+      subs[0].innerHTML = `טווח ${ilsRange(c.low, c.high)} · ללא אוכל`;
+      subs[1].innerHTML = `טווח ${ilsRange(c.low / 2, c.high / 2)}`;
+    }
+    const maxGroup = Math.max(...c.groups.map((g) => g.highILS), 1);
+    $$("#costGroups .cost-group").forEach((el, i) => {
+      const g = c.groups[i];
+      if (!g) return;
+      $(".row-between strong", el).innerHTML = ilsRange(g.lowILS, g.highILS);
+      $(".bar-fill", el).style.width = (g.highILS / maxGroup) * 100 + "%";
+      el.classList.toggle("is-dimmed", !g.core && !state.costIncludeExtras);
+      $$("tbody tr", el).forEach((tr, j) => {
+        const item = g.items[j];
+        const v = costValue(g.key, j, item);
+        $("td.num", tr).innerHTML =
+          ilsRange(v.low * rate(item.currency), v.high * rate(item.currency));
+      });
+    });
+  }
+
+  $("#costIncludeExtras").addEventListener("change", (e) => {
+    state.costIncludeExtras = e.target.checked;
+    save();
+    renderCostSummaryOnly();
+  });
 
   /* ==================================================================== */
   /*  הוצאות                                                              */
@@ -618,25 +830,33 @@
   /* --------------------------------------------------------- שערים --- */
 
   function renderRates() {
-    $("#rateGrid").innerHTML = CURRENCIES.filter((c) => c !== "₪")
-      .map(
-        (c) => `
-        <div class="field">
-          <label for="rate-${c}">1 ${c} = ₪</label>
-          <input type="number" id="rate-${c}" data-rate="${c}" step="0.001" min="0"
-                 value="${state.rates[c]}" />
-        </div>`
-      )
-      .join("");
+    // אותם שערים משמשים את שתי הלשוניות — התכנון מראש וההוצאות בפועל
+    ["#rateGrid", "#costRateGrid"].forEach((sel, gridIdx) => {
+      $(sel).innerHTML = CURRENCIES.filter((c) => c !== "₪")
+        .map(
+          (c) => `
+          <div class="field">
+            <label for="rate-${gridIdx}-${c}">1 ${c} = ₪</label>
+            <input type="number" id="rate-${gridIdx}-${c}" data-rate="${c}" step="0.001" min="0"
+                   value="${state.rates[c]}" />
+          </div>`
+        )
+        .join("");
+    });
 
     $$("[data-rate]").forEach((inp) =>
       inp.addEventListener("input", () => {
         const v = parseFloat(inp.value);
-        if (Number.isFinite(v) && v > 0) {
-          state.rates[inp.dataset.rate] = v;
-          save();
-          renderExpenses();
-        }
+        if (!Number.isFinite(v) || v <= 0) return;
+        const cur = inp.dataset.rate;
+        state.rates[cur] = v;
+        save();
+        // משקפים את השינוי בשדה המקביל בלשונית השנייה
+        $$(`[data-rate="${cur}"]`).forEach((other) => {
+          if (other !== inp) other.value = v;
+        });
+        renderExpenses();
+        renderCostSummaryOnly();
       })
     );
   }
@@ -764,14 +984,14 @@
           .map(
             (e) => `
         <tr>
-          <td class="num">${e.date ? shortDate(e.date) : "—"}</td>
-          <td><i class="cat-dot" style="background:${catColor(e.category)}"></i>${esc(e.category)}</td>
-          <td>${esc(e.payer)}</td>
-          <td class="num">${nfNum.format(e.amount)}</td>
-          <td>${esc(e.currency)}</td>
-          <td class="num">${ils2(toILS(e))}</td>
-          <td class="note">${esc(e.note) || "—"}</td>
-          <td><button class="btn btn--sm btn--ghost btn--danger" data-del="${e.id}" title="מחיקה">✕</button></td>
+          <td class="num" data-label="תאריך">${e.date ? shortDate(e.date) : "—"}</td>
+          <td data-label="סעיף"><i class="cat-dot" style="background:${catColor(e.category)}"></i>${esc(e.category)}</td>
+          <td data-label="מי שילם">${esc(e.payer)}</td>
+          <td class="num" data-label="סכום">${nfNum.format(e.amount)}</td>
+          <td data-label="מטבע">${esc(e.currency)}</td>
+          <td class="num" data-label="בש&quot;ח">${ils2(toILS(e))}</td>
+          <td class="note" data-label="הערות">${esc(e.note) || "—"}</td>
+          <td class="row-action"><button class="btn btn--sm btn--ghost btn--danger" data-del="${e.id}">✕ מחיקה</button></td>
         </tr>`
           )
           .join("")
@@ -1004,6 +1224,7 @@
     fillSelects();
     renderPeople();
     renderRates();
+    renderCostPlan();
 
     // ברירת מחדל לתאריך: היום אם אנחנו בטווח הטיול, אחרת היום הראשון
     const today = new Date().toISOString().slice(0, 10);
