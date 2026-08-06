@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>מנצ'סטר וסקוטלנד · 28.8–6.9.2026</title>
-  <meta name="description" content="מסלול טיול מפורט: מנצ'סטר, אדינבורו, גלנקו, האי סקאי, לוך נס וקיירנגורמס — כולל מפה אינטראקטיבית, ניהול הוצאות וקיזוז בין זוגות." />
+  <title>מנצ'סטר וסקוטלנד · 2.9–13.9.2026</title>
+  <meta name="description" content="מסלול טיול מפורט ל-12 ימים: מנצ'סטר, גלזגו, לוך לומונד, גלנקו, האי סקאי, לוך נס ואדינבורו — עם מפה אינטראקטיבית, תכנון עלויות וניהול הוצאות משותף." />
   <meta name="color-scheme" content="dark light" />
   <meta name="theme-color" content="#080d14" media="(prefers-color-scheme: dark)" />
   <meta name="theme-color" content="#f4f6fa" media="(prefers-color-scheme: light)" />
@@ -93,12 +93,12 @@
     <div class="grid-2 mt-3">
       <div class="card pad">
         <h3>ק"מ נהיגה לפי אזור</h3>
-        <p class="muted">רק ימי הנהיגה (4–10). ימי הטיסה, הרכבת והעיר אינם נספרים.</p>
+        <p class="muted">רק ימי הנהיגה (6–12). ימי הטיסה, הרכבת והעיר אינם נספרים.</p>
         <div class="bar-list mt-1" id="regionBars"></div>
       </div>
       <div class="card pad">
         <h3>עומס נהיגה יומי</h3>
-        <p class="muted">שעות נהיגה נטו, ללא עצירות. יום 9 הוא החריג — ראו את לשונית השיפורים.</p>
+        <p class="muted">שעות נהיגה נטו, ללא עצירות. יום 11 הוא החריג — ראו את לשונית השיפורים.</p>
         <div class="spark mt-1" id="driveSpark"></div>
       </div>
     </div>
@@ -167,7 +167,19 @@
     <div class="section-head">
       <h2>ניהול הוצאות וקיזוז</h2>
       <p>מבוסס על גיליון ההוצאות מהטיול הקודם: הזנת הוצאות במטבע המקורי, המרה אוטומטית לשקל,
-         סיכום לפי אדם ולפי זוג, וחישוב ההעברה הנדרשת בסוף. הנתונים נשמרים בדפדפן שלכם בלבד.</p>
+         סיכום לפי אדם ולפי זוג, וחישוב ההעברה הנדרשת בסוף.</p>
+      <div class="sync-status is-local mt-1" id="syncStatus"></div>
+    </div>
+
+    <div class="upload-prompt" id="uploadPrompt" hidden>
+      <div>
+        <strong>נמצאו <span id="uploadCount">0</span> הוצאות ששמורות רק במכשיר הזה.</strong>
+        <div class="muted">להעלות אותן לענן כדי שכולם יראו אותן?</div>
+      </div>
+      <div class="pill-row">
+        <button class="btn btn--primary btn--sm" id="uploadLocal">⬆️ העלה לענן</button>
+        <button class="btn btn--sm" id="dismissUpload">לא עכשיו</button>
+      </div>
     </div>
 
     <div class="exp-grid">
@@ -327,6 +339,7 @@
 </footer>
 
 <script src="assets/vendor/leaflet/leaflet.js"></script>
+<script src="assets/js/api.js"></script>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
 </body>

@@ -762,27 +762,35 @@
     if (prev && state.people.some((p) => p.name === prev)) $("#exPayer").value = prev;
   }
 
-  $("#expForm").addEventListener("submit", (e) => {
+  $("#expForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const amount = parseFloat($("#exAmount").value);
     if (!Number.isFinite(amount) || amount <= 0) return;
 
-    state.expenses.push({
-      id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random())),
+    const expense = {
       date: $("#exDate").value,
       amount,
       currency: $("#exCurrency").value,
       category: $("#exCategory").value,
       payer: $("#exPayer").value,
       note: $("#exNote").value.trim(),
-    });
+    };
 
-    save();
+    // מנקים את הטופס מיד — מבחינת המשתמש ההוצאה כבר נרשמה
     $("#exAmount").value = "";
     $("#exNote").value = "";
     $("#exAmount").focus();
+
+    // השרת מקצה את המזהה; במצב מקומי מייצרים אותו כאן
+    const saved = await TripAPI.addExpense(expense);
+    state.expenses.push(saved && saved.id ? saved : { ...expense, id: localId() });
+
+    save();
     renderExpenses();
   });
+
+  const localId = () =>
+    crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
 
   /* ------------------------------------------------------- מטיילים --- */
 
@@ -804,6 +812,7 @@
       btn.addEventListener("click", () => {
         state.people.splice(Number(btn.dataset.delPerson), 1);
         save();
+        TripAPI.saveSettings({ people: state.people });
         fillSelects();
         renderPeople();
         renderExpenses();
@@ -822,6 +831,7 @@
     state.people.push({ name, group: Number($("#pGroup").value) });
     $("#pName").value = "";
     save();
+    TripAPI.saveSettings({ people: state.people });
     fillSelects();
     renderPeople();
     renderExpenses();
@@ -857,8 +867,16 @@
         });
         renderExpenses();
         renderCostSummaryOnly();
+        queueRateSync();
       })
     );
+  }
+
+  /** שינוי שער יורה על כל הקלדה — מחכים לרגע שקט לפני ששולחים לשרת */
+  let rateSyncTimer = null;
+  function queueRateSync() {
+    clearTimeout(rateSyncTimer);
+    rateSyncTimer = setTimeout(() => TripAPI.saveSettings({ rates: state.rates }), 700);
   }
 
   /* ------------------------------------------------------- חישובים --- */
@@ -998,8 +1016,10 @@
       : `<tr class="empty-row"><td colspan="8">אין הוצאות עדיין.</td></tr>`;
 
     $$("[data-del]").forEach((btn) =>
-      btn.addEventListener("click", () => {
-        state.expenses = state.expenses.filter((x) => x.id !== btn.dataset.del);
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.del;
+        await TripAPI.deleteExpense(id);
+        state.expenses = state.expenses.filter((x) => x.id !== id);
         save();
         renderExpenses();
       })
@@ -1197,11 +1217,107 @@
 
   $("#clearExp").addEventListener("click", () => {
     if (!state.expenses.length) return;
-    if (confirm(`למחוק את כל ${state.expenses.length} ההוצאות? הפעולה אינה הפיכה.`)) {
+    const msg = TripAPI.isOnline
+      ? `למחוק את כל ${state.expenses.length} ההוצאות? הפעולה תמחק אותן גם אצל שאר המטיילים.`
+      : `למחוק את כל ${state.expenses.length} ההוצאות?`;
+    if (confirm(msg)) {
+      TripAPI.clearExpenses();
       state.expenses = [];
       save();
       renderExpenses();
     }
+  });
+
+  /* ==================================================================== */
+  /*  אתחול                                                               */
+  /* ==================================================================== */
+
+  /* ==================================================================== */
+  /*  סנכרון                                                              */
+  /* ==================================================================== */
+
+  const SYNC_UI = {
+    synced:  { icon: "☁️", text: "מסונכרן",     cls: "is-synced" },
+    syncing: { icon: "⏳", text: "שומר…",        cls: "is-syncing" },
+    local:   { icon: "📱", text: "מקומי בלבד",  cls: "is-local" },
+    error:   { icon: "⚠️", text: "שגיאת סנכרון", cls: "is-error" },
+  };
+
+  function renderSyncStatus(status, detail) {
+    const ui = SYNC_UI[status] || SYNC_UI.local;
+    const el = $("#syncStatus");
+    el.className = "sync-status " + ui.cls;
+    el.innerHTML =
+      `<span>${ui.icon}</span><span>${ui.text}</span>` +
+      (status === "local"
+        ? `<small>ההוצאות נשמרות רק במכשיר הזה</small>`
+        : status === "error"
+        ? `<small>${esc(detail || "")}</small>`
+        : "");
+  }
+
+  /**
+   * מחבר לשרת ומאחד עם מה שכבר יש מקומית.
+   * מקרה הקצה המעניין: יש הוצאות מקומיות מלפני המעבר לענן, והשרת ריק —
+   * אז מציעים להעלות אותן במקום למחוק אותן בשקט.
+   */
+  async function initSync() {
+    TripAPI.onStatusChange(renderSyncStatus);
+    renderSyncStatus(TripAPI.status);
+
+    const remote = await TripAPI.connect();
+    if (!remote) return;   // מצב מקומי — הכול ממשיך כרגיל
+
+    const localOnly = state.expenses.filter((e) => e.id && String(e.id).startsWith("local-"));
+    const hadLocal = state.expenses.length > 0 && remote.expenses.length === 0;
+
+    state.expenses = remote.expenses;
+    state.people = remote.people.length ? remote.people : state.people;
+    state.rates = { ...state.rates, ...remote.rates };
+    save();
+
+    if (hadLocal) offerUpload();
+    else if (localOnly.length) offerUpload();
+  }
+
+  let pendingUpload = null;
+
+  function offerUpload() {
+    // צילום של מה שהיה מקומי לפני שהחלפנו במצב מהשרת
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+      pendingUpload = Array.isArray(raw.expenses) ? raw.expenses : [];
+    } catch { pendingUpload = []; }
+
+    if (!pendingUpload.length) return;
+    $("#uploadPrompt").hidden = false;
+    $("#uploadCount").textContent = pendingUpload.length;
+  }
+
+  $("#uploadLocal").addEventListener("click", async () => {
+    if (!pendingUpload?.length) return;
+    const btn = $("#uploadLocal");
+    btn.disabled = true;
+
+    const items = pendingUpload.map((e) => ({
+      date: e.date, amount: e.amount, currency: e.currency,
+      category: e.category, payer: e.payer, note: e.note || "",
+    }));
+
+    const ok = await TripAPI.addExpenses(items);
+    if (ok) {
+      const fresh = await TripAPI.refresh();
+      if (fresh) { state.expenses = fresh.expenses; save(); renderExpenses(); }
+      $("#uploadPrompt").hidden = true;
+      pendingUpload = null;
+    } else {
+      btn.disabled = false;
+    }
+  });
+
+  $("#dismissUpload").addEventListener("click", () => {
+    $("#uploadPrompt").hidden = true;
+    pendingUpload = null;
   });
 
   /* ==================================================================== */
@@ -1232,6 +1348,15 @@
     $("#exDate").value = inTrip ? today : TRIP.days[0].date;
 
     renderExpenses();
+
+    // רץ אחרי הרינדור הראשון: הדף שמיש מיד, והסנכרון מתעדכן כשהוא חוזר
+    initSync().then(() => {
+      fillSelects();
+      renderPeople();
+      renderRates();
+      renderExpenses();
+      renderCostSummaryOnly();
+    });
   }
 
   document.addEventListener("DOMContentLoaded", init);

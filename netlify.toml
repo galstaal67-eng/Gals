@@ -4,8 +4,11 @@
 # הגדרה ידנית: אין צורך לקבוע Base directory או Publish directory בממשק.
 # מערכת ה-SOX שבשאר המאגר אינה נפרסת ב-Netlify ואינה מושפעת מהקובץ הזה.
 
+# base מעביר את כל הבנייה לתוך trip/, ולכן package.json, netlify/functions
+# ו-netlify/database נמצאים שם ולא מלכלכים את שורש מאגר ה-SOX.
 [build]
-  publish = "trip"
+  base = "trip"
+  publish = "."
   command = ""
 
 # Leaflet ונכסי הספרייה אינם משתנים — אפשר לשמור אותם במטמון לאורך זמן.
