@@ -759,6 +759,71 @@ table.data.cost-table td:first-child { min-width: 15rem; }
   a::after { content: " (" attr(href) ")"; font-size: .75em; color: #555; }
 }
 
+/* ================================================= PRINT SUMMARY ===== */
+/* גיליון תמצית בן שני עמודי A4 בדיוק. נבנה לפי דרישה ומוצג רק בהדפסה,
+   כדי שלא יעלה בעלות רינדור על המסך ולא יסתבך עם ערכת הצבעים הכהה. */
+
+.psheet { display: none; }
+
+@media print {
+  body.print-summary > *:not(.psheet) { display: none !important; }
+  body.print-summary .psheet { display: block; }
+  /* כלל ה-a::after של ההדפסה הרגילה יזריק כתובות לתוך הטבלאות */
+  body.print-summary a::after { content: none !important; }
+
+  @page { size: A4; margin: 11mm 10mm; }
+}
+
+.psheet {
+  color: #000; background: #fff;
+  font-size: 9.2pt; line-height: 1.35;
+  direction: rtl; text-align: right;
+}
+.psheet__page { position: relative; }
+.psheet__page + .psheet__page { break-before: page; page-break-before: always; }
+
+.psheet__head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 8pt; border-bottom: 1.5pt solid #000; padding-bottom: 4pt; margin-bottom: 6pt;
+}
+.psheet__head h1 { font-size: 15pt; margin: 0; letter-spacing: -.2pt; }
+.psheet__head .sub { font-size: 8.6pt; font-weight: 700; white-space: nowrap; }
+
+.psheet h2 {
+  font-size: 10pt; margin: 7pt 0 3pt;
+  border-bottom: .75pt solid #888; padding-bottom: 1.5pt;
+}
+.psheet h2:first-child { margin-top: 0; }
+
+.psheet__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 7pt 9pt; }
+.psheet__cols > * { min-width: 0; }
+.psheet__box { border: .75pt solid #999; border-radius: 3pt; padding: 4pt 6pt; }
+.psheet__box h2 { margin-top: 0; }
+
+.psheet table { width: 100%; border-collapse: collapse; }
+.psheet th, .psheet td {
+  border-bottom: .5pt solid #c4c4c4; padding: 2.4pt 3pt;
+  text-align: right; vertical-align: top;
+}
+.psheet th { font-size: 8pt; background: #ececec; border-bottom-color: #888; }
+.psheet tr { break-inside: avoid; page-break-inside: avoid; }
+.psheet td.n  { font-weight: 800; width: 7mm; text-align: center; }
+.psheet td.dt { width: 17mm; font-size: 8.4pt; white-space: nowrap; }
+.psheet td.km { width: 19mm; font-size: 8.4pt; white-space: nowrap; text-align: center; }
+.psheet td.ho { width: 32mm; font-size: 8.4pt; }
+.psheet td .stops { display: block; font-size: 8pt; color: #444; margin-top: .5pt; }
+.psheet tr.walk td { background: #f2f2f2; }
+
+.psheet ul { margin: 0; padding-inline-start: 11pt; }
+.psheet li { margin-bottom: 1.6pt; }
+.psheet .kv { display: flex; gap: 5pt; margin-bottom: 1.5pt; }
+.psheet .kv b { flex: 0 0 15mm; }
+.psheet__foot {
+  margin-top: 7pt; padding-top: 3pt; border-top: .5pt solid #bbb;
+  font-size: 7.6pt; color: #444;
+  display: flex; justify-content: space-between; gap: 8pt;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
   html { scroll-behavior: auto; }

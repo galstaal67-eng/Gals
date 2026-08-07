@@ -104,6 +104,7 @@
   });
 
   $("#printBtn").addEventListener("click", () => window.print());
+  $("#summaryBtn").addEventListener("click", printSummary);
 
   /* ==================================================================== */
   /*  לשוניות                                                             */
@@ -606,6 +607,169 @@
         $(".day__head", d).setAttribute("aria-expanded", "false");
       })
     );
+  }
+
+  /* ==================================================================== */
+  /*  תמצית להדפסה — שני עמודי A4                                        */
+  /* ==================================================================== */
+
+  const DOW_SHORT = {
+    ראשון: "א'", שני: "ב'", שלישי: "ג'", רביעי: "ד'",
+    חמישי: "ה'", שישי: "ו'", שבת: "ש'",
+  };
+
+  /** 20/9 א' — קצר יותר מ-shortDate של טבלת ההוצאות, וכולל יום בשבוע */
+  const psDate = (iso, dow) => {
+    const [, m, d] = iso.split("-");
+    return `${+d}/${+m} ${DOW_SHORT[dow] || ""}`.trim();
+  };
+
+  /** מקטעי לינה: ימים רצופים באותו מלון מתאחדים לשורה אחת. */
+  function staySegments() {
+    const segs = [];
+    TRIP.days.forEach((d) => {
+      if (!d.hotel) return;
+      const last = segs[segs.length - 1];
+      if (last && last.name === d.hotel.name) { last.nights++; last.to = d.date; }
+      else segs.push({ name: d.hotel.name, area: d.hotel.area, from: d.date, to: d.date, nights: 1 });
+    });
+    return segs;
+  }
+
+  /** שלוש עצירות מובילות ליום, לשורת המשנה בטבלה. */
+  function keyStops(day) {
+    return (day.points || [])
+      .filter((p) => ["sight", "hike", "town", "station"].includes(p.type))
+      .slice(0, 3)
+      .map((p) => p.name)
+      .join(" · ");
+  }
+
+  function dayRows(days) {
+    return days
+      .map((d) => {
+        const mode = TRIP.modes[d.mode] || TRIP.modes.drive;
+        const dist = d.walk
+          ? `🥾 ${d.walk.km} ק"מ`
+          : d.drive?.km
+          ? `🚗 ${nfNum.format(d.drive.km)} ק"מ`
+          : mode.icon + " " + esc(mode.label);
+        const stops = keyStops(d);
+        return `
+        <tr${d.walk ? ' class="walk"' : ""}>
+          <td class="n">${d.n}</td>
+          <td class="dt">${psDate(d.date, d.dow)}</td>
+          <td><b>${esc(d.title)}</b>${stops ? `<span class="stops">${esc(stops)}</span>` : ""}</td>
+          <td class="km">${dist}</td>
+          <td class="ho">${d.hotel ? esc(d.hotel.area) : "—"}</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  const DAY_TABLE_HEAD =
+    `<thead><tr><th>יום</th><th>תאריך</th><th>מה</th><th>מרחק</th><th>לינה</th></tr></thead>`;
+
+  function buildSummarySheet() {
+    const m = TRIP.meta;
+    const f = TRIP.flights;
+    const days = TRIP.days;
+    const nights = days.filter((d) => d.hotel).length;
+    const walkKm = days.reduce((s, d) => s + (d.walk?.km || 0), 0);
+
+    const leg = (l, dir) => `
+      <div class="kv"><b>${dir}</b><span>${psDate(l.date, l.dow)} · ${esc(l.from)} ${l.dep}
+        → ${esc(l.to)} ${l.arr} · דרך ${esc(l.via)}, קונקשן ${l.layover}</span></div>`;
+
+    const stays = staySegments()
+      .map(
+        (s) => `
+        <tr>
+          <td>${esc(s.area)}</td>
+          <td class="dt"><bdi class="rng">${psDate(s.from, "")}–${psDate(s.to, "")}</bdi></td>
+          <td class="km">${s.nights}</td>
+        </tr>`
+      )
+      .join("");
+
+    // "מה להזמין מראש" — נלקח מלשונית המידע כדי שלא יתפצל לשני מקורות אמת
+    const booking = TRIP.practical.find((p) => p.title.includes("להזמין"));
+    const walking = TRIP.practical.find((p) => p.title.includes("ההליכה"));
+
+    const sheet = document.createElement("div");
+    sheet.className = "psheet";
+    sheet.id = "printSheet";
+    sheet.innerHTML = `
+      <section class="psheet__page">
+        <div class="psheet__head">
+          <h1>${esc(m.title)} · 16–29 בספטמבר 2026</h1>
+          <span class="sub">${days.length} ימים · ${nights} לילות ·
+            ${nfNum.format(m.totalDrivingKm)} ק"מ ברכב · ${walkKm} ק"מ ברגל</span>
+        </div>
+
+        <div class="psheet__cols">
+          <div class="psheet__box">
+            <h2>✈️ טיסות — ${esc(f.carrier)} · ${esc(f.fare)}</h2>
+            ${leg(f.out, "הלוך")}
+            ${leg(f.back, "חזור")}
+            <div class="kv"><b>שימו לב</b><span>החזרה ממריאה ב-06:10 — להיות בטרמינל ב-04:15.
+              ${esc(f.fare)} לרוב אינו כולל מזוודה לבטן המטוס.</span></div>
+          </div>
+          <div class="psheet__box">
+            <h2>🛏️ לינה — ${nights} לילות</h2>
+            <table><thead><tr><th>איפה</th><th>תאריכים</th><th>לילות</th></tr></thead>
+              <tbody>${stays}</tbody></table>
+          </div>
+        </div>
+
+        <h2>המסלול — ימים 1–7</h2>
+        <table>${DAY_TABLE_HEAD}<tbody>${dayRows(days.slice(0, 7))}</tbody></table>
+
+        <div class="psheet__foot"><span>עמוד 1 מתוך 2</span><span>${esc(m.subtitle)}</span></div>
+      </section>
+
+      <section class="psheet__page">
+        <h2>המסלול — ימים 8–14</h2>
+        <table>${DAY_TABLE_HEAD}<tbody>${dayRows(days.slice(7))}</tbody></table>
+
+        <div class="psheet__cols">
+          <div class="psheet__box">
+            <h2>🥾 שני ימי ההליכה</h2>
+            <ul>${(walking?.items || []).slice(0, 6).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+          </div>
+          <div class="psheet__box">
+            <h2>✅ להזמין מראש</h2>
+            <ul>${(booking?.items || []).slice(0, 8).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+          </div>
+        </div>
+
+        <div class="psheet__foot">
+          <span>עמוד 2 מתוך 2</span>
+          <span>חירום 999 / 112 · Mountain Rescue דרך 999 → Police</span>
+        </div>
+      </section>`;
+    return sheet;
+  }
+
+  /** בונה את הגיליון, מדפיס, ומנקה אחריו — כך שהוא לא יושב ב-DOM לחינם. */
+  function printSummary() {
+    document.getElementById("printSheet")?.remove();
+    document.body.appendChild(buildSummarySheet());
+    document.body.classList.add("print-summary");
+
+    const cleanup = () => {
+      document.body.classList.remove("print-summary");
+      document.getElementById("printSheet")?.remove();
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+
+    // ספארי בנייד לא תמיד יורה afterprint — רשת ביטחון
+    setTimeout(() => {
+      if (document.body.classList.contains("print-summary")) cleanup();
+    }, 60_000);
+
+    window.print();
   }
 
   /* ==================================================================== */
