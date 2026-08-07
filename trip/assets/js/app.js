@@ -276,6 +276,40 @@
     }
   }
 
+  /** פאנל הלינה. מקור אחד לכרטיס היום ולחלונית שמעל המפה, כדי שלא יתפצלו. */
+  function hotelPanel(day, { withLinks = true } = {}) {
+    const h = day.hotel;
+    if (!h) return `<div class="panel"><h4>🛏️ לינה</h4><div class="muted">טיסה חזרה — אין לינה</div></div>`;
+
+    const stars = h.rating
+      ? `<div class="hotel-meta"><b>${h.rating}</b>${h.reviews ? ` · ${nfNum.format(h.reviews)} ביקורות` : ""}${
+          h.price ? ` · <bdi class="rng">${esc(h.price)}</bdi>` : ""
+        }</div>`
+      : h.price
+      ? `<div class="hotel-meta"><bdi class="rng">${esc(h.price)}</bdi></div>`
+      : "";
+
+    const links = withLinks
+      ? `<div class="mt-1 pill-row">
+           ${h.url ? `<a class="btn btn--sm btn--primary" target="_blank" rel="noopener" href="${esc(h.url)}">הזמנה ב-Booking</a>` : ""}
+           <a class="btn btn--sm" target="_blank" rel="noopener"
+              href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.name + " " + h.area)}">
+              פתח במפות
+           </a>
+         </div>`
+      : "";
+
+    return `<div class="panel panel--hotel">
+      <h4>🛏️ לינה</h4>
+      <div class="hotel-name">${esc(h.name)}</div>
+      <div class="muted">${esc(h.area)}</div>
+      ${stars}
+      ${h.booked ? `<span class="badge badge--booked mt-1">✓ מוזמן</span>` : ""}
+      ${h.alt ? `<div class="hotel-alt">${esc(h.alt)}</div>` : ""}
+      ${links}
+    </div>`;
+  }
+
   /* ---------- חלונית המסלול היומי שנפתחת מתחת לצ'יפ שמעל המפה ---------- */
 
   /** אותו תוכן של לשונית "מסלול יומי", בגרסה מקוצרת לחלונית קטנה. */
@@ -289,13 +323,7 @@
       )
       .join("");
 
-    const hotel = day.hotel
-      ? `<div class="panel panel--hotel">
-           <h4>🛏️ לינה</h4>
-           <div class="hotel-name">${esc(day.hotel.name)}</div>
-           <div class="muted">${esc(day.hotel.area)}</div>
-         </div>`
-      : `<div class="panel"><h4>🛏️ לינה</h4><div class="muted">טיסה חזרה — אין לינה</div></div>`;
+    const hotel = hotelPanel(day, { withLinks: false });
 
     const tips = day.tips?.length
       ? `<div class="panel">
@@ -521,19 +549,8 @@
           : "";
 
         const hotel = day.hotel
-          ? `<div class="panel panel--hotel">
-               <h4>🛏️ לינה</h4>
-               <div class="hotel-name">${esc(day.hotel.name)}</div>
-               <div class="muted">${esc(day.hotel.area)}</div>
-               ${day.hotel.booked ? `<span class="badge badge--booked mt-1">✓ מוזמן</span>` : ""}
-               <div class="mt-1">
-                 <a class="btn btn--sm" target="_blank" rel="noopener"
-                    href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(day.hotel.name + " " + day.hotel.area)}">
-                    פתח במפות
-                 </a>
-               </div>
-             </div>`
-          : `<div class="panel"><h4>🛏️ לינה</h4><div class="muted">טיסה חזרה — אין לינה</div></div>`;
+          ? hotelPanel(day)
+          : hotelPanel(day);
 
         const dirLink = gmapsLink(day);
 
@@ -631,7 +648,8 @@
       if (!d.hotel) return;
       const last = segs[segs.length - 1];
       if (last && last.name === d.hotel.name) { last.nights++; last.to = d.date; }
-      else segs.push({ name: d.hotel.name, area: d.hotel.area, from: d.date, to: d.date, nights: 1 });
+      else segs.push({ name: d.hotel.name, area: d.hotel.area, price: d.hotel.price,
+                       from: d.date, to: d.date, nights: 1 });
     });
     return segs;
   }
@@ -685,9 +703,10 @@
       .map(
         (s) => `
         <tr>
-          <td>${esc(s.area)}</td>
+          <td>${esc(s.name)}<span class="stops">${esc(s.area)}</span></td>
           <td class="dt"><bdi class="rng">${psDate(s.from, "")}–${psDate(s.to, "")}</bdi></td>
           <td class="km">${s.nights}</td>
+          <td class="km">${s.price ? `<bdi class="rng">${esc(s.price)}</bdi>` : "—"}</td>
         </tr>`
       )
       .join("");
@@ -717,7 +736,7 @@
           </div>
           <div class="psheet__box">
             <h2>🛏️ לינה — ${nights} לילות</h2>
-            <table><thead><tr><th>איפה</th><th>תאריכים</th><th>לילות</th></tr></thead>
+            <table><thead><tr><th>איפה</th><th>תאריכים</th><th>לילות</th><th>מחיר</th></tr></thead>
               <tbody>${stays}</tbody></table>
           </div>
         </div>

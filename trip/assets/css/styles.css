@@ -759,6 +759,14 @@ table.data.cost-table td:first-child { min-width: 15rem; }
   a::after { content: " (" attr(href) ")"; font-size: .75em; color: #555; }
 }
 
+/* פרטי המלון בכרטיס היום ובחלונית שמעל המפה */
+.hotel-meta { font-size: .8rem; color: var(--txt-mute); margin-top: .2rem; }
+.hotel-meta b { color: var(--moss); }
+.hotel-alt {
+  font-size: .8rem; color: var(--txt-dim); margin-top: .45rem;
+  padding-top: .4rem; border-top: 1px dashed var(--line);
+}
+
 /* ================================================= PRINT SUMMARY ===== */
 /* גיליון תמצית בן שני עמודי A4 בדיוק. נבנה לפי דרישה ומוצג רק בהדפסה,
    כדי שלא יעלה בעלות רינדור על המסך ולא יסתבך עם ערכת הצבעים הכהה. */
