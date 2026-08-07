@@ -158,6 +158,9 @@
   const dayLayers = new Map();   // מספר יום -> L.LayerGroup
   let activeDay = "all";
 
+  // נקבע ב-renderDays; משמש את החלונית שמעל המפה כדי לקפוץ לכרטיס היום המלא
+  let openDayCard = () => {};
+
   const TYPE_ICON = {
     airport: "✈️", station: "🚆", hotel: "🛏️", sight: "📷",
     hike: "🥾", food: "🍽️", town: "🏘️", car: "🚗",
@@ -272,20 +275,132 @@
     }
   }
 
+  /* ---------- חלונית המסלול היומי שנפתחת מתחת לצ'יפ שמעל המפה ---------- */
+
+  /** אותו תוכן של לשונית "מסלול יומי", בגרסה מקוצרת לחלונית קטנה. */
+  function dayPeekHTML(day) {
+    const mode = TRIP.modes[day.mode] || TRIP.modes.drive;
+
+    const plan = day.plan
+      .map(
+        (p) =>
+          `<li><time>${p.time ? esc(p.time) : "·"}</time> ${esc(p.text)}</li>`
+      )
+      .join("");
+
+    const hotel = day.hotel
+      ? `<div class="panel panel--hotel">
+           <h4>🛏️ לינה</h4>
+           <div class="hotel-name">${esc(day.hotel.name)}</div>
+           <div class="muted">${esc(day.hotel.area)}</div>
+         </div>`
+      : `<div class="panel"><h4>🛏️ לינה</h4><div class="muted">טיסה חזרה — אין לינה</div></div>`;
+
+    const tips = day.tips?.length
+      ? `<div class="panel">
+           <h4>💡 טיפים ליום הזה</h4>
+           <ul>${day.tips.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+         </div>`
+      : "";
+
+    const dirLink = gmapsLink(day);
+
+    return `
+      <div class="peek__head">
+        <b>יום ${day.n} · ${esc(day.title)}</b>
+        <button class="peek__close" data-peek-close aria-label="סגירת החלונית">✕</button>
+      </div>
+      <div class="peek__meta">
+        <span>📆 ${fullDate(day.date)}</span>
+        <span>${mode.icon} ${esc(mode.label)}</span>
+        ${day.drive?.km ? `<span>🚗 ${nfNum.format(day.drive.km)} ק"מ · ${day.drive.hours} ש'</span>` : ""}
+      </div>
+      <p class="peek__sum">${esc(day.summary)}</p>
+      <ul class="timeline">${plan}</ul>
+      ${hotel}
+      ${tips}
+      <div class="peek__actions">
+        <button class="btn btn--sm" data-open-day="${day.n}">📅 פתח במסלול המלא</button>
+        ${dirLink ? `<a class="btn btn--sm" target="_blank" rel="noopener" href="${dirLink}">🧭 ניווט</a>` : ""}
+      </div>`;
+  }
+
+  function closePeeks(except) {
+    $$("#mapFilter .day-peek").forEach((p) => {
+      if (p === except) return;
+      p.hidden = true;
+      p.style.transform = "";
+      $(`[data-peek="${p.dataset.peekFor}"]`)?.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  /** מזיזה את החלונית פנימה אם היא חורגת מקצה המסך. עובד גם ב-RTL. */
+  function positionPeek(panel) {
+    panel.style.transform = "";
+    const r = panel.getBoundingClientRect();
+    const pad = 8;
+    let dx = 0;
+    if (r.left < pad) dx = pad - r.left;
+    else if (r.right > window.innerWidth - pad) dx = window.innerWidth - pad - r.right;
+    if (dx) panel.style.transform = `translateX(${dx}px)`;
+  }
+
   function renderMapControls() {
     const filter = $("#mapFilter");
     filter.innerHTML =
       `<button class="chip is-on" data-day="all">כל הימים</button>` +
       TRIP.days
         .map(
-          (d) =>
-            `<button class="chip" data-day="${d.n}">${d.n} · ${esc(d.mapLabel || d.region)}</button>`
+          (d) => `
+          <span class="chip-wrap">
+            <span class="chip-pair">
+              <button class="chip" data-day="${d.n}">${d.n} · ${esc(d.mapLabel || d.region)}</button>
+              <button class="chip-peek" data-peek="${d.n}" aria-expanded="false"
+                      aria-controls="peek-${d.n}" title="מה מתוכנן ביום ${d.n}"
+                      aria-label="הצגת המסלול של יום ${d.n}">⌄</button>
+            </span>
+            <div class="day-peek" id="peek-${d.n}" data-peek-for="${d.n}" role="dialog"
+                 aria-label="מסלול יום ${d.n}" hidden>${dayPeekHTML(d)}</div>
+          </span>`
         )
         .join("");
 
     filter.addEventListener("click", (e) => {
+      const closeBtn = e.target.closest("[data-peek-close]");
+      if (closeBtn) { closePeeks(); return; }
+
+      const openBtn = e.target.closest("[data-open-day]");
+      if (openBtn) {
+        closePeeks();
+        selectTab($("#tab-route"));
+        openDayCard(openBtn.dataset.openDay);
+        return;
+      }
+
+      const peekBtn = e.target.closest("[data-peek]");
+      if (peekBtn) {
+        const panel = $(`#peek-${peekBtn.dataset.peek}`);
+        const willOpen = panel.hidden;
+        closePeeks(willOpen ? panel : null);
+        panel.hidden = !willOpen;
+        peekBtn.setAttribute("aria-expanded", String(willOpen));
+        if (willOpen) { positionPeek(panel); focusDay(peekBtn.dataset.peek); }
+        return;
+      }
+
       const chip = e.target.closest(".chip");
-      if (chip) focusDay(chip.dataset.day);
+      if (chip) { closePeeks(); focusDay(chip.dataset.day); }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest("#mapFilter")) closePeeks();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closePeeks();
+    });
+    window.addEventListener("resize", () => {
+      const open = $$("#mapFilter .day-peek").find((p) => !p.hidden);
+      if (open) positionPeek(open);
     });
 
     $("#mapLegend").innerHTML = Object.values(TRIP.modes)
@@ -450,6 +565,15 @@
         focusDay(focusBtn.dataset.focus);
       }
     });
+
+    /** פותחת כרטיס יום מסוים בלשונית המסלול וגוללת אליו. */
+    openDayCard = (n) => {
+      const card = $(`.day[data-day="${n}"]`);
+      if (!card) return;
+      card.classList.add("is-open");
+      $(".day__head", card).setAttribute("aria-expanded", "true");
+      card.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
 
     $("#expandAll").addEventListener("click", () =>
       $$(".day").forEach((d) => {
