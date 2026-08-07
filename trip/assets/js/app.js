@@ -277,7 +277,10 @@
     filter.innerHTML =
       `<button class="chip is-on" data-day="all">כל הימים</button>` +
       TRIP.days
-        .map((d) => `<button class="chip" data-day="${d.n}">${d.n} · ${esc(d.region)}</button>`)
+        .map(
+          (d) =>
+            `<button class="chip" data-day="${d.n}">${d.n} · ${esc(d.mapLabel || d.region)}</button>`
+        )
         .join("");
 
     filter.addEventListener("click", (e) => {

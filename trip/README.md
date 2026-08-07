@@ -191,7 +191,8 @@ trip/
 ```js
 {
   n: 7, date: "2026-09-08", dow: "שלישי",
-  title: "...", region: "היילנדס",   // region מזין את סינון המפה ואת גרף הק"מ
+  title: "...", region: "היילנדס",   // region מזין את הצ'יפ שמעל המפה ואת גרף הק"מ
+  mapLabel: "הגעה",                   // אופציונלי — גובר על region בצ'יפ בלבד
   mode: "drive",                      // flight | train | drive | city
   drive: { km: 70, hours: 1.5, note: "..." },
   hotel: { name: "...", area: "...", lat, lng, booked: true },
