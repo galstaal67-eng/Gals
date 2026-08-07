@@ -334,9 +334,24 @@
     });
   }
 
+  // מתחת ל-640px החלונית היא גיליון תחתון קבוע ואין מה למקם
+  const peekIsSheet = () => window.matchMedia("(max-width: 640px)").matches;
+
+  /** מוודאת שרצועת הצ'יפים נשארת גלויה מעל הגיליון: הצ'יפ הנבחר למרכז הרצועה,
+   *  והרצועה עצמה נצמדת מתחת לסרגל הניווט הדביק. */
+  function revealChips(wrap) {
+    if (wrap) wrap.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    if (!peekIsSheet()) return;
+    const filter = $("#mapFilter");
+    const navH = $(".nav")?.getBoundingClientRect().height || 0;
+    const y = window.scrollY + filter.getBoundingClientRect().top - navH - 8;
+    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+  }
+
   /** מזיזה את החלונית פנימה אם היא חורגת מקצה המסך. עובד גם ב-RTL. */
   function positionPeek(panel) {
     panel.style.transform = "";
+    if (peekIsSheet()) return;
     const r = panel.getBoundingClientRect();
     const pad = 8;
     let dx = 0;
@@ -384,7 +399,11 @@
         closePeeks(willOpen ? panel : null);
         panel.hidden = !willOpen;
         peekBtn.setAttribute("aria-expanded", String(willOpen));
-        if (willOpen) { positionPeek(panel); focusDay(peekBtn.dataset.peek); }
+        if (willOpen) {
+          positionPeek(panel);
+          revealChips(peekBtn.closest(".chip-wrap"));
+          focusDay(peekBtn.dataset.peek);
+        }
         return;
       }
 
