@@ -33,7 +33,7 @@ const TRIP = {
       n: 1,
       date: "2026-09-02",
       dow: "רביעי",
-      title: "נוחתים באנגליה",
+      title: "הגעה",
       region: "מנצ'סטר",
       mode: "flight",
       summary:
