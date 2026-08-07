@@ -1233,6 +1233,77 @@
   /* ==================================================================== */
 
   /* ==================================================================== */
+  /*  תא ההנחיות לשינוי המסלול                                            */
+  /* ==================================================================== */
+
+  function showAskStatus(kind, html) {
+    const el = $("#askStatus");
+    el.hidden = false;
+    el.className = "ask__status is-" + kind;
+    el.innerHTML = html;
+  }
+
+  function renderChangelog() {
+    const log = TRIP.changelog || [];
+    $("#askLogCount").textContent = log.length;
+
+    $("#askLogList").innerHTML = log.length
+      ? log
+          .map(
+            (c) => `
+        <div class="ask__entry">
+          <div class="ask__entry-head">
+            <strong>${fullDate(c.date)}</strong>
+            ${c.by ? `<span class="muted">· ${esc(c.by)}</span>` : ""}
+          </div>
+          <div class="ask__req">"${esc(c.request)}"</div>
+          <div class="ask__act">${esc(c.action)}</div>
+        </div>`
+          )
+          .join("")
+      : `<p class="muted mt-1">עדיין לא בוצעו שינויים דרך התא הזה.</p>`;
+  }
+
+  $("#askForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const form = e.target;
+    const text = $("#askText").value.trim();
+    if (!text) return;
+
+    const btn = $("#askSend");
+    btn.disabled = true;
+    showAskStatus("pending", "⏳ שולח…");
+
+    try {
+      // טופס Netlify מקבל POST מקודד-טופס לשורש האתר
+      const res = await fetch("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams(new FormData(form)).toString(),
+      });
+      if (!res.ok) throw new Error(`השרת החזיר ${res.status}`);
+
+      form.reset();
+      showAskStatus(
+        "ok",
+        "✅ <strong>ההנחיה נשלחה.</strong> אעבור עליה, אעדכן את המסלול ואדחוף את השינוי — " +
+          "האתר יתעדכן מעצמו. אם משהו בהנחיה לא ברור או מתנגש עם הזמנה קיימת, אשאיר הערה ביומן השינויים."
+      );
+    } catch (err) {
+      // אחסון סטטי מחזיר 501 ל-POST — מצב צפוי, לא תקלה
+      console.warn("שליחת ההנחיה לא עברה:", err.message);
+      showAskStatus(
+        "err",
+        "⚠️ <strong>השליחה נכשלה.</strong> זה קורה כשהדף נפתח מקובץ מקומי ולא מהאתר, או כשאין רשת. " +
+          `העתיקו את הטקסט ושלחו אותו ישירות:<br /><code>${esc(text)}</code>`
+      );
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  /* ==================================================================== */
   /*  סנכרון                                                              */
   /* ==================================================================== */
 
@@ -1329,6 +1400,7 @@
     tickCountdown();
     setInterval(tickCountdown, 60_000);
 
+    renderChangelog();
     renderMapControls();
     initMap();
     renderRouteStats();

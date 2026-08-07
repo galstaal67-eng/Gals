@@ -69,7 +69,53 @@
 
   <!-- ================================================= VIEW: MAP ===== -->
   <section class="view is-active" id="view-map" role="tabpanel" aria-labelledby="tab-map">
-    <div class="section-head">
+    <!-- תא ההנחיות: נשלח כטופס Netlify, ונקרא ידנית כדי לעדכן את המסלול -->
+    <section class="card pad ask" id="askBox">
+      <div class="row-between">
+        <h2 style="margin:0">✏️ שינוי במסלול</h2>
+        <span class="badge" style="color:var(--heather)">מעודכן ידנית</span>
+      </div>
+      <p class="muted mt-1">
+        כתבו כאן בשפה חופשית מה לשנות, וההנחיה תגיע אליי. אני מעדכן את המסלול, המפה
+        והעלויות בהתאם, והאתר מתעדכן מעצמו תוך כמה שעות. לדוגמה:
+        <em>"תוריד את יום 3 במנצ'סטר ותעביר את הרכבת לגלזגו ליום הזה"</em>.
+      </p>
+
+      <form class="ask__form mt-2" id="askForm" name="route-change"
+            data-netlify="true" netlify-honeypot="bot-field">
+        <input type="hidden" name="form-name" value="route-change" />
+        <!-- מלכודת ספאם. display:none ולא sr-only, כדי שקורא מסך לא יציע
+             אותה למשתמש אמיתי — מילוי שלה גורם לדחיית ההגשה. -->
+        <p class="is-hidden" aria-hidden="true">
+          <label>אל תמלאו את השדה הזה:
+            <input name="bot-field" tabindex="-1" autocomplete="off" />
+          </label>
+        </p>
+
+        <div class="field">
+          <label for="askText">מה לשנות במסלול?</label>
+          <textarea id="askText" name="instruction" rows="3" required maxlength="2000"
+                    placeholder="לדוגמה: תוריד את יום 3 במנצ'סטר, ותעביר את הנסיעה ברכבת לגלזגו ליום הזה"></textarea>
+        </div>
+
+        <div class="ask__row">
+          <div class="field">
+            <label for="askWho">מי מבקש (לא חובה)</label>
+            <input type="text" id="askWho" name="author" maxlength="40" placeholder="גל" />
+          </div>
+          <button class="btn btn--primary" type="submit" id="askSend">📨 שלח הנחיה</button>
+        </div>
+      </form>
+
+      <div class="ask__status" id="askStatus" hidden></div>
+
+      <details class="ask__log mt-2" id="askLog">
+        <summary>יומן השינויים במסלול (<span id="askLogCount">0</span>)</summary>
+        <div id="askLogList"></div>
+      </details>
+    </section>
+
+    <div class="section-head mt-3">
       <h2>מפת המסלול</h2>
       <p>לחצו על יום כדי להתמקד בו. הקווים מציינים את אופן המעבר: טיסה, רכבת או נהיגה.</p>
     </div>
