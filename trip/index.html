@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>סקוטלנד · 19.9–2.10.2026</title>
+  <meta name="description" content="מסלול טיול מפורט ל-14 ימים בסקוטלנד: אדינבורו, ה-West Highland Line, שלושה ימי הליכה רצופים על ה-West Highland Way, האי סקאי, קיירנגורמס ופרתשייר — עם מפה אינטראקטיבית, תכנון עלויות וניהול הוצאות משותף." />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#080d14" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f4f6fa" media="(prefers-color-scheme: light)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="סקוטלנד 2026" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏔️</text></svg>" />
+</head>
+<body>
+
+<!-- ==================================================== HERO ========= -->
+<header class="hero">
+  <svg class="hero__ridge" viewBox="0 0 1440 140" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 140 L0 96 L120 58 L235 92 L360 34 L470 78 L600 22 L720 70 L845 30 L980 84 L1105 46 L1230 90 L1340 52 L1440 88 L1440 140 Z"
+          fill="rgba(76,201,164,.14)" />
+    <path d="M0 140 L0 116 L145 88 L280 112 L415 74 L545 106 L680 66 L810 104 L950 78 L1085 112 L1215 82 L1340 108 L1440 84 L1440 140 Z"
+          fill="rgba(176,136,249,.12)" />
+  </svg>
+
+  <div class="wrap hero__inner">
+    <span class="hero__eyebrow">🏴󠁧󠁢󠁳󠁣󠁴󠁿 19 בספטמבר – 2 באוקטובר 2026</span>
+    <h1>סקוטלנד</h1>
+    <p class="hero__sub">
+      ארבעה־עשר ימים: שלושה באדינבורו, רכבת אל תחילת השביל, שלושה ימי הליכה רצופים
+      על ה-West Highland Way בלי רכב בכלל, ואז מעבורת לאי סקאי, לילה בקיירנגורמס
+      ופרתשייר — ועוד יומיים באדינבורו בסוף.
+    </p>
+
+    <div class="hero__stats">
+      <div class="stat"><div class="stat__val countdown" id="countdown">—</div><div class="stat__lbl">עד היציאה</div></div>
+      <div class="stat"><div class="stat__val">14</div><div class="stat__lbl">ימים</div></div>
+      <div class="stat"><div class="stat__val">895</div><div class="stat__lbl">ק"מ נהיגה (מוערך)</div></div>
+      <div class="stat"><div class="stat__val">13</div><div class="stat__lbl">לילות · 9 מקטעים</div></div>
+      <div class="stat"><div class="stat__val">57</div><div class="stat__lbl">ק"מ הליכה</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- ===================================================== NAV ========== -->
+<nav class="nav" aria-label="ניווט ראשי">
+  <div class="nav__inner" role="tablist">
+    <button class="tab" role="tab" id="tab-map"      aria-controls="view-map"      aria-selected="true">🗺️ מפה</button>
+    <button class="tab" role="tab" id="tab-route"    aria-controls="view-route"    aria-selected="false">📅 מסלול יומי</button>
+    <button class="tab" role="tab" id="tab-tips"     aria-controls="view-tips"     aria-selected="false">💡 שיפורים</button>
+    <button class="tab" role="tab" id="tab-cost"     aria-controls="view-cost"     aria-selected="false">💰 תכנון עלויות</button>
+    <button class="tab" role="tab" id="tab-expenses" aria-controls="view-expenses" aria-selected="false">💷 הוצאות בפועל</button>
+    <button class="tab" role="tab" id="tab-info"     aria-controls="view-info"     aria-selected="false">ℹ️ מידע וציוד</button>
+    <span class="nav__spacer"></span>
+    <button class="icon-btn" id="themeToggle" title="מצב בהיר / כהה" aria-label="החלפת ערכת צבעים">🌙</button>
+    <button class="icon-btn" id="printBtn" title="הדפסה" aria-label="הדפסה">🖨️</button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- ================================================= VIEW: MAP ===== -->
+  <section class="view is-active" id="view-map" role="tabpanel" aria-labelledby="tab-map">
+    <div class="section-head">
+      <h2>מפת המסלול</h2>
+      <p>לחצו על יום כדי להתמקד בו, ועל החץ ⌄ שלידו כדי לפתוח את המסלול של אותו יום.
+         הקווים מציינים את אופן המעבר: טיסה, נהיגה, הליכה או עירוני.</p>
+    </div>
+
+    <div class="map-filter" id="mapFilter"></div>
+
+    <div class="map-shell" id="mapShell">
+      <div id="map"></div>
+      <div class="map-touch-guard" id="mapGuard" role="button" tabindex="0">
+        <span>👆 הקישו כדי להפעיל את המפה</span>
+      </div>
+      <div class="map-fallback card pad" id="mapFallback">
+        <h3>לא ניתן לטעון את המפה</h3>
+        <p>ספריית המפות לא נטענה. כל שאר האתר עובד כרגיל, ובכל יום במסלול
+           יש כפתור "ניווט ב-Google Maps" עם כל נקודות העצירה.</p>
+      </div>
+    </div>
+
+    <div class="map-legend" id="mapLegend"></div>
+
+    <div class="map-actions">
+      <button class="btn btn--sm" id="navDayBtn" disabled>🧭 ניווט ביום הנבחר ב-Google Maps</button>
+      <button class="btn btn--sm btn--primary" id="kmlBtn">⬇️ הורדת כל המסלול ל-Google Maps</button>
+      <span class="muted map-actions__hint">
+        הקובץ נטען ל-<a href="https://www.google.com/mymaps" target="_blank" rel="noopener">Google My Maps</a>:
+        צרו מפה חדשה → ייבוא → בחרו את הקובץ. הטיסות אינן כלולות.
+      </span>
+    </div>
+
+    <div class="grid-2 mt-3">
+      <div class="card pad">
+        <h3>ק"מ ברכב לפי אזור</h3>
+        <p class="muted">כולל את הסעות הרכב בימי ההליכה. ימי הטיסה והעיר אינם נספרים.</p>
+        <div class="bar-list mt-1" id="regionBars"></div>
+      </div>
+      <div class="card pad">
+        <h3>עומס נהיגה יומי</h3>
+        <p class="muted">שעות נהיגה נטו, ללא עצירות. יום 11 הוא החריג — ראו את לשונית השיפורים.</p>
+        <div class="spark mt-1" id="driveSpark"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============================================== VIEW: ROUTE ===== -->
+  <section class="view" id="view-route" role="tabpanel" aria-labelledby="tab-route">
+    <div class="section-head row-between">
+      <div>
+        <h2>המסלול יום אחר יום</h2>
+        <p>לחצו על יום כדי לפתוח את התוכנית המלאה, המלון והטיפים.</p>
+      </div>
+      <div class="pill-row">
+        <button class="btn btn--sm" id="expandAll">פתח הכול</button>
+        <button class="btn btn--sm" id="collapseAll">סגור הכול</button>
+        <button class="btn btn--sm btn--primary" id="summaryBtn"
+                title="פותח את חלון ההדפסה — שם אפשר לבחור 'שמירה כ-PDF'">
+          📄 תמצית ל-2 עמודים
+        </button>
+      </div>
+    </div>
+    <div class="day-list" id="dayList"></div>
+  </section>
+
+  <!-- ================================================ VIEW: TIPS ===== -->
+  <section class="view" id="view-tips" role="tabpanel" aria-labelledby="tab-tips">
+    <div class="section-head">
+      <h2>המלצות לשיפור המסלול</h2>
+      <p>עברתי על המסלול. אלה הנקודות שהייתי משנה או מוודא מראש, מסודרות לפי דחיפות.
+         מה שסומן "יושם במסלול" כבר משוקלל בתוכנית היומית עצמה; השאר דורש החלטה או הזמנה מכם.</p>
+      <div class="pill-row mt-1" id="impCounts"></div>
+    </div>
+    <div class="imp-list" id="impList"></div>
+  </section>
+
+  <!-- ================================================ VIEW: COST ===== -->
+  <section class="view" id="view-cost" role="tabpanel" aria-labelledby="tab-cost">
+    <div class="section-head">
+      <h2>תכנון עלויות — לזוג</h2>
+      <p id="costNote"></p>
+    </div>
+
+    <div class="exp-summary mb-2" id="costSummary"></div>
+
+    <div class="card pad mb-2">
+      <div class="row-between">
+        <h3 style="margin:0">מה כלול</h3>
+        <label class="pill-row" style="font-size:.85rem;font-weight:700;color:var(--txt-dim);cursor:pointer">
+          <input type="checkbox" id="costIncludeExtras" checked />
+          <span>כלול גם נסיעות, כניסות וחניונים</span>
+        </label>
+      </div>
+      <p class="muted mt-1" style="margin:0">
+        טיסות, מלונות ורכב הם הליבה. אוכל ושתייה <strong>אינם</strong> כלולים —
+        אומדן נפרד לאלה נמצא בלשונית "מידע וציוד", ואת ההוצאה בפועל מנהלים בלשונית "הוצאות בפועל".
+      </p>
+    </div>
+
+    <div id="costGroups"></div>
+
+    <div class="card pad mt-2">
+      <h3>שערי המרה</h3>
+      <p class="muted">אותם שערים משמשים גם את לשונית ההוצאות בפועל.</p>
+      <div class="rate-grid mt-1" id="costRateGrid"></div>
+    </div>
+  </section>
+
+  <!-- ============================================ VIEW: EXPENSES ===== -->
+  <section class="view" id="view-expenses" role="tabpanel" aria-labelledby="tab-expenses">
+    <div class="section-head">
+      <h2>ניהול הוצאות וקיזוז</h2>
+      <p>מבוסס על גיליון ההוצאות מהטיול הקודם: הזנת הוצאות במטבע המקורי, המרה אוטומטית לשקל,
+         סיכום לפי אדם ולפי זוג, וחישוב ההעברה הנדרשת בסוף.</p>
+      <div class="sync-status is-local mt-1" id="syncStatus"></div>
+    </div>
+
+    <div class="upload-prompt" id="uploadPrompt" hidden>
+      <div>
+        <strong>נמצאו <span id="uploadCount">0</span> הוצאות ששמורות רק במכשיר הזה.</strong>
+        <div class="muted">להעלות אותן לענן כדי שכולם יראו אותן?</div>
+      </div>
+      <div class="pill-row">
+        <button class="btn btn--primary btn--sm" id="uploadLocal">⬆️ העלה לענן</button>
+        <button class="btn btn--sm" id="dismissUpload">לא עכשיו</button>
+      </div>
+    </div>
+
+    <div class="exp-grid">
+
+      <!-- סיכום -->
+      <div class="exp-summary" id="expSummary"></div>
+
+      <div class="settle-note" id="settleNote">עדיין לא הוזנו הוצאות.</div>
+
+      <!-- הזנת הוצאה -->
+      <div class="card pad">
+        <h3>הוספת הוצאה</h3>
+        <form class="form-grid mt-1" id="expForm" autocomplete="off">
+          <div class="field">
+            <label for="exDate">תאריך</label>
+            <input type="date" id="exDate" required />
+          </div>
+          <div class="field">
+            <label for="exAmount">סכום</label>
+            <input type="number" id="exAmount" step="0.01" min="0" placeholder="0.00" required />
+          </div>
+          <div class="field">
+            <label for="exCurrency">מטבע</label>
+            <select id="exCurrency"></select>
+          </div>
+          <div class="field">
+            <label for="exCategory">סעיף הוצאה</label>
+            <select id="exCategory"></select>
+          </div>
+          <div class="field">
+            <label for="exPayer">מי שילם</label>
+            <select id="exPayer"></select>
+          </div>
+          <div class="field" style="grid-column: span 2; min-width: 180px;">
+            <label for="exNote">תיאור / הערות</label>
+            <input type="text" id="exNote" placeholder="ארוחת ערב בפורטרי" />
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button class="btn btn--primary" type="submit">➕ הוסף</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- טבלת הוצאות -->
+      <div class="card">
+        <div class="pad row-between" style="padding-bottom:.6rem">
+          <h3 style="margin:0">כל ההוצאות (<span id="expCount">0</span>)</h3>
+          <div class="pill-row">
+            <button class="btn btn--sm" id="exportCsv">⬇️ ייצוא CSV</button>
+            <label class="btn btn--sm" for="importCsv">⬆️ ייבוא CSV</label>
+            <input type="file" id="importCsv" accept=".csv,text/csv" class="sr-only" />
+            <button class="btn btn--sm btn--danger" id="clearExp">🗑️ נקה הכול</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>תאריך</th><th>סעיף</th><th>מי שילם</th>
+                <th>סכום</th><th>מטבע</th><th>בש"ח</th><th>הערות</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="expBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ניתוחים -->
+      <div class="grid-2">
+        <div class="card pad">
+          <h3>חלוקה לסעיפים</h3>
+          <div class="bar-list mt-1" id="catBars"><p class="muted">אין נתונים עדיין.</p></div>
+        </div>
+        <div class="card pad">
+          <h3>הוצאה לפי אדם</h3>
+          <div class="bar-list mt-1" id="personBars"><p class="muted">אין נתונים עדיין.</p></div>
+        </div>
+      </div>
+
+      <div class="card pad">
+        <h3>הוצאה יומית</h3>
+        <p class="muted">סך ההוצאות בכל יום של הטיול, בשקלים.</p>
+        <div class="spark mt-1" id="dailySpark"></div>
+      </div>
+
+      <!-- הגדרות -->
+      <div class="grid-2">
+        <div class="card pad">
+          <h3>שערי המרה לשקל</h3>
+          <p class="muted">עדכנו לפי השער בפועל ביום הטיול. השינוי מחשב מחדש את כל הטבלה.</p>
+          <div class="rate-grid mt-1" id="rateGrid"></div>
+        </div>
+
+        <div class="card pad">
+          <h3>מטיילים וזוגות</h3>
+          <p class="muted">מי משתתף ולאיזה זוג הוא שייך. הקיזוז מחושב בין הזוגות.</p>
+          <div id="peopleList" class="mt-1"></div>
+          <form class="form-grid mt-2" id="personForm" autocomplete="off">
+            <div class="field">
+              <label for="pName">שם</label>
+              <input type="text" id="pName" placeholder="שם המטייל" required />
+            </div>
+            <div class="field">
+              <label for="pGroup">זוג</label>
+              <select id="pGroup">
+                <option value="1">זוג 1</option>
+                <option value="2">זוג 2</option>
+                <option value="3">זוג 3</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button class="btn btn--sm" type="submit">הוסף מטייל</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card pad">
+        <h3>תקציב יעד</h3>
+        <p class="muted">אופציונלי — קבעו תקציב כולל לטיול כדי לעקוב אחרי הניצול.</p>
+        <div class="form-grid mt-1">
+          <div class="field">
+            <label for="budgetInput">תקציב כולל (₪)</label>
+            <input type="number" id="budgetInput" min="0" step="100" placeholder="20000" />
+          </div>
+        </div>
+        <div class="progress mt-2"><div class="progress__fill" id="budgetBar" style="width:0%"></div></div>
+        <p class="muted" id="budgetText">לא הוגדר תקציב.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================ VIEW: INFO ===== -->
+  <section class="view" id="view-info" role="tabpanel" aria-labelledby="tab-info">
+    <div class="section-head">
+      <h2>מידע שימושי</h2>
+      <p>נהיגה, מזג אוויר, כסף, הזמנות מראש — כל מה שכדאי לדעת לפני היציאה.</p>
+    </div>
+    <div class="info-grid" id="infoGrid"></div>
+
+    <div class="section-head mt-3">
+      <h2>רשימת ציוד</h2>
+      <p>סמנו פריטים תוך כדי אריזה — הסימון נשמר בדפדפן.</p>
+    </div>
+    <div class="progress"><div class="progress__fill" id="packBar" style="width:0%"></div></div>
+    <p class="muted mb-2" id="packText"></p>
+    <div class="pack-grid" id="packGrid"></div>
+  </section>
+
+</main>
+
+<footer class="foot wrap">
+  <p>נבנה עבור הטיול · אוגוסט–ספטמבר 2026 · כל הנתונים נשמרים מקומית בדפדפן</p>
+</footer>
+
+<script src="assets/vendor/leaflet/leaflet.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

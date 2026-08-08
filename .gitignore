@@ -34,3 +34,7 @@ node_modules/
 frontend/dist/
 *.tsbuildinfo
 .vite/
+
+# Netlify (trip site deploys)
+.netlify/
+deploy-*.zip
