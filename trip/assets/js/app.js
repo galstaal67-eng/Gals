@@ -612,7 +612,7 @@
     return `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>${xml(`${TRIP.meta.title} · 16–29.9.2026`)}</name>
+    <name>${xml(`${TRIP.meta.title} · ${TRIP.days[0].date} – ${TRIP.days[TRIP.days.length - 1].date}`)}</name>
     <description>${xml(TRIP.meta.subtitle + " — ללא מקטעי הטיסה")}</description>
 ${styles}
 ${folders}
@@ -637,7 +637,7 @@ ${folders}
 
   $("#kmlBtn").addEventListener("click", downloadKML);
 
-  /** כפתור הניווט פעיל רק כשנבחר יום — לגוגל אין מסלול אחד ל-14 ימים */
+  /** כפתור הניווט פעיל רק כשנבחר יום — לגוגל אין מסלול אחד לכל הטיול */
   function syncNavButton() {
     const btn = $("#navDayBtn");
     const day = TRIP.days.find((d) => String(d.n) === String(activeDay));
@@ -832,10 +832,11 @@ ${folders}
       .map(
         (s) => `
         <tr>
-          <td>${esc(s.name)}<span class="stops">${esc(s.area)}</span></td>
+          <td>${esc(s.name)}</td>
+          <td class="ho">${esc(s.area)}</td>
           <td class="dt"><bdi class="rng">${psDate(s.from, "")}–${psDate(s.to, "")}</bdi></td>
           <td class="km">${s.nights}</td>
-          <td class="km">${s.price ? `<bdi class="rng">${esc(s.price)}</bdi>` : "—"}</td>
+          <td class="ho">${s.price ? `<bdi class="rng">${esc(s.price)}</bdi>` : "—"}</td>
         </tr>`
       )
       .join("");
@@ -844,50 +845,53 @@ ${folders}
     const booking = TRIP.practical.find((p) => p.title.includes("להזמין"));
     const walking = TRIP.practical.find((p) => p.title.includes("ההליכה"));
 
+    // חלוקת הימים לשני עמודים נגזרת מהאורך, כדי שהוספת יום לא תדחוף לעמוד שלישי.
+    // עמוד 2 נושא גם את טבלת הלינה ואת שתי התיבות, ולכן הוא מקבל פחות ימים.
+    const split = Math.max(Math.ceil(days.length / 2), days.length - 5);
+    const range = `${psDate(days[0].date, "")}–${psDate(days[days.length - 1].date, "")}`;
+    const walkDays = days.filter((d) => d.walk).length;
+
     const sheet = document.createElement("div");
     sheet.className = "psheet";
     sheet.id = "printSheet";
     sheet.innerHTML = `
       <section class="psheet__page">
         <div class="psheet__head">
-          <h1>${esc(m.title)} · 16–29 בספטמבר 2026</h1>
+          <h1>${esc(m.title)} · <bdi class="rng">${range}</bdi></h1>
           <span class="sub">${days.length} ימים · ${nights} לילות ·
             ${nfNum.format(m.totalDrivingKm)} ק"מ ברכב · ${walkKm} ק"מ ברגל</span>
         </div>
 
-        <div class="psheet__cols">
-          <div class="psheet__box">
-            <h2>✈️ טיסות — ${esc(f.carrier)} · ${esc(f.fare)}</h2>
-            ${leg(f.out, "הלוך")}
-            ${leg(f.back, "חזור")}
-            <div class="kv"><b>שימו לב</b><span>החזרה ממריאה ב-06:10 — להיות בטרמינל ב-04:15.
-              ${esc(f.fare)} לרוב אינו כולל מזוודה לבטן המטוס.</span></div>
-          </div>
-          <div class="psheet__box">
-            <h2>🛏️ לינה — ${nights} לילות</h2>
-            <table><thead><tr><th>איפה</th><th>תאריכים</th><th>לילות</th><th>מחיר</th></tr></thead>
-              <tbody>${stays}</tbody></table>
-          </div>
+        <div class="psheet__box">
+          <h2>✈️ טיסות — ${esc(f.carrier)} · ${esc(f.fare)}</h2>
+          ${leg(f.out, "הלוך")}
+          ${leg(f.back, "חזור")}
+          <div class="kv"><b>שימו לב</b><span>החזרה ממריאה ב-06:10 — להיות בטרמינל ב-04:15.
+            ${esc(f.fare)} לרוב אינו כולל מזוודה לבטן המטוס.</span></div>
         </div>
 
-        <h2>המסלול — ימים 1–7</h2>
-        <table>${DAY_TABLE_HEAD}<tbody>${dayRows(days.slice(0, 7))}</tbody></table>
+        <h2><bdi class="rng">המסלול — ימים 1–${split}</bdi></h2>
+        <table>${DAY_TABLE_HEAD}<tbody>${dayRows(days.slice(0, split))}</tbody></table>
 
         <div class="psheet__foot"><span>עמוד 1 מתוך 2</span><span>${esc(m.subtitle)}</span></div>
       </section>
 
       <section class="psheet__page">
-        <h2>המסלול — ימים 8–14</h2>
-        <table>${DAY_TABLE_HEAD}<tbody>${dayRows(days.slice(7))}</tbody></table>
+        <h2><bdi class="rng">המסלול — ימים ${split + 1}–${days.length}</bdi></h2>
+        <table>${DAY_TABLE_HEAD}<tbody>${dayRows(days.slice(split))}</tbody></table>
+
+        <h2>🛏️ לינה — ${nights} לילות</h2>
+        <table><thead><tr><th>איפה</th><th>אזור</th><th>תאריכים</th><th>לילות</th><th>מחיר</th></tr></thead>
+          <tbody>${stays}</tbody></table>
 
         <div class="psheet__cols">
           <div class="psheet__box">
-            <h2>🥾 שני ימי ההליכה</h2>
-            <ul>${(walking?.items || []).slice(0, 6).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+            <h2>🥾 ${walkDays} ימי ההליכה</h2>
+            <ul>${(walking?.items || []).slice(0, 5).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
           </div>
           <div class="psheet__box">
             <h2>✅ להזמין מראש</h2>
-            <ul>${(booking?.items || []).slice(0, 8).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+            <ul>${(booking?.items || []).slice(0, 6).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
           </div>
         </div>
 
