@@ -3,7 +3,7 @@
 
    האתר עובד בשני מצבים:
    • מסונכרן — הפונקציות של Netlify זמינות, והמצב המשותף (הוצאות, מטיילים,
-     שערים) נשמר ב-Postgres ומשותף לכל המכשירים.
+     שערים ותכנון העלויות) נשמר ב-Postgres ומשותף לכל המכשירים.
    • מקומי   — אין שרת (פתיחה של הקובץ מהדיסק, פריסה סטטית, או תקלת רשת),
      והכול ממשיך לעבוד מול localStorage בדיוק כמו קודם.
 
@@ -122,6 +122,18 @@ const TripAPI = (() => {
       return mutate(
         () => request("/api/expenses", { method: "DELETE" }),
         "ניקוי ההוצאות נכשל"
+      );
+    },
+
+    /**
+     * שולח עריכות של שורות תכנון העלויות. מפתח עם ערך null נמחק בשרת,
+     * כלומר השורה חוזרת לאומדן המקורי בכל המכשירים.
+     */
+    saveCost(overrides) {
+      if (!overrides || Object.keys(overrides).length === 0) return false;
+      return mutate(
+        () => request("/api/cost", { method: "PUT", body: JSON.stringify({ overrides }) }),
+        "שמירת תכנון העלויות נכשלה"
       );
     },
 

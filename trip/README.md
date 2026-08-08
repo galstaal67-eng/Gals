@@ -135,6 +135,9 @@ npx netlify-cli deploy --prod --dir=. --site=651d6e81-b92a-47fa-801a-c1cddbc36df
   אמיתי ברגע שמזמינים, והסיכומים מתעדכנים מיד.
 - סיכומים: סה"כ לזוג, לאדם, ללילה וליום, כולל הטווח המלא.
 - **אוכל ושתייה אינם כלולים** בכוונה. אומדן נפרד לאלה נמצא בלשונית "מידע וציוד".
+- **העריכות מסונכרנות בין המכשירים.** מחיר שמעדכנים בטלפון אחרי שסוגרים
+  הזמנה מופיע גם אצל בן/בת הזוג. שדה שמרוקנים חוזר לאומדן המקורי בכל
+  המכשירים. תיבת "כלול כניסות" נשארת מקומית — היא תצוגה, לא נתון.
 
 ## לשונית ההוצאות בפועל
 
@@ -164,8 +167,8 @@ npx netlify-cli deploy --prod --dir=. --site=651d6e81-b92a-47fa-801a-c1cddbc36df
 | | מסונכרן ☁️ | מקומי 📱 |
 | --- | --- | --- |
 | מתי | הפונקציות של Netlify זמינות | פתיחה מהדיסק, פריסה סטטית, או תקלת רשת |
-| הוצאות, מטיילים, שערים | Postgres משותף לכל המכשירים | `localStorage` בלבד |
-| תכנון עלויות, ציוד, ערכת צבעים | `localStorage` בכל מכשיר | `localStorage` בכל מכשיר |
+| הוצאות, מטיילים, שערים, תכנון עלויות | Postgres משותף לכל המכשירים | `localStorage` בלבד |
+| ציוד, ערכת צבעים, תיבת "כלול כניסות" | `localStorage` בכל מכשיר | `localStorage` בכל מכשיר |
 
 הזיהוי הוא ניסיון קריאה אחד ל-`/api/state` בטעינה. כישלון אינו שגיאה — הוא
 פשוט אומר "מצב מקומי", והאתר ממשיך לעבוד במלואו. מחוון בראש לשונית ההוצאות
@@ -180,10 +183,11 @@ npx netlify-cli deploy --prod --dir=. --site=651d6e81-b92a-47fa-801a-c1cddbc36df
 ### הסכמה
 
 ```
-expenses    id, spent_on, amount, currency, category, payer, note,
-            created_at, deleted_at        ← מחיקה רכה
-travellers  name, couple_group, sort_order
-fx_rates    currency, ils_per_unit, updated_at
+expenses        id, spent_on, amount, currency, category, payer, note,
+                created_at, deleted_at        ← מחיקה רכה
+travellers      name, couple_group, sort_order
+fx_rates        currency, ils_per_unit, updated_at
+cost_overrides  item_key ("hotels:3"), low_amount, high_amount, updated_at
 ```
 
 מחיקת הוצאה היא מחיקה רכה (`deleted_at`), כדי שהקשה מוטעית בטלפון לא תאבד
@@ -199,11 +203,17 @@ fx_rates    currency, ils_per_unit, updated_at
 | `DELETE` | `/api/expenses/:id` | מחיקה רכה |
 | `DELETE` | `/api/expenses` | מחיקה רכה של הכול |
 | `PUT` | `/api/settings` | החלפת רשימת המטיילים ו/או השערים |
+| `PUT` | `/api/cost` | עדכון שורות בתכנון העלויות; `null` מוחק שורה |
 
 כל קלט מאומת בשרת: סכום חיובי, מטבע מרשימה סגורה, תאריך `yyyy-mm-dd`,
 ואורכי שדות. אצווה עם רשומה פסולה נדחית **כולה** — אצווה חלקית גרועה יותר
 מאצווה שנדחתה. עדכון המטיילים רץ בטרנזקציה, כדי שבקשה שנכשלת באמצע לא
 תשאיר רשימה חלקית.
+
+`/api/cost` הוא היחיד שמעדכן נקודתית ולא בהחלפה מלאה, וזה מכוון: שני בני
+הזוג עורכים שורות שונות באותו זמן (אחד סוגר מלון, השני רכב), והחלפה מלאה
+מתמונת מצב ישנה הייתה מוחקת את העריכה של השני. `low > high` **אינו** נדחה —
+המשתמש מקליד שדה אחד בכל פעם, ובאמצע ההקלדה הטווח הפוך לרגע.
 
 > ⚠️ **אין אימות משתמשים.** כל מי שמגיע לכתובת יכול לקרוא ולערוך את ההוצאות.
 > זו הייתה החלטה מודעת. להוספת קוד טיול משותף בהמשך צריך לבדוק משתנה סביבה
@@ -227,7 +237,8 @@ trip/
 │   ├── functions/              # כל קובץ כאן נפרס כפונקציה — קוד משותף שייך ל-lib/
 │   │   ├── state.mts           # GET /api/state
 │   │   ├── expenses.mts        # POST/DELETE /api/expenses
-│   │   └── settings.mts        # PUT /api/settings
+│   │   ├── settings.mts        # PUT /api/settings
+│   │   └── cost.mts            # PUT /api/cost
 │   └── database/migrations/    # SQL שרץ אוטומטית בכל פריסה
 └── README.md
 ```

@@ -87,6 +87,60 @@ export function parseExpense(raw: unknown): ExpenseInput | string {
   return { date, amount, currency: currency as Currency, category, payer, note };
 }
 
+export interface CostOverride {
+  low: number | null;
+  high: number | null;
+}
+
+/**
+ * מאמת את מפת עריכות תכנון העלויות.
+ * ערך null עבור מפתח פירושו "מחק את השורה" — כך שדה שרוקנו חוזר לאומדן
+ * המקורי בכל המכשירים, ולא רק במכשיר שבו נמחק.
+ *
+ * שימו לב: low > high אינו נחשב שגיאה. המשתמש מקליט שדה אחד בכל פעם,
+ * ובאמצע ההקלדה הטווח יכול להיות הפוך לרגע — דחייה כאן הייתה הופכת
+ * את השדה לבלתי ניתן לעריכה.
+ */
+export function parseCostOverrides(
+  raw: unknown
+): Record<string, CostOverride | null> | string {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return "overrides חייב להיות אובייקט";
+  }
+
+  const entries = Object.entries(raw as Record<string, unknown>);
+  if (entries.length === 0) return "לא נשלחו עריכות";
+  if (entries.length > 200) return "יותר מדי עריכות";
+
+  const out: Record<string, CostOverride | null> = {};
+
+  for (const [key, value] of entries) {
+    if (!/^[a-z_]+:\d+$/.test(key) || key.length > 40) return `מפתח שורה לא חוקי: ${key}`;
+
+    if (value === null) { out[key] = null; continue; }
+    if (typeof value !== "object" || Array.isArray(value)) return `ערך לא חוקי עבור ${key}`;
+
+    const v = value as Record<string, unknown>;
+    const low = bound(v.low);
+    const high = bound(v.high);
+    if (typeof low === "string") return `${low} עבור ${key}`;
+    if (typeof high === "string") return `${high} עבור ${key}`;
+    if (low === null && high === null) return `שורה ריקה עבור ${key}`;
+
+    out[key] = { low, high };
+  }
+  return out;
+}
+
+/** מספר אופציונלי בתחום סביר, או null כשהשדה ריק */
+function bound(v: unknown): number | null | string {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) return "סכום חייב להיות מספר אי-שלילי";
+  if (n > 1_000_000) return "סכום גדול מדי";
+  return n;
+}
+
 /** UUID v4 — crypto.randomUUID זמין בסביבת ההרצה של פונקציות Netlify */
 export function newId(): string {
   return crypto.randomUUID();

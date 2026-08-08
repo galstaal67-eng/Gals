@@ -1000,14 +1000,51 @@
     $$("[data-cost]").forEach((inp) =>
       inp.addEventListener("input", () => {
         const key = inp.dataset.cost;
-        const val = parseFloat(inp.value);
-        if (!Number.isFinite(val) || val < 0) return;
-        state.costOverrides[key] = state.costOverrides[key] || {};
-        state.costOverrides[key][inp.dataset.bound] = val;
+        const bound = inp.dataset.bound;
+        const raw = inp.value.trim();
+        const val = parseFloat(raw);
+
+        if (raw === "") {
+          // שדה שרוקן חוזר לאומדן המקורי — גם אצל בן/בת הזוג
+          if (state.costOverrides[key]) {
+            delete state.costOverrides[key][bound];
+            if (!Object.keys(state.costOverrides[key]).length) delete state.costOverrides[key];
+          }
+        } else if (Number.isFinite(val) && val >= 0) {
+          state.costOverrides[key] = state.costOverrides[key] || {};
+          state.costOverrides[key][bound] = val;
+        } else {
+          return;   // הקלדה חלקית כמו "-" או "." — לא נוגעים במצב
+        }
+
         save();
         renderCostSummaryOnly();
+        queueCostSync(key);
       })
     );
+  }
+
+  /**
+   * עריכת עלות יורה על כל הקלדה — מחכים לרגע שקט לפני ששולחים.
+   * נשלחות רק השורות שנגעו בהן, ולא כל המפה: שני בני הזוג עורכים שורות
+   * שונות באותו זמן, והחלפה מלאה מתמונת מצב ישנה הייתה מוחקת את השני.
+   */
+  let costSyncTimer = null;
+  const costSyncPending = new Set();
+
+  function queueCostSync(key) {
+    costSyncPending.add(key);
+    clearTimeout(costSyncTimer);
+    costSyncTimer = setTimeout(flushCostSync, 700);
+  }
+
+  function flushCostSync() {
+    if (!costSyncPending.size) return;
+    const payload = {};
+    // null = "מחק בשרת", כלומר השורה חזרה לאומדן
+    costSyncPending.forEach((k) => { payload[k] = state.costOverrides[k] ?? null; });
+    costSyncPending.clear();
+    TripAPI.saveCost(payload);
   }
 
   /** מרענן רק את הסיכומים, כדי לא לאבד פוקוס בשדה שעורכים כרגע */
@@ -1603,6 +1640,18 @@
     state.expenses = remote.expenses;
     state.people = remote.people.length ? remote.people : state.people;
     state.rates = { ...state.rates, ...remote.rates };
+
+    // תכנון העלויות: השרת הוא מקור האמת. אם הוא ריק ויש עריכות מקומיות
+    // מלפני המעבר, מעלים אותן פעם אחת כדי שלא ייעלמו — בלי לשאול, כי
+    // אלה מספרים בלבד ואין כאן מה לאבד.
+    const remoteCosts = remote.costOverrides || {};
+    const localCosts = state.costOverrides || {};
+    if (Object.keys(remoteCosts).length) {
+      state.costOverrides = remoteCosts;
+    } else if (Object.keys(localCosts).length) {
+      TripAPI.saveCost(localCosts);
+    }
+
     save();
 
     if (hadLocal) offerUpload();
@@ -1684,7 +1733,8 @@
       renderPeople();
       renderRates();
       renderExpenses();
-      renderCostSummaryOnly();
+      // רינדור מלא ולא רק הסיכומים: הסנכרון מחליף גם את הערכים בשדות עצמם
+      renderCostPlan();
     });
   }
 

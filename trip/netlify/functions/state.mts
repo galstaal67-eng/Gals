@@ -4,7 +4,7 @@ import { json, fail, num, isoDate } from "../lib/shared.mts";
 
 /**
  * GET /api/state
- * מחזיר את כל המצב המשותף בבקשה אחת — הוצאות, מטיילים ושערים.
+ * מחזיר את כל המצב המשותף בבקשה אחת — הוצאות, מטיילים, שערים ותכנון העלויות.
  * הצורה זהה למבנה שהלקוח מחזיק ב-localStorage, כדי ששני המצבים
  * (מסונכרן ומקומי) ישתמשו באותו קוד רינדור.
  */
@@ -14,7 +14,7 @@ export default async (req: Request) => {
   try {
     const db = getDatabase();
 
-    const [expenses, travellers, rates] = await Promise.all([
+    const [expenses, travellers, rates, costs] = await Promise.all([
       db.sql`
         SELECT id, spent_on, amount, currency, category, payer, note
         FROM expenses
@@ -23,6 +23,7 @@ export default async (req: Request) => {
       `,
       db.sql`SELECT name, couple_group FROM travellers ORDER BY sort_order, name`,
       db.sql`SELECT currency, ils_per_unit FROM fx_rates`,
+      db.sql`SELECT item_key, low_amount, high_amount FROM cost_overrides`,
     ]);
 
     return json({
@@ -41,6 +42,16 @@ export default async (req: Request) => {
       })),
       rates: Object.fromEntries(
         rates.map((r: Record<string, unknown>) => [String(r.currency), num(r.ils_per_unit)])
+      ),
+      // אותה צורה שהלקוח מחזיק: "groupKey:index" -> { low, high }.
+      // שדה שלא נערך אינו מופיע כאן כלל, ולכן נופל לאומדן שב-data.js.
+      costOverrides: Object.fromEntries(
+        costs.map((r: Record<string, unknown>) => {
+          const o: Record<string, number> = {};
+          if (r.low_amount  !== null) o.low  = num(r.low_amount);
+          if (r.high_amount !== null) o.high = num(r.high_amount);
+          return [String(r.item_key), o];
+        })
       ),
     });
   } catch (err) {
