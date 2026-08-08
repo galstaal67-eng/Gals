@@ -767,6 +767,16 @@ table.data.cost-table td:first-child { min-width: 15rem; }
   padding-top: .4rem; border-top: 1px dashed var(--line);
 }
 
+/* פעולות מתחת למפה: ניווט ליום הנבחר והורדת המסלול */
+.map-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+  margin-top: .85rem;
+}
+.map-actions > * { min-width: 0; }
+.map-actions__hint { font-size: .8rem; flex: 1 1 16rem; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.btn[disabled]:hover { border-color: var(--line-strong); color: var(--txt); }
+
 /* ================================================= PRINT SUMMARY ===== */
 /* גיליון תמצית בן שני עמודי A4 בדיוק. נבנה לפי דרישה ומוצג רק בהדפסה,
    כדי שלא יעלה בעלות רינדור על המסך ולא יסתבך עם ערכת הצבעים הכהה. */

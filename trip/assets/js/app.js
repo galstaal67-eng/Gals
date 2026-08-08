@@ -253,6 +253,7 @@
 
   function focusDay(which) {
     activeDay = which;
+    syncNavButton();
 
     $$("#mapFilter .chip").forEach((c) =>
       c.classList.toggle("is-on", c.dataset.day === String(which))
@@ -528,6 +529,134 @@
     }
     return url;
   }
+
+  /* ==================================================================== */
+  /*  ייצוא ל-Google Maps                                                 */
+  /* ==================================================================== */
+
+  /** תיבה תוחמת של בריטניה — כדי לסנן את נתב"ג ופרנקפורט מהייצוא */
+  const inBritain = (p) => p.lat > 49 && p.lat < 61 && p.lng > -9 && p.lng < 2;
+
+  const xml = (s) =>
+    String(s ?? "").replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;",
+    }[c]));
+
+  /** #rrggbb → aabbggrr, הסדר ההפוך ש-KML משתמש בו */
+  const kmlColor = (hex) => {
+    const h = hex.replace("#", "");
+    return `ff${h.slice(4, 6)}${h.slice(2, 4)}${h.slice(0, 2)}`.toLowerCase();
+  };
+
+  /**
+   * בונה KML של כל המסלול, בלי מקטעי הטיסה.
+   *
+   * הקיבוץ הוא לפי אזור ולא לפי יום בכוונה: Google My Maps מגביל ל-10
+   * שכבות למפה, ו-14 תיקיות (יום לכל אחת) היו חורגות מזה. חמישה אזורים
+   * נכנסים בנוחות, ומספר היום נשאר בשם של כל נקודה.
+   */
+  function buildKML() {
+    const styles = Object.entries(TRIP.modes)
+      .map(
+        ([key, m]) => `  <Style id="${key}">
+    <LineStyle><color>${kmlColor(m.color)}</color><width>4</width></LineStyle>
+    <IconStyle><color>${kmlColor(m.color)}</color></IconStyle>
+  </Style>`
+      )
+      .join("\n");
+
+    // סדר האזורים נקבע לפי סדר ההופעה במסלול
+    const regions = [];
+    TRIP.days.forEach((d) => { if (!regions.includes(d.region)) regions.push(d.region); });
+
+    const folders = regions
+      .map((region) => {
+        const days = TRIP.days.filter((d) => d.region === region);
+        const body = days
+          .map((day) => {
+            const marks = (day.points || [])
+              .filter((p) => p.lat && p.lng && inBritain(p))
+              .map(
+                (p) => `      <Placemark>
+        <name>${xml(`${day.n} · ${p.name}`)}</name>
+        <description>${xml(`יום ${day.n}, ${fullDate(day.date)} — ${day.title}`)}</description>
+        <Point><coordinates>${p.lng},${p.lat},0</coordinates></Point>
+      </Placemark>`
+              )
+              .join("\n");
+
+            // קו המסלול נשמט בימי הטיסה — זה מה ש"ללא טיסות" אומר בפועל
+            const line =
+              day.pathMode !== "flight" && day.path?.length > 1
+                ? `      <Placemark>
+        <name>${xml(`מסלול יום ${day.n} — ${day.title}`)}</name>
+        <styleUrl>#${day.pathMode}</styleUrl>
+        <LineString><tessellate>1</tessellate><coordinates>
+          ${day.path.map(([lat, lng]) => `${lng},${lat},0`).join(" ")}
+        </coordinates></LineString>
+      </Placemark>`
+                : "";
+
+            return [marks, line].filter(Boolean).join("\n");
+          })
+          .filter(Boolean)
+          .join("\n");
+
+        return body
+          ? `    <Folder>\n      <name>${xml(region)}</name>\n${body}\n    </Folder>`
+          : "";
+      })
+      .filter(Boolean)
+      .join("\n");
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${xml(`${TRIP.meta.title} · 16–29.9.2026`)}</name>
+    <description>${xml(TRIP.meta.subtitle + " — ללא מקטעי הטיסה")}</description>
+${styles}
+${folders}
+  </Document>
+</kml>`;
+  }
+
+  function downloadKML() {
+    const blob = new Blob([buildKML()], {
+      type: "application/vnd.google-earth.kml+xml;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "scotland-2026-route.kml";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // שחרור מיידי מדליף פחות מלהשאיר את ה-URL תלוי
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  $("#kmlBtn").addEventListener("click", downloadKML);
+
+  /** כפתור הניווט פעיל רק כשנבחר יום — לגוגל אין מסלול אחד ל-14 ימים */
+  function syncNavButton() {
+    const btn = $("#navDayBtn");
+    const day = TRIP.days.find((d) => String(d.n) === String(activeDay));
+    const link = day ? gmapsLink(day) : null;
+
+    btn.disabled = !link;
+    btn.dataset.href = link || "";
+    btn.textContent = day
+      ? `🧭 ניווט ביום ${day.n} ב-Google Maps`
+      : "🧭 ניווט ביום הנבחר ב-Google Maps";
+    btn.title = link
+      ? `${day.title} — נפתח בלשונית חדשה`
+      : "בחרו יום מהצ'יפים שמעל המפה. אין ב-Google Maps מסלול יחיד לכל הטיול — לשם כך הורידו את הקובץ.";
+  }
+
+  $("#navDayBtn").addEventListener("click", (e) => {
+    const href = e.currentTarget.dataset.href;
+    if (href) window.open(href, "_blank", "noopener");
+  });
 
   function renderDays() {
     $("#dayList").innerHTML = TRIP.days
@@ -1708,6 +1837,7 @@
     setInterval(tickCountdown, 60_000);
 
     renderMapControls();
+    syncNavButton();
     initMap();
     renderRouteStats();
     renderDays();
