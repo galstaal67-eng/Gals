@@ -179,3 +179,60 @@ export function resolveApiKey(): string | undefined {
   );
   return hit ? process.env[hit] : undefined;
 }
+
+/**
+ * הודעת שגיאה שמוצגת למשתמש כמות שהיא, מתוך עבודה שכבר מוזרמת.
+ * ברגע שהתשובה התחילה לזרום אי אפשר עוד לשנות קוד סטטוס — ולכן השגיאה
+ * נוסעת בגוף, ולא ב-HTTP.
+ */
+export class StreamError extends Error {}
+
+/**
+ * תשובה שמוזרמת ללקוח, לעבודה שעלולה להיות ארוכה.
+ *
+ * פונקציה רגילה ב-Netlify נקטעת אחרי 30 שניות — וזה בדיוק מה שקרה לקריאה
+ * הראשונה שנשלחה ל-/api/ai באוויר: 504 אחרי 30.8 שניות, בלי תשובה ובלי
+ * הסבר. תשובה שמוזרמת מקבלת 60 שניות, והבתים שיוצאים מיד מחזיקים את
+ * החיבור פתוח במקום שהקצה יחתוך אותו.
+ *
+ * הפורמט: שורות ריקות של פעימה, ואז שורת JSON אחת — התוצאה או {error}.
+ * הלקוח קורא את כל הגוף ומפענח את השורה האחרונה שאינה ריקה.
+ */
+export function streamJson(work: () => Promise<unknown>): Response {
+  const enc = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const push = (s: string) => {
+        try {
+          controller.enqueue(enc.encode(s));
+        } catch {
+          /* הלקוח ניתק — אין למי לכתוב */
+        }
+      };
+
+      // הבייט הראשון יוצא לפני שהעבודה מתחילה: הוא שמשחרר את הכותרות
+      push("\n");
+      const beat = setInterval(() => push("\n"), 5_000);
+
+      try {
+        push("\n" + JSON.stringify(await work()) + "\n");
+      } catch (err) {
+        const message =
+          err instanceof StreamError ? err.message : "הפעולה נכשלה. נסו שוב.";
+        if (!(err instanceof StreamError)) console.error("streamJson: נכשל", err);
+        push("\n" + JSON.stringify({ error: message }) + "\n");
+      } finally {
+        clearInterval(beat);
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "content-type": "application/x-ndjson; charset=utf-8",
+      "cache-control": "no-store",
+    },
+  });
+}

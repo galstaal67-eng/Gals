@@ -149,6 +149,20 @@ const TripAPI = (() => {
       );
     },
 
+    /**
+     * קורא תשובה מנקודות ה-AI.
+     *
+     * הן מזרימות את התשובה, כי פונקציה רגילה ב-Netlify נקטעת אחרי 30 שניות
+     * וקריאה למודל חוצה את זה. הגוף הוא שורות פעימה ריקות ואז שורת JSON
+     * אחת. תשובת שגיאה מהירה היא שורה בודדת, ונקראת כאן באותה דרך בדיוק.
+     */
+    async readJson(res) {
+      const text = await res.text().catch(() => "");
+      const line = text.split("\n").map((l) => l.trim()).filter(Boolean).pop();
+      if (!line) return null;
+      try { return JSON.parse(line); } catch { return null; }
+    },
+
     saveSettings({ people, rates }) {
       const body = {};
       if (people) body.people = people;

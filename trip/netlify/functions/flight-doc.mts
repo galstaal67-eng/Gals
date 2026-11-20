@@ -2,7 +2,7 @@ import type { Config } from "@netlify/functions";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { json, fail, resolveApiKey } from "../lib/shared.mts";
+import { fail, resolveApiKey, streamJson, StreamError } from "../lib/shared.mts";
 
 /**
  * POST /api/flight-doc — קריאת פרטי טיסה מתוך כרטיס שהועלה.
@@ -61,8 +61,8 @@ export default async (req: Request) => {
   }
   if (!body) return fail("גוף הבקשה ריק", 400);
 
-  const gate = process.env.AI_ACCESS_CODE;
-  if (gate && String(body.code ?? "") !== gate) return fail("קוד גישה שגוי", 401);
+  const gate = process.env.AI_ACCESS_CODE?.trim();
+  if (gate && String(body.code ?? "").trim() !== gate) return fail("קוד גישה שגוי", 401);
 
   const data = String(body.data ?? "");
   const mediaType = String(body.mediaType ?? "");
@@ -80,42 +80,47 @@ export default async (req: Request) => {
 
   const client = new Anthropic({ apiKey });
 
-  try {
-    const response = await client.beta.messages.parse({
-      model: "claude-opus-5-5",
-      max_tokens: 4000,
-      output_config: { effort: "low", format: zodOutputFormat(FlightInfo) },
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
-      messages: [
-        {
-          role: "user",
-          // המסמך לפני הטקסט — זה הסדר שהתיעוד מחייב למסמכים
-          content: [
-            isPdf
-              ? { type: "document", source: { type: "base64", media_type: "application/pdf", data } }
-              : { type: "image", source: { type: "base64", media_type: mediaType as "image/png", data } },
-            { type: "text", text: `הוצא את פרטי רגל ה${leg} מהמסמך הזה.` },
-          ],
-        },
-      ],
-    });
+  // קריאת PDF סרוק יכולה לקחת יותר מ-30 השניות שפונקציה רגילה מקבלת —
+  // מזרימים, ובכך התקרה עולה ל-60.
+  return streamJson(async () => {
+    try {
+      const response = await client.beta.messages.parse({
+        model: "claude-opus-5-5",
+        max_tokens: 4000,
+        output_config: { effort: "low", format: zodOutputFormat(FlightInfo) },
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
+        messages: [
+          {
+            role: "user",
+            // המסמך לפני הטקסט — זה הסדר שהתיעוד מחייב למסמכים
+            content: [
+              isPdf
+                ? { type: "document", source: { type: "base64", media_type: "application/pdf", data } }
+                : { type: "image", source: { type: "base64", media_type: mediaType as "image/png", data } },
+              { type: "text", text: `הוצא את פרטי רגל ה${leg} מהמסמך הזה.` },
+            ],
+          },
+        ],
+      });
 
-    if (response.stop_reason === "refusal") {
-      return fail("המודל סירב לקרוא את המסמך הזה.", 422);
+      if (response.stop_reason === "refusal") {
+        throw new StreamError("המודל סירב לקרוא את המסמך הזה.");
+      }
+      const parsed = response.parsed_output;
+      if (!parsed) throw new StreamError("התשובה מהמודל לא נקראה. נסו שוב.");
+
+      return parsed;
+    } catch (err) {
+      if (err instanceof StreamError) throw err;
+      if (err instanceof Anthropic.AuthenticationError) throw new StreamError("מפתח ה-API שגוי או פג.");
+      if (err instanceof Anthropic.RateLimitError) throw new StreamError("חריגה ממכסה. נסו שוב בעוד דקה.");
+      if (err instanceof Anthropic.APIConnectionError) throw new StreamError("אין חיבור לשירות.");
+      console.error("flight-doc: הקריאה נכשלה", err);
+      throw new StreamError("קריאת המסמך נכשלה.");
     }
-    const parsed = response.parsed_output;
-    if (!parsed) return fail("התשובה מהמודל לא נקראה. נסו שוב.", 502);
-
-    return json(parsed);
-  } catch (err) {
-    if (err instanceof Anthropic.AuthenticationError) return fail("מפתח ה-API שגוי או פג.", 502);
-    if (err instanceof Anthropic.RateLimitError) return fail("חריגה ממכסה. נסו שוב בעוד דקה.", 429);
-    if (err instanceof Anthropic.APIConnectionError) return fail("אין חיבור לשירות.", 504);
-    console.error("flight-doc: הקריאה נכשלה", err);
-    return fail("קריאת המסמך נכשלה.", 502);
-  }
+  });
 };
 
 export const config: Config = {

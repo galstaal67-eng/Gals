@@ -2,7 +2,7 @@ import type { Config } from "@netlify/functions";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { json, fail, resolveApiKey } from "../lib/shared.mts";
+import { fail, resolveApiKey, streamJson, StreamError } from "../lib/shared.mts";
 
 /**
  * POST /api/ai — בקשה חופשית בעברית, מוקלדת או מוכתבת.
@@ -173,7 +173,9 @@ export default async (req: Request) => {
 
   // הגנה אופציונלית: אם הוגדר קוד, הוא נדרש. האתר עצמו פתוח, ובלי זה
   // כל מי שיש לו את הכתובת יכול להפעיל את המודל על חשבון המפתח.
-  const gate = process.env.AI_ACCESS_CODE;
+  // trim: ערך שהודבק לממשק של Netlify נושא לא פעם רווח או שורה חדשה,
+  // והשוואה מדויקת הייתה נועלת את העוזר בלי שום דרך להבין למה
+  const gate = process.env.AI_ACCESS_CODE?.trim();
 
   let body: {
     doc?: unknown;
@@ -188,7 +190,7 @@ export default async (req: Request) => {
   }
   if (!body) return fail("גוף הבקשה ריק", 400);
 
-  if (gate && String(body.code ?? "") !== gate) {
+  if (gate && String(body.code ?? "").trim() !== gate) {
     return fail("קוד גישה שגוי", 401);
   }
 
@@ -205,63 +207,71 @@ export default async (req: Request) => {
 
   const client = new Anthropic({ apiKey });
 
-  try {
-    const response = await client.beta.messages.parse({
-      model: "claude-opus-5-5",
-      max_tokens: 16000,
-      // ברירת המחדל ב-Opus 5.5 היא medium; מציינים במפורש כדי שלא תשתנה מתחתינו
-      output_config: { effort: "medium", format: zodOutputFormat(Result) },
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      system: [
-        // הפרומפט יציב בין בקשות — שומרים אותו במטמון כדי שכמה עריכות
-        // ברצף ישלמו עליו פעם אחת
-        { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
-      ],
-      messages: [
-        {
-          role: "user",
-          content:
-            "המסלול הנוכחי:\n```json\n" +
-            JSON.stringify(compactTrip(doc as Record<string, unknown>), null, 1) +
-            "\n```\n\nהקשר לרישום הוצאות:\n```json\n" +
-            JSON.stringify(expenseContext(body.context), null, 1) +
-            "\n```\n\nהבקשה שלי:\n" +
-            instruction,
+  // התשובה מוזרמת ולא מוחזרת בבת אחת: קריאה למודל על מסלול שלם חוצה בקלות
+  // את 30 השניות שפונקציה רגילה מקבלת, וזה מה שהפיל את הקריאה הראשונה
+  // באוויר. הזרמה מעלה את התקרה ל-60 שניות ומחזיקה את החיבור פתוח.
+  return streamJson(async () => {
+    try {
+      const response = await client.beta.messages.parse({
+        model: "claude-opus-5-5",
+        // ערכת שינויים היא פלט קצר — התקציב הגדול רק האריך את ההמתנה
+        max_tokens: 8000,
+        // low ולא medium: המשימה תחומה (שדות טקסט של יום), והמחיר של
+        // חשיבה ארוכה כאן הוא משתמש שממתין מול מסך טעינה
+        output_config: { effort: "low", format: zodOutputFormat(Result) },
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        system: [
+          // הפרומפט יציב בין בקשות — שומרים אותו במטמון כדי שכמה עריכות
+          // ברצף ישלמו עליו פעם אחת
+          { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
+        ],
+        messages: [
+          {
+            role: "user",
+            content:
+              "המסלול הנוכחי:\n```json\n" +
+              JSON.stringify(compactTrip(doc as Record<string, unknown>), null, 1) +
+              "\n```\n\nהקשר לרישום הוצאות:\n```json\n" +
+              JSON.stringify(expenseContext(body.context), null, 1) +
+              "\n```\n\nהבקשה שלי:\n" +
+              instruction,
+          },
+        ],
+      });
+
+      // מסרב = אין תוכן. בלי הבדיקה הזו parsed_output הוא null וההודעה סתומה.
+      if (response.stop_reason === "refusal") {
+        throw new StreamError("המודל סירב לבקשה הזו. נסחו אותה אחרת.");
+      }
+
+      const parsed = response.parsed_output;
+      if (!parsed) throw new StreamError("התשובה מהמודל לא נקראה. נסו שוב.");
+
+      return {
+        ...parsed,
+        usage: {
+          input: response.usage.input_tokens,
+          output: response.usage.output_tokens,
+          cacheRead: response.usage.cache_read_input_tokens ?? 0,
         },
-      ],
-    });
-
-    // מסרב = אין תוכן. בלי הבדיקה הזו parsed_output הוא null וההודעה סתומה.
-    if (response.stop_reason === "refusal") {
-      return fail("המודל סירב לבקשה הזו. נסחו אותה אחרת.", 422);
+      };
+    } catch (err) {
+      if (err instanceof StreamError) throw err;
+      // שגיאות מפתח ומכסה הן המקרים שהמשתמש יכול לפעול לפיהם — מפרידים אותן
+      if (err instanceof Anthropic.AuthenticationError) {
+        throw new StreamError("מפתח ה-API שגוי או פג.");
+      }
+      if (err instanceof Anthropic.RateLimitError) {
+        throw new StreamError("חריגה ממכסת הקריאות. נסו שוב בעוד דקה.");
+      }
+      if (err instanceof Anthropic.APIConnectionError) {
+        throw new StreamError("אין חיבור לשירות. בדקו רשת ונסו שוב.");
+      }
+      console.error("ai: הקריאה נכשלה", err);
+      throw new StreamError("העוזר נכשל. נסו שוב.");
     }
-
-    const parsed = response.parsed_output;
-    if (!parsed) return fail("התשובה מהמודל לא נקראה. נסו שוב.", 502);
-
-    return json({
-      ...parsed,
-      usage: {
-        input: response.usage.input_tokens,
-        output: response.usage.output_tokens,
-        cacheRead: response.usage.cache_read_input_tokens ?? 0,
-      },
-    });
-  } catch (err) {
-    // שגיאות מפתח ומכסה הן המקרים שהמשתמש יכול לפעול לפיהם — מפרידים אותן
-    if (err instanceof Anthropic.AuthenticationError) {
-      return fail("מפתח ה-API שגוי או פג.", 502);
-    }
-    if (err instanceof Anthropic.RateLimitError) {
-      return fail("חריגה ממכסת הקריאות. נסו שוב בעוד דקה.", 429);
-    }
-    if (err instanceof Anthropic.APIConnectionError) {
-      return fail("אין חיבור לשירות. בדקו רשת ונסו שוב.", 504);
-    }
-    console.error("ai: הקריאה נכשלה", err);
-    return fail("העוזר נכשל. נסו שוב.", 502);
-  }
+  });
 };
 
 export const config: Config = {

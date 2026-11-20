@@ -319,8 +319,13 @@ const FlightsView = (() => {
           code: localStorage.getItem("ai:code") || "",
         }),
       });
-      const out = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(out?.error || `הקריאה נכשלה (${res.status})`);
+      const out = await TripAPI.readJson(res);
+      // גם כאן השגיאה יכולה לנסוע בגוף של תשובה מוזרמת, לא רק בסטטוס
+      if (!res.ok || !out || out.error) {
+        throw new Error(
+          out?.error || (res.ok ? "התשובה מהשרת לא נקראה." : `הקריאה נכשלה (${res.status})`)
+        );
+      }
 
       const lines = [
         out.flightNo && `טיסה: ${out.flightNo}`,

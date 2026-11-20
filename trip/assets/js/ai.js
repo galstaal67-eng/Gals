@@ -247,15 +247,19 @@ const TripAI = (() => {
         }),
       });
 
-      const data = await res.json().catch(() => null);
+      const data = await TripAPI.readJson(res);
 
-      if (!res.ok) {
+      // שגיאה יכולה להגיע גם בגוף של תשובה מוזרמת: ברגע שהזרימה התחילה
+      // קוד הסטטוס כבר נשלח, ולכן 200 עם error הוא כישלון לכל דבר.
+      if (!res.ok || !data || data.error) {
         if (res.status === 401) {
           $("#aiCodeWrap").hidden = false;     // השרת דורש קוד — מבקשים אותו
           try { localStorage.removeItem(CODE_KEY); } catch { /* לא קריטי */ }
         }
         step("aiAsk");
-        return showErr(data?.error || `הבקשה נכשלה (${res.status})`);
+        return showErr(
+          data?.error || (res.ok ? "התשובה מהשרת לא נקראה." : `הבקשה נכשלה (${res.status})`)
+        );
       }
 
       // קוד תקין — שומרים כדי לא לבקש אותו שוב
