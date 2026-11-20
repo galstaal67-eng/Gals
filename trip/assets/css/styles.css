@@ -751,7 +751,7 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 /* =========================================================== PRINT === */
 
 @media print {
-  .nav, .map-shell, .map-filter, .day__actions, .icon-btn, .btn, .foot { display: none !important; }
+  .nav, .map-shell, .map-filter, .day__actions, .icon-btn, .btn, .fab, .foot { display: none !important; }
   body { background: #fff; color: #000; }
   .view { display: block !important; page-break-before: always; }
   .day__body { display: block !important; }
@@ -1173,6 +1173,54 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 .ai-list li { margin: 2px 0; }
 
 /* פס הביטול שנשאר אחרי החלה */
+/* =====================================================================
+   כפתור העוזר הצף
+
+   הוא ישב קודם בסרגל הניווט, וסרגל הניווט נגלל לרוחב — כלומר בטלפון ✨
+   נדחק אל מחוץ למסך בדיוק ברגע שבו רוצים אותו, באמצע קריאת יום במסלול.
+   עכשיו הוא קבוע מול המסך: אותו מקום בכל לשונית ובכל מצב גלילה.
+
+   inset-inline-end נותן את הפינה הנכונה לבד — באתר RTL זו השמאלית.
+   ===================================================================== */
+
+.fab {
+  position: fixed;
+  inset-block-end: calc(18px + env(safe-area-inset-bottom));
+  inset-inline-end: 18px;
+  /* מעל התוכן והמפה, מתחת לשכבות המלאות (900) כדי לא לצוף מעל הדיאלוג */
+  z-index: 880;
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .72rem 1.1rem;
+  background: var(--heather);
+  color: #16082b;
+  border: 1px solid color-mix(in srgb, var(--heather) 60%, #000);
+  border-radius: 999px;
+  font: inherit; font-weight: 800; font-size: .9rem;
+  cursor: pointer;
+  box-shadow: 0 12px 30px -8px rgba(0, 0, 0, .75);
+  transition: transform .15s, box-shadow .15s, filter .15s, opacity .18s;
+}
+[data-theme="light"] .fab { color: #fff; }
+.fab:hover { transform: translateY(-2px); filter: brightness(1.08); }
+.fab:active { transform: translateY(0); }
+.fab:focus-visible { outline: 2px solid var(--txt); outline-offset: 3px; }
+.fab__icon { font-size: 1.05rem; line-height: 1; }
+
+@media (max-width: 640px) {
+  /* שני דברים עולים מתחתית המסך בטלפון ותופסים אותו לרוחבו: פס הביטול
+     אחרי שינוי, וחלונית היום כגיליון תחתון. הכפתור היה צף מעל הטקסט
+     שלהם, ולכן הוא נסוג כל עוד אחד מהם פתוח — פס הביטול חי 15 שניות,
+     ובדיוק בשניות האלה אין צורך לפתוח את העוזר מחדש. */
+  body:has(.ai-undo:not([hidden])) .fab,
+  body:has(#mapFilter .day-peek:not([hidden])) .fab {
+    opacity: 0; pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab, .fab:hover { transform: none; transition: none; }
+}
+
 .ai-undo {
   position: fixed;
   inset-inline: 0;
@@ -1188,7 +1236,7 @@ table.data.cost-table td:first-child { min-width: 15rem; }
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: calc(100% - 28px);
+  max-width: min(560px, calc(100% - 28px));
   padding: 10px 14px;
   background: var(--ink-700);
   border: 1px solid var(--line-strong);

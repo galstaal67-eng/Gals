@@ -211,7 +211,6 @@
     <button class="tab" role="tab" id="tab-expenses" aria-controls="view-expenses" aria-selected="false">💸 הוצאות בפועל</button>
     <button class="tab" role="tab" id="tab-info"     aria-controls="view-info"     aria-selected="false">ℹ️ מידע וציוד</button>
     <span class="nav__spacer"></span>
-    <button class="icon-btn" id="aiBtn" title="שינוי חופשי בעזרת AI" aria-label="עוזר AI">✨</button>
     <button class="icon-btn" id="tripsBtn" title="הטיולים שלי" aria-label="מעבר בין טיולים">🧳</button>
     <button class="icon-btn" id="themeToggle" title="מצב בהיר / כהה" aria-label="החלפת ערכת צבעים">🌙</button>
     <button class="icon-btn" id="printBtn" title="הדפסה" aria-label="הדפסה">🖨️</button>
@@ -508,8 +507,15 @@
 
 </main>
 
+<!-- כפתור העוזר צף מעל התוכן ולא יושב בסרגל: הסרגל נגלל לרוחב בטלפון,
+     והכפתור נדחק אל מחוץ למסך בדיוק כשצריך אותו — באמצע קריאת המסלול. -->
+<button class="fab" id="aiBtn" title="שינוי חופשי בעזרת AI" aria-label="עוזר הטיול">
+  <span class="fab__icon" aria-hidden="true">✨</span>
+  <span class="fab__text">עוזר</span>
+</button>
+
 <footer class="foot wrap">
-  <p>נבנה עבור הטיול · אוגוסט–ספטמבר 2026 · כל הנתונים נשמרים מקומית בדפדפן</p>
+  <p id="footNote">הנתונים נשמרים בדפדפן ומסתנכרנים בין המכשירים</p>
 </footer>
 
 <script src="assets/vendor/leaflet/leaflet.js"></script>
