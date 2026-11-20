@@ -81,6 +81,35 @@ const TripAI = (() => {
       <span class="muted sm">(${b.length} ← ${after.length})</span></p>${items}`;
   }
 
+  /**
+   * שינוי המפה מוצג בנפרד משאר השדות: זה השדה היחיד שבו השרת עשוי
+   * להשמיט משהו שהמודל ביקש (שם מקום שלא נפתר), ואי אפשר להסתיר את זה
+   * מאחורי "לפני ← אחרי".
+   */
+  function mapRow(day, c) {
+    if (!Array.isArray(c.points)) return "";
+    const before = (day.points || []).map((p) => p.name);
+    const after = c.points.map((p) => p.name);
+    if (!before.length && !after.length) return "";
+
+    const unresolved = c.unresolved || [];
+    if (unresolved.length && !c.points.length) {
+      // שום שם לא נפתר — המפה לא תשתנה בכלל, ועדיף לומר את זה מראש
+      return `<p class="ai-field ai-field--warn">⚠️ ביקשתי לעדכן את המפה אבל אף
+        מקום לא נמצא (${esc(unresolved.join(", "))}). המפה של היום תישאר כפי שהיא.</p>`;
+    }
+    const dropped = unresolved.length
+      ? `<p class="ai-field ai-field--warn">⚠️ לא נמצאו על המפה ולכן הושמטו:
+           ${esc(unresolved.join(", "))}</p>`
+      : "";
+
+    return `<p class="ai-field"><b>נקודות על המפה</b>
+        <span class="muted sm">(${before.length} ← ${after.length})</span></p>
+      <p class="ai-field ai-field--list">${
+        after.length ? esc(after.join(" · ")) : "<span class=\"muted\">היום יישאר בלי נקודות</span>"
+      }</p>${dropped}`;
+  }
+
   function renderDiff(trip, changes) {
     if (!changes.length) {
       return '<p class="muted">לא הוצע שינוי בימים.</p>';
@@ -101,6 +130,7 @@ const TripAI = (() => {
           fieldRow("אזור הלינה", day.hotel?.area, c.hotelArea),
           listRow("לוח זמנים", day.plan, c.plan),
           listRow("טיפים", day.tips, c.tips),
+          mapRow(day, c),
         ].filter(Boolean).join("");
 
         if (!rows) return "";
@@ -179,6 +209,24 @@ const TripAI = (() => {
       }
       if (Array.isArray(c.tips)) {
         day.tips = c.tips.map((t) => String(t).trim()).filter(Boolean);
+      }
+
+      // המפה עוקבת אחרי היום. בלי זה כרטיס היום אומר "נשארים בעיר"
+      // בזמן שהמפה עדיין מציירת את הקו לקזבגי.
+      // נקודה אחת שלא נפתרה היא השמטה; כולן שלא נפתרו זו תקלה — ואז
+      // עדיף להשאיר את המפה הקודמת מאשר למחוק את היום ממנה
+      const allFailed = Array.isArray(c.points) && !c.points.length && (c.unresolved || []).length;
+      if (Array.isArray(c.points) && !allFailed) {
+        day.points = c.points
+          .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+          .map((p) => ({
+            name: String(p.name || "").trim(),
+            lat: p.lat,
+            lng: p.lng,
+            type: String(p.type || "sight"),
+          }));
+        // הקו נגזר מהנקודות, בדיוק כמו במסמך המקורי
+        day.path = day.points.length > 1 ? day.points.map((p) => [p.lat, p.lng]) : [];
       }
     });
 

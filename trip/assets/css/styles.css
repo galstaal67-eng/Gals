@@ -1165,6 +1165,8 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 [data-theme="light"] .ai-day { background: #f6f8fc; }
 .ai-day h4 { margin: 0 0 7px; font-size: .88rem; }
 .ai-field { font-size: .83rem; margin: 5px 0; line-height: 1.5; }
+.ai-field--list { color: var(--txt-dim); }
+.ai-field--warn { color: var(--gold); }
 .ai-field b { color: var(--txt-dim); font-weight: 600; }
 .ai-old {
   color: var(--txt-mute);

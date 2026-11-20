@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { fail, resolveApiKey, streamJson, StreamError } from "../lib/shared.mts";
+import { resolvePlaces } from "../lib/places.mts";
 
 /**
  * POST /api/ai — בקשה חופשית בעברית, מוקלדת או מוכתבת.
@@ -44,6 +45,12 @@ const DayChange = z.object({
     .describe("לוח הזמנים המלא של היום, מחליף את הקיים. null = לא משתנה"),
   tips: z.array(z.string()).nullable()
     .describe("הטיפים של היום, מחליפים את הקיימים. null = לא משתנים"),
+  places: z.array(z.string()).nullable()
+    .describe(
+      "הנקודות שיופיעו על המפה ביום הזה, לפי הסדר, בשמות בלבד ולעולם לא " +
+      "בקואורדינטות. העדף שמות שכבר מופיעים ב-mapPoints של הטיול. " +
+      "null = המפה של היום אינה משתנה. [] = היום נשאר בלי נקודות על המפה."
+    ),
 });
 
 const Expense = z.object({
@@ -106,6 +113,12 @@ const SYSTEM = `אתה העוזר של אפליקציית תכנון טיולי�
 - ערוך רק ימים שבאמת משתנים. אל תחזיר יום שלא נגעת בו.
 - כשיום הופך ליום עירוני ללא נסיעה: mode = "city", driveKm = 0, driveHours = 0,
   ו-driveNote ריק. אל תשכח להתאים גם את הכותרת, התיאור ולוח הזמנים.
+- **המפה חייבת להתאים ליום.** אם היום כבר לא עובר במקומות שהיו בו — למשל
+  יום נסיעה שהפך ליום עירוני — החזר ב-places את רשימת המקומות החדשה,
+  לפי סדר הביקור. אם המפה של היום אינה משתנה, החזר null.
+- ב-places החזר שמות בלבד. הקואורדינטות נפתרות בשרת, ולכן שם מדויק של מקום
+  אמיתי הוא קריטי. העדף שמות שכבר מופיעים ב-mapPoints של הטיול — הם נפתרים
+  מתוך המסמך עצמו. שם שלא יימצא יושמט מהמפה ותוצג על כך הודעה.
 - לוח זמנים: שעות אמיתיות ורצף הגיוני. התחשב בזמני פתיחה, בזמני נסיעה
   ובשעות האור של העונה והיעד.
 - אל תמציא מחירים, מספרי הזמנה, שמות מלונות או שעות טיסה שלא הופיעו במסמך.
@@ -248,8 +261,26 @@ export default async (req: Request) => {
       const parsed = response.parsed_output;
       if (!parsed) throw new StreamError("התשובה מהמודל לא נקראה. נסו שוב.");
 
+      // שמות המקומות הופכים לנקודות כאן, לא במודל. תקציב קריאות משותף
+      // לכל הימים, כדי שבקשה אחת לא תחזיק את השירות החיצוני דקה שלמה.
+      const budget = { lookups: 6 };
+      const dayChanges = [];
+      for (const change of parsed.dayChanges) {
+        if (!change.places) {
+          dayChanges.push({ ...change, points: null, unresolved: [] });
+          continue;
+        }
+        const { points, unresolved } = await resolvePlaces(
+          change.places,
+          doc as Record<string, unknown>,
+          budget
+        );
+        dayChanges.push({ ...change, points, unresolved });
+      }
+
       return {
         ...parsed,
+        dayChanges,
         usage: {
           input: response.usage.input_tokens,
           output: response.usage.output_tokens,
