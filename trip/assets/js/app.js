@@ -1,6 +1,11 @@
 /* =========================================================================
-   אתר הטיול — לוגיקת צד לקוח
-   תלוי ב-data.js (המשתנה TRIP) וב-Leaflet (אופציונלי — יש נפילה חיננית).
+   אפליקציית הטיולים — לוגיקת צד לקוח
+
+   תלוי ב-trips.js (המאגר), ב-data.js (הטיולים המובנים) וב-Leaflet
+   (אופציונלי — יש נפילה חיננית).
+
+   TRIP אינו קבוע: הוא מצביע על הטיול הפעיל, ומוחלף במעבר בין טיולים.
+   כל הרנדררים קוראים ממנו, ולכן מעבר טיול הוא renderTrip() אחד.
    ========================================================================= */
 (function () {
   "use strict";
@@ -8,7 +13,11 @@
   const $  = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  const STORE_KEY = "tbilisi2026:v1";
+  /** הטיול הפעיל. נקבע ב-init ומוחלף ב-switchTrip. */
+  let TRIP = null;
+
+  /** מפתח האחסון המקומי משויך לטיול — אחרת הוצאות זולגות בין טיולים */
+  const storeKey = () => `trip:${TRIP?.id || "none"}:v1`;
 
   /* ==================================================================== */
   /*  עזרי פורמט                                                          */
@@ -70,7 +79,7 @@
 
   function load() {
     try {
-      const raw = localStorage.getItem(STORE_KEY);
+      const raw = localStorage.getItem(storeKey());
       if (!raw) return structuredClone(DEFAULT_STATE);
       const parsed = JSON.parse(raw);
       return Object.assign(structuredClone(DEFAULT_STATE), parsed);
@@ -82,7 +91,7 @@
 
   function save() {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      localStorage.setItem(storeKey(), JSON.stringify(state));
     } catch (err) {
       console.warn("שמירת הנתונים נכשלה:", err);
     }
@@ -247,7 +256,14 @@
       group.addTo(map);
     });
 
-    map.fitBounds(allBounds, { padding: [30, 30] });
+    // טיול שנוצר באפליקציה מתחיל בלי אף נקודה, ו-fitBounds על גבולות ריקים
+    // זורק "Bounds are not valid" — מה שהיה מפיל את כל הרינדור שאחריו.
+    if (allBounds.length) {
+      map.fitBounds(allBounds, { padding: [30, 30] });
+    } else {
+      map.setView([31.5, 34.9], 3);      // תצוגת עולם עד שיתווספו נקודות
+      $("#mapShell").classList.add("is-empty");
+    }
     map.__allBounds = allBounds;
   }
 
@@ -268,7 +284,7 @@
     });
 
     if (which === "all") {
-      map.fitBounds(map.__allBounds, { padding: [30, 30] });
+      if (map.__allBounds?.length) map.fitBounds(map.__allBounds, { padding: [30, 30] });
     } else {
       const day = TRIP.days.find((d) => String(d.n) === String(which));
       const pts = (day.points || []).map((p) => [p.lat, p.lng]);
@@ -719,13 +735,40 @@ ${folders}
             <div class="day__actions">
               <button class="btn btn--sm" data-focus="${day.n}">🗺️ הצג במפה</button>
               ${dirLink ? `<a class="btn btn--sm" target="_blank" rel="noopener" href="${dirLink}">🧭 ניווט ב-Google Maps</a>` : ""}
+              <button class="btn btn--sm" data-edit="${day.n}">✏️ ערוך את היום</button>
             </div>
+            <div class="day-edit" data-editor="${day.n}" hidden></div>
           </div>
         </article>`;
       })
       .join("");
 
+    bindDayList();
+  }
+
+  /** פותחת כרטיס יום מסוים בלשונית המסלול וגוללת אליו. */
+  openDayCard = (n) => {
+    const card = $(`.day[data-day="${n}"]`);
+    if (!card) return;
+    card.classList.add("is-open");
+    $(".day__head", card).setAttribute("aria-expanded", "true");
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  /**
+   * מאזיני המסלול נרשמים פעם אחת בלבד, לא בכל רינדור.
+   * renderDays רץ מחדש בכל מעבר טיול, ורישום חוזר היה מכפיל כל הקשה —
+   * כרטיס יום היה נפתח ונסגר מיד באותה לחיצה.
+   */
+  let dayListBound = false;
+  function bindDayList() {
+    if (dayListBound) return;
+    dayListBound = true;
+
     $("#dayList").addEventListener("click", (e) => {
+      if (e.target.closest(".day-edit")) return;        // לעורך יש מאזין משלו
+      if (e.target.closest("[data-edit]")) return;
+
       const head = e.target.closest(".day__head");
       if (head) {
         const card = head.closest(".day");
@@ -740,15 +783,6 @@ ${folders}
         focusDay(focusBtn.dataset.focus);
       }
     });
-
-    /** פותחת כרטיס יום מסוים בלשונית המסלול וגוללת אליו. */
-    openDayCard = (n) => {
-      const card = $(`.day[data-day="${n}"]`);
-      if (!card) return;
-      card.classList.add("is-open");
-      $(".day__head", card).setAttribute("aria-expanded", "true");
-      card.scrollIntoView({ behavior: "smooth", block: "start" });
-    };
 
     $("#expandAll").addEventListener("click", () =>
       $$(".day").forEach((d) => {
@@ -1750,6 +1784,333 @@ ${folders}
   });
 
   /* ==================================================================== */
+  /*  שכבת הטיולים — מסך פתיחה, אשף, ועריכת יום                          */
+  /* ==================================================================== */
+
+  /** כל מה שתלוי בטיול ונמצא מחוץ ללשוניות: כותרת, hero, מוני ה-hero */
+  function applyTripChrome() {
+    const m = TRIP.meta;
+    const from = TRIP.days[0]?.date || "";
+    const to = TRIP.days[TRIP.days.length - 1]?.date || "";
+    const short = (iso) => (iso ? `${+iso.slice(8, 10)}.${+iso.slice(5, 7)}` : "");
+    const range = from ? `${short(from)}–${short(to)}.${to.slice(0, 4)}` : "";
+
+    document.title = range ? `${m.title} · ${range}` : m.title;
+    $("#heroTitle").textContent = m.title;
+    $("#heroEyebrow").textContent = range ? `🧳 ${fullDate(from)} – ${fullDate(to)}` : m.title;
+    $("#heroSub").textContent = m.subtitle || "";
+
+    // לילות הטיול, לא מספר הלינות שהוזנו — טיול חדש עדיין בלי מלונות
+    const nights = Math.max(TRIP.days.length - 1, 0);
+    const driveKm = TRIP.days.reduce((a, d) => a + (d.drive?.km || 0), 0);
+    const stats = [
+      [TRIP.days.length, "ימים"],
+      [nights, "לילות"],
+      [TRIP.days.filter((d) => d.mode === "drive").length, "ימי נסיעה"],
+      [nfNum.format(m.totalDrivingKm || driveKm), 'ק"מ (מוערך)'],
+    ];
+    $$("#heroStats .stat").forEach((el, i) => {
+      if (i === 0) return;                       // האריח הראשון הוא הספירה לאחור
+      const s = stats[i - 1];
+      if (!s) { el.hidden = true; return; }
+      el.hidden = false;
+      $(".stat__val", el).textContent = s[0];
+      $(".stat__lbl", el).textContent = s[1];
+    });
+  }
+
+  /** רינדור מחדש של כל מה שתלוי בטיול. נקרא גם באתחול וגם במעבר טיול. */
+  function renderTrip() {
+    applyTripChrome();
+    tickCountdown();
+
+    activeDay = "all";
+    if (map) { map.remove(); map = null; }
+    dayLayers.clear();
+    renderMapControls();
+    syncNavButton();
+    initMap();
+    renderRouteStats();
+    renderDays();
+    renderImprovements();
+    renderInfo();
+    renderPacking();
+
+    fillSelects();
+    renderPeople();
+    renderRates();
+    renderCostPlan();
+
+    const today = new Date().toISOString().slice(0, 10);
+    const inTrip = TRIP.days.some((d) => d.date === today);
+    $("#exDate").value = inTrip ? today : TRIP.days[0]?.date || today;
+    renderExpenses();
+  }
+
+  function switchTrip(id) {
+    const doc = TripStore.setActive(id);
+    if (!doc) return;
+    TRIP = doc;
+    state = load();         // ההעדפות המקומיות של הטיול הזה (ציוד, overrides)
+    applyTheme();
+    renderTrip();
+    closeTrips();
+  }
+
+  /* ---------------------------- מסך הפתיחה ---------------------------- */
+
+  const overlay = () => $("#tripsOverlay");
+
+  function openTrips() {
+    renderTripList();
+    $("#tripsPicker").hidden = false;
+    $("#tripsWizard").hidden = true;
+    overlay().hidden = false;
+  }
+  function closeTrips() { overlay().hidden = true; }
+
+  function renderTripList() {
+    const list = TripStore.list();
+    const activeId = TripStore.activeId();
+
+    $("#tripsList").innerHTML = list
+      .map((t) => {
+        const d = t.days || [];
+        const from = d[0]?.date || "";
+        const to = d[d.length - 1]?.date || "";
+        const people = (t.travellers || []).length;
+        const meta = [
+          d.length ? `${d.length} ימים` : "",
+          from ? `${fullDate(from)} – ${fullDate(to)}` : "",
+          people ? `${people} נוסעים` : "",
+        ].filter(Boolean).join(" · ");
+        return `
+          <div class="trip-row ${t.id === activeId ? "is-active" : ""}">
+            <button class="trip-row__body" data-trip="${esc(t.id)}" type="button">
+              <span class="trip-row__title">${esc(t.meta?.title || "ללא שם")}</span>
+              <span class="trip-row__meta">${esc(meta)}</span>
+            </button>
+            ${t.id === activeId ? '<span class="trip-row__badge">פעיל</span>' : ""}
+            <button class="trip-row__del" data-del="${esc(t.id)}" type="button"
+                    title="מחיקת הטיול" aria-label="מחיקת הטיול">🗑️</button>
+          </div>`;
+      })
+      .join("") || '<p class="muted" style="padding:8px 4px">אין עדיין טיולים. צרו את הראשון.</p>';
+  }
+
+  $("#tripsBtn").addEventListener("click", openTrips);
+  $("#tripsClose").addEventListener("click", closeTrips);
+  overlay().addEventListener("click", (e) => { if (e.target === overlay()) closeTrips(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !overlay().hidden) closeTrips();
+  });
+
+  $("#tripsList").addEventListener("click", (e) => {
+    const go = e.target.closest("[data-trip]");
+    if (go) { switchTrip(go.dataset.trip); return; }
+
+    const del = e.target.closest("[data-del]");
+    if (!del) return;
+    const id = del.dataset.del;
+    const doc = TripStore.list().find((t) => t.id === id);
+    if (TripStore.list().length < 2) {
+      alert("זה הטיול היחיד — אי אפשר למחוק אותו. צרו טיול נוסף קודם.");
+      return;
+    }
+    if (!confirm(`למחוק את "${doc?.meta?.title || id}"? ההוצאות שנרשמו בו יימחקו גם הן.`)) return;
+    try { localStorage.removeItem(`trip:${id}:v1`); } catch { /* לא קריטי */ }
+    TripStore.remove(id);
+    if (TripStore.activeId() && TripStore.activeId() !== TRIP.id) switchTrip(TripStore.activeId());
+    renderTripList();
+  });
+
+  /* ------------------------------ האשף -------------------------------- */
+
+  /** שדות השמות נגזרים מהבחירה "רק אנחנו" / "שני זוגות" */
+  function renderWizNames() {
+    const couples = Number($('input[name="wizWho"]:checked').value) || 1;
+    const prev = $$("#wizNames input").map((i) => i.value);
+    const slots = couples * 2;
+    const def = ["גל", "נועה", "", ""];
+    $("#wizNames").innerHTML = Array.from({ length: slots }, (_, i) => {
+      const couple = Math.floor(i / 2) + 1;
+      return `<label>נוסע/ת ${i + 1} ${couples > 1 ? `<span class="muted">(זוג ${couple})</span>` : ""}
+        <input type="text" data-couple="${couple}" value="${esc(prev[i] ?? def[i] ?? "")}"
+               placeholder="שם" autocomplete="off" />
+      </label>`;
+    }).join("");
+  }
+
+  function updateWizLen() {
+    const from = $("#wizFrom").value, to = $("#wizTo").value;
+    const n = from && to ? TripStore.dateRange(from, to).length : 0;
+    $("#wizLen").textContent = n
+      ? `${n} ימים · ${Math.max(n - 1, 0)} לילות`
+      : "בחרו תאריכי יציאה וחזרה";
+  }
+
+  function openWizard() {
+    $("#wizForm").reset();
+    $("#wizErr").hidden = true;
+    const soon = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+    $("#wizFrom").value = soon;
+    $("#wizTo").value = new Date(Date.now() + 35 * 86400000).toISOString().slice(0, 10);
+    renderWizNames();
+    updateWizLen();
+    $("#tripsPicker").hidden = true;
+    $("#tripsWizard").hidden = false;
+    $("#wizWhere").focus();
+  }
+
+  $("#newTripBtn").addEventListener("click", openWizard);
+  $("#wizCancel").addEventListener("click", closeTrips);
+  $("#wizBack").addEventListener("click", openTrips);
+  $$('input[name="wizWho"]').forEach((r) => r.addEventListener("change", renderWizNames));
+  $("#wizFrom").addEventListener("change", updateWizLen);
+  $("#wizTo").addEventListener("change", updateWizLen);
+
+  $("#wizForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const err = $("#wizErr");
+    const where = $("#wizWhere").value.trim();
+    const from = $("#wizFrom").value;
+    const to = $("#wizTo").value;
+
+    const fail = (msg) => { err.textContent = msg; err.hidden = false; };
+
+    if (!where) return fail("צריך יעד.");
+    if (!from || !to) return fail("צריך תאריך יציאה ותאריך חזרה.");
+    if (to < from) return fail("תאריך החזרה מוקדם מתאריך היציאה.");
+    const dates = TripStore.dateRange(from, to);
+    if (!dates.length) return fail("טווח התאריכים אינו תקין.");
+    if (dates.length > 60) return fail("הטווח ארוך מ-60 ימים — בדקו את התאריכים.");
+
+    const travellers = $$("#wizNames input")
+      .map((i) => ({ name: i.value.trim(), couple: Number(i.dataset.couple) }))
+      .filter((t) => t.name);
+    if (!travellers.length) return fail("צריך לפחות נוסע אחד — ההוצאות נרשמות על שמות.");
+
+    err.hidden = true;
+    const doc = TripStore.create({
+      title: $("#wizTitle").value.trim() || where,
+      where,
+      hotel: $("#wizHotel").value.trim(),
+      from, to,
+      currency: $("#wizCurrency").value,
+      notes: $("#wizNotes").value.trim(),
+      travellers,
+    });
+
+    TRIP = doc;
+    state = load();
+    // המטיילים שהוקלדו באשף הם אנשי ההוצאות של הטיול הזה
+    state.people = doc.travellers.map((t) => ({ name: t.name, group: t.couple }));
+    save();
+    renderTrip();
+    closeTrips();
+    // נוחתים ישר על המסלול: שם ממלאים את הימים
+    $("#tab-route").click();
+  });
+
+  /* --------------------------- עריכת יום ------------------------------ */
+
+  function dayEditorHTML(day) {
+    const planRows = (day.plan || [])
+      .map((p, i) => `
+        <div class="day-edit__row" data-plan="${i}">
+          <input type="text" data-f="time" value="${esc(p.time || "")}" placeholder="שעה" />
+          <input type="text" data-f="text" value="${esc(p.text || "")}" placeholder="מה עושים" />
+          <button type="button" class="trip-row__del" data-rm="${i}" aria-label="מחיקת שורה">🗑️</button>
+        </div>`)
+      .join("");
+
+    return `
+      <label>כותרת היום <input type="text" data-d="title" value="${esc(day.title || "")}" /></label>
+      <label>תיאור קצר <textarea data-d="summary" rows="2">${esc(day.summary || "")}</textarea></label>
+      <label>לינה <input type="text" data-d="hotelName" value="${esc(day.hotel?.name || "")}"
+             placeholder="שם המלון — ריק = אין לינה ביום הזה" /></label>
+      <label>אזור הלינה <input type="text" data-d="hotelArea" value="${esc(day.hotel?.area || "")}" /></label>
+
+      <div>
+        <label style="margin-bottom:6px">לוח הזמנים</label>
+        <div data-plans>${planRows}</div>
+        <button type="button" class="btn btn--sm" data-addplan>➕ שורה</button>
+      </div>
+
+      <label>טיפים <span class="muted">(שורה לכל טיפ)</span>
+        <textarea data-d="tips" rows="3">${esc((day.tips || []).join("\n"))}</textarea></label>
+
+      <p class="hint">השינויים נשמרים לטיול הזה בלבד, ומסתנכרנים אם יש חיבור.</p>
+      <div class="day-edit__actions">
+        <button type="button" class="btn btn--sm" data-cancel>ביטול</button>
+        <button type="button" class="btn btn--sm btn--primary" data-save="${day.n}">שמירה</button>
+      </div>`;
+  }
+
+  function openDayEditor(n) {
+    const day = TRIP.days.find((d) => d.n === Number(n));
+    const box = $(`[data-editor="${n}"]`);
+    if (!day || !box) return;
+    if (!box.hidden) { box.hidden = true; return; }
+    box.innerHTML = dayEditorHTML(day);
+    box.hidden = false;
+    $("input", box)?.focus();
+  }
+
+  function saveDayEditor(n) {
+    const day = TRIP.days.find((d) => d.n === Number(n));
+    const box = $(`[data-editor="${n}"]`);
+    if (!day || !box) return;
+
+    const val = (f) => $(`[data-d="${f}"]`, box)?.value.trim() ?? "";
+    day.title = val("title");
+    day.summary = val("summary");
+
+    const hotelName = val("hotelName");
+    if (hotelName) {
+      day.hotel = { ...(day.hotel || { lat: 0, lng: 0 }), name: hotelName, area: val("hotelArea") };
+    } else {
+      delete day.hotel;
+    }
+
+    day.plan = $$("[data-plan]", box)
+      .map((row) => ({
+        time: $('[data-f="time"]', row).value.trim(),
+        text: $('[data-f="text"]', row).value.trim(),
+      }))
+      .filter((p) => p.time || p.text);
+
+    day.tips = val("tips").split("\n").map((t) => t.trim()).filter(Boolean);
+
+    TripStore.save(TRIP);
+    renderTrip();
+  }
+
+  $("#dayList").addEventListener("click", (e) => {
+    const edit = e.target.closest("[data-edit]");
+    if (edit) { e.stopPropagation(); openDayEditor(edit.dataset.edit); return; }
+
+    const box = e.target.closest(".day-edit");
+    if (!box) return;
+
+    if (e.target.closest("[data-addplan]")) {
+      const i = $$("[data-plan]", box).length;
+      $("[data-plans]", box).insertAdjacentHTML("beforeend", `
+        <div class="day-edit__row" data-plan="${i}">
+          <input type="text" data-f="time" placeholder="שעה" />
+          <input type="text" data-f="text" placeholder="מה עושים" />
+          <button type="button" class="trip-row__del" data-rm="${i}" aria-label="מחיקת שורה">🗑️</button>
+        </div>`);
+      return;
+    }
+    const rm = e.target.closest("[data-rm]");
+    if (rm) { rm.closest("[data-plan]").remove(); return; }
+    if (e.target.closest("[data-cancel]")) { box.hidden = true; return; }
+    const save = e.target.closest("[data-save]");
+    if (save) saveDayEditor(save.dataset.save);
+  });
+
+  /* ==================================================================== */
   /*  אתחול                                                               */
   /* ==================================================================== */
 
@@ -1818,7 +2179,7 @@ ${folders}
   function offerUpload() {
     // צילום של מה שהיה מקומי לפני שהחלפנו במצב מהשרת
     try {
-      const raw = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+      const raw = JSON.parse(localStorage.getItem(storeKey()) || "{}");
       pendingUpload = Array.isArray(raw.expenses) ? raw.expenses : [];
     } catch { pendingUpload = []; }
 
@@ -1858,38 +2219,33 @@ ${folders}
   /* ==================================================================== */
 
   function init() {
+    // המאגר קודם: TRIP חייב להיות קיים לפני שאיזשהו רנדרר נוגע בו,
+    // וגם לפני load() — מפתח האחסון המקומי נגזר ממזהה הטיול.
+    TRIP = TripStore.init();
+    if (!TRIP) {                       // אין אף טיול — פותחים ישר באשף
+      applyTheme();
+      openTrips();
+      $("#newTripBtn").click();
+      return;
+    }
+    state = load();
+
     applyTheme();
-    tickCountdown();
     setInterval(tickCountdown, 60_000);
-
-    renderMapControls();
-    syncNavButton();
-    initMap();
-    renderRouteStats();
-    renderDays();
-    renderImprovements();
-    renderInfo();
-    renderPacking();
-
-    fillSelects();
-    renderPeople();
-    renderRates();
-    renderCostPlan();
-
-    // ברירת מחדל לתאריך: היום אם אנחנו בטווח הטיול, אחרת היום הראשון
-    const today = new Date().toISOString().slice(0, 10);
-    const inTrip = TRIP.days.some((d) => d.date === today);
-    $("#exDate").value = inTrip ? today : TRIP.days[0].date;
-
-    renderExpenses();
+    renderTrip();
 
     // רץ אחרי הרינדור הראשון: הדף שמיש מיד, והסנכרון מתעדכן כשהוא חוזר
-    initSync().then(() => {
+    Promise.allSettled([initSync(), TripStore.sync()]).then(([, trips]) => {
+      // מסמך טיול שהגיע מהשרת מנצח רק אם הוא חדש יותר — TripStore כבר הכריע
+      if (trips.status === "fulfilled" && trips.value) {
+        TRIP = TripStore.active();
+        renderTrip();
+        return;
+      }
       fillSelects();
       renderPeople();
       renderRates();
       renderExpenses();
-      // רינדור מלא ולא רק הסיכומים: הסנכרון מחליף גם את הערכים בשדות עצמם
       renderCostPlan();
     });
   }

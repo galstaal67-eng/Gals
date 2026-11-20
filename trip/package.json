@@ -2,7 +2,7 @@
   "name": "manchester-scotland-trip",
   "version": "1.0.0",
   "private": true,
-  "description": "אתר הטיול לטביליסי — אתר סטטי עם פונקציות Netlify וסנכרון הוצאות ל-Postgres",
+  "description": "אפליקציית טיולים — אתר סטטי עם פונקציות Netlify, מסמך טיול לכל נסיעה והוצאות מסונכרנות",
   "type": "module",
   "scripts": {
     "dev": "netlify dev",

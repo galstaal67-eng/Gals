@@ -145,3 +145,23 @@ function bound(v: unknown): number | null | string {
 export function newId(): string {
   return crypto.randomUUID();
 }
+
+/**
+ * מזהה הטיול שאליו הבקשה שייכת.
+ *
+ * כל הטבלאות מלבד fx_rates מסוננות לפיו, ולכן היעדרו הוא שגיאה ולא
+ * ברירת מחדל: נפילה שקטה לטיול כלשהו הייתה מערבבת הוצאות בין טיולים,
+ * וזו בדיוק התקלה שהשיוך נועד למנוע.
+ */
+export function tripIdOf(req: Request): string | null {
+  const id = new URL(req.url).searchParams.get("trip");
+  if (!id) return null;
+  const trimmed = id.trim();
+  // אותו טווח תווים שהלקוח מייצר: אותיות (כולל עברית), ספרות ומקף
+  if (!trimmed || trimmed.length > 80) return null;
+  if (!/^[\p{L}\p{N}-]+$/u.test(trimmed)) return null;
+  return trimmed;
+}
+
+/** תשובת השגיאה האחידה כשחסר trip בבקשה */
+export const NO_TRIP = "חסר מזהה טיול בבקשה";

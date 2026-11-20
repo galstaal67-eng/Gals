@@ -26,8 +26,20 @@ const TripAPI = (() => {
     });
   }
 
+  /**
+   * מזהה הטיול הפעיל, שנתלה על כל קריאה.
+   *
+   * השרת מסנן את ההוצאות, המטיילים ותכנון העלויות לפיו, ולכן קריאה בלי
+   * המזהה נדחית במקום ליפול בשקט על טיול אחר — בדיוק התקלה שהשיוך מונע.
+   */
+  function tripParam(path) {
+    const id = typeof TripStore !== "undefined" ? TripStore.activeId() : null;
+    if (!id) return path;
+    return path + (path.includes("?") ? "&" : "?") + "trip=" + encodeURIComponent(id);
+  }
+
   async function request(path, options = {}) {
-    const res = await fetch(path, {
+    const res = await fetch(tripParam(path), {
       headers: { "content-type": "application/json" },
       ...options,
     });

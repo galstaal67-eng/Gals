@@ -870,3 +870,209 @@ table.data.cost-table td:first-child { min-width: 15rem; }
   padding: .9rem 1.1rem; margin-bottom: 1.1rem;
 }
 .upload-prompt[hidden] { display: none; }
+
+/* =====================================================================
+   שכבת הטיולים — מסך הפתיחה ואשף הטיול החדש
+   ===================================================================== */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(4, 8, 14, 0.72);
+  backdrop-filter: blur(6px);
+}
+.overlay[hidden] { display: none; }
+
+.overlay__sheet {
+  width: min(560px, 100%);
+  max-height: min(88vh, 760px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--ink-850);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+[data-theme="light"] .overlay__sheet,
+[data-theme="light"] .ov-head,
+[data-theme="light"] .ov-foot { background: #fff; }
+
+.ov-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  /* לא inherit: הטופס עצמו חסר רקע, וזה היה מתרגם לשקוף — התוכן הנגלל
+     היה נראה מבעד לכותרת ולסרגל הכפתורים */
+  background: var(--ink-850);
+  border-bottom: 1px solid var(--line);
+}
+.ov-head h2 { margin: 0; font-size: 1.05rem; }
+
+.ov-foot {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 14px 18px 18px;
+  border-top: 1px solid var(--line);
+  position: sticky;
+  bottom: 0;
+  /* בלי z-index התוכן הנגלל נצבע מעל הסרגל, והכפתורים מפסיקים להיות לחיצים */
+  z-index: 2;
+  background: var(--ink-850);
+}
+
+/* ---------- רשימת הטיולים ---------- */
+
+.trip-list { padding: 12px 14px; display: grid; gap: 10px; }
+
+.trip-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: start;
+  background: var(--ink-800);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .15s, transform .15s;
+}
+[data-theme="light"] .trip-row { background: #f6f8fc; }
+.trip-row:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+.trip-row.is-active { border-color: var(--moss); }
+
+.trip-row__body { flex: 1; min-width: 0; }
+.trip-row__title { font-weight: 600; display: block; }
+.trip-row__meta { color: var(--txt-dim); font-size: .82rem; }
+.trip-row__badge {
+  font-size: .72rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--moss);
+  color: var(--moss);
+  white-space: nowrap;
+}
+.trip-row__del {
+  background: none;
+  border: 0;
+  color: var(--txt-mute);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.trip-row__del:hover { color: var(--danger); background: rgba(255, 107, 107, .1); }
+
+/* ---------- האשף ---------- */
+
+.wiz { padding: 4px 0 0; }
+
+.wiz__step {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  margin: 0;
+  padding: 14px 18px 16px;
+}
+.wiz__step legend {
+  font-weight: 700;
+  color: var(--moss);
+  font-size: .9rem;
+  padding: 0;
+  margin-bottom: 8px;
+}
+.wiz__step label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: .86rem;
+  color: var(--txt-dim);
+}
+.wiz__step input[type="text"],
+.wiz__step input[type="date"],
+.wiz__step select,
+.wiz__step textarea {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 9px 11px;
+  background: var(--ink-900);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--txt);
+  font: inherit;
+}
+[data-theme="light"] .wiz__step input,
+[data-theme="light"] .wiz__step select,
+[data-theme="light"] .wiz__step textarea { background: #fff; }
+
+.wiz__row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 460px) { .wiz__row { grid-template-columns: 1fr; } }
+
+.wiz__choice { display: grid; gap: 8px; margin-bottom: 10px; }
+.wiz__opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 !important;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.wiz__opt:has(input:checked) { border-color: var(--moss); background: rgba(76, 201, 164, .07); }
+.wiz__opt input { margin-top: 3px; accent-color: var(--moss); }
+.wiz__opt b { display: block; color: var(--txt); font-size: .9rem; }
+.wiz__opt small { color: var(--txt-mute); font-size: .78rem; }
+
+.wiz__err {
+  margin: 0;
+  padding: 10px 18px;
+  color: var(--danger);
+  font-size: .86rem;
+}
+.wiz__err[hidden] { display: none; }
+
+/* ---------- עריכת יום ---------- */
+
+.day-edit { display: grid; gap: 10px; padding: 12px 0 4px; }
+.day-edit label { font-size: .82rem; color: var(--txt-dim); display: block; }
+.day-edit input,
+.day-edit textarea {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  background: var(--ink-900);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--txt);
+  font: inherit;
+}
+[data-theme="light"] .day-edit input,
+[data-theme="light"] .day-edit textarea { background: #fff; }
+.day-edit__row { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; align-items: center; }
+.day-edit__actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.day-edit .hint { color: var(--txt-mute); font-size: .78rem; margin: 0; }
+
+/* מפה של טיול שעדיין אין בו נקודות — הודעה במקום ריבוע ריק ומבלבל */
+.map-shell.is-empty::after {
+  content: "לטיול הזה עדיין אין נקודות על המפה";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 14px;
+  text-align: center;
+  font-size: .85rem;
+  color: var(--txt-dim);
+  pointer-events: none;
+  text-shadow: 0 1px 6px rgba(0,0,0,.6);
+}

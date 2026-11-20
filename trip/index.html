@@ -10,7 +10,7 @@
   <meta name="theme-color" content="#f4f6fa" media="(prefers-color-scheme: light)" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="טביליסי 2026" />
+  <meta name="apple-mobile-web-app-title" content="הטיולים שלי" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -23,6 +23,95 @@
 </head>
 <body>
 
+<!-- ============================================ TRIPS OVERLAY ======== -->
+<div class="overlay" id="tripsOverlay" hidden>
+  <div class="overlay__sheet" role="dialog" aria-modal="true" aria-labelledby="tripsTitle">
+
+    <!-- ---------- מסך הפתיחה: רשימת הטיולים ---------- -->
+    <section class="ov-view" id="tripsPicker">
+      <div class="ov-head">
+        <h2 id="tripsTitle">🧳 הטיולים שלי</h2>
+        <button class="icon-btn" id="tripsClose" aria-label="סגירה">✕</button>
+      </div>
+      <div id="tripsList" class="trip-list"></div>
+      <div class="ov-foot">
+        <button class="btn btn--primary" id="newTripBtn">➕ טיול חדש</button>
+      </div>
+    </section>
+
+    <!-- ---------- אשף הטיול החדש ---------- -->
+    <section class="ov-view" id="tripsWizard" hidden>
+      <div class="ov-head">
+        <h2>➕ טיול חדש</h2>
+        <button class="icon-btn" id="wizCancel" aria-label="ביטול">✕</button>
+      </div>
+
+      <form id="wizForm" class="wiz">
+        <fieldset class="wiz__step">
+          <legend>לאן</legend>
+          <label>יעד
+            <input type="text" id="wizWhere" required placeholder="למשל: ליסבון" autocomplete="off" />
+          </label>
+          <label>שם הטיול <span class="muted">(לא חובה)</span>
+            <input type="text" id="wizTitle" placeholder="ברירת מחדל: שם היעד" autocomplete="off" />
+          </label>
+          <label>לינה <span class="muted">(לא חובה)</span>
+            <input type="text" id="wizHotel" placeholder="שם המלון או הדירה" autocomplete="off" />
+          </label>
+        </fieldset>
+
+        <fieldset class="wiz__step">
+          <legend>מתי</legend>
+          <div class="wiz__row">
+            <label>יציאה <input type="date" id="wizFrom" required /></label>
+            <label>חזרה  <input type="date" id="wizTo" required /></label>
+          </div>
+          <p class="muted sm" id="wizLen">—</p>
+        </fieldset>
+
+        <fieldset class="wiz__step">
+          <legend>מי</legend>
+          <div class="wiz__choice" role="radiogroup" aria-label="הרכב הנוסעים">
+            <label class="wiz__opt">
+              <input type="radio" name="wizWho" value="1" checked />
+              <span><b>רק אנחנו</b><small>זוג אחד — בלי קיזוז</small></span>
+            </label>
+            <label class="wiz__opt">
+              <input type="radio" name="wizWho" value="2" />
+              <span><b>שני זוגות</b><small>עם קיזוז הוצאות בין הזוגות</small></span>
+            </label>
+          </div>
+          <div class="wiz__row" id="wizNames"></div>
+        </fieldset>
+
+        <fieldset class="wiz__step">
+          <legend>כסף</legend>
+          <label>מטבע מקומי
+            <select id="wizCurrency">
+              <option value="€">€ אירו</option>
+              <option value="$">$ דולר</option>
+              <option value="₾">₾ לארי</option>
+              <option value="£">£ ליש"ט</option>
+              <option value="₪">₪ שקל</option>
+            </select>
+          </label>
+          <label>מה צריך לסגור מראש <span class="muted">(לא חובה)</span>
+            <textarea id="wizNotes" rows="2" placeholder="טיסות, לינה, רכב…"></textarea>
+          </label>
+        </fieldset>
+
+        <p class="wiz__err" id="wizErr" hidden></p>
+
+        <div class="ov-foot">
+          <button type="button" class="btn" id="wizBack">חזרה</button>
+          <button type="submit" class="btn btn--primary">צור את הטיול</button>
+        </div>
+      </form>
+    </section>
+
+  </div>
+</div>
+
 <!-- ==================================================== HERO ========= -->
 <header class="hero">
   <svg class="hero__ridge" viewBox="0 0 1440 140" preserveAspectRatio="none" aria-hidden="true">
@@ -33,15 +122,15 @@
   </svg>
 
   <div class="wrap hero__inner">
-    <span class="hero__eyebrow">🇬🇪 24 – 29 בנובמבר 2026</span>
-    <h1>טביליסי</h1>
-    <p class="hero__sub">
+    <span class="hero__eyebrow" id="heroEyebrow">🇬🇪 24 – 29 בנובמבר 2026</span>
+    <h1 id="heroTitle">טביליסי</h1>
+    <p class="hero__sub" id="heroSub">
       שישה ימים ובסיס אחד בלב העיר: העיר העתיקה ובתי הגופרית, יום על הכביש
       הצבאי הגאורגי עד קזבגי, יום במצחתה ובגורי, ויום על הטביליסי שמעבר
       לשדרת רוסתאוולי — הכול ללא רכב שכור.
     </p>
 
-    <div class="hero__stats">
+    <div class="hero__stats" id="heroStats">
       <div class="stat"><div class="stat__val countdown" id="countdown">—</div><div class="stat__lbl">עד היציאה</div></div>
       <div class="stat"><div class="stat__val">6</div><div class="stat__lbl">ימים</div></div>
       <div class="stat"><div class="stat__val">5</div><div class="stat__lbl">לילות · מלון אחד</div></div>
@@ -61,6 +150,7 @@
     <button class="tab" role="tab" id="tab-expenses" aria-controls="view-expenses" aria-selected="false">💸 הוצאות בפועל</button>
     <button class="tab" role="tab" id="tab-info"     aria-controls="view-info"     aria-selected="false">ℹ️ מידע וציוד</button>
     <span class="nav__spacer"></span>
+    <button class="icon-btn" id="tripsBtn" title="הטיולים שלי" aria-label="מעבר בין טיולים">🧳</button>
     <button class="icon-btn" id="themeToggle" title="מצב בהיר / כהה" aria-label="החלפת ערכת צבעים">🌙</button>
     <button class="icon-btn" id="printBtn" title="הדפסה" aria-label="הדפסה">🖨️</button>
   </div>
@@ -356,6 +446,7 @@
 <script src="assets/vendor/leaflet/leaflet.js"></script>
 <script src="assets/js/api.js"></script>
 <script src="assets/js/data.js"></script>
+<script src="assets/js/trips.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
 </html>

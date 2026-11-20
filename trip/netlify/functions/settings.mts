@@ -1,6 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { getDatabase } from "@netlify/database";
-import { json, fail, num, CURRENCIES, type Currency } from "../lib/shared.mts";
+import { json, fail, num, CURRENCIES, tripIdOf, NO_TRIP, type Currency } from "../lib/shared.mts";
 
 /**
  * PUT /api/settings
@@ -27,17 +27,21 @@ export default async (req: Request) => {
 
   if (people === null && rates === null) return fail("לא נשלח מה לעדכן", 422);
 
+  // המטיילים משויכים לטיול; שערי ההמרה גלובליים ולכן אינם דורשים אותו.
+  const trip = tripIdOf(req);
+  if (people !== null && !trip) return fail(NO_TRIP, 400);
+
   const db = getDatabase();
   const client = await db.pool.connect();
   try {
     await client.query("BEGIN");
 
     if (people) {
-      await client.query("DELETE FROM travellers");
+      await client.query("DELETE FROM travellers WHERE trip_id = $1", [trip]);
       for (const [i, p] of people.entries()) {
         await client.query(
-          "INSERT INTO travellers (name, couple_group, sort_order) VALUES ($1, $2, $3)",
-          [p.name, p.group, i + 1]
+          "INSERT INTO travellers (trip_id, name, couple_group, sort_order) VALUES ($1, $2, $3, $4)",
+          [trip, p.name, p.group, i + 1]
         );
       }
     }

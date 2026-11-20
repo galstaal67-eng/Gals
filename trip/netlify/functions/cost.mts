@@ -1,6 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { getDatabase } from "@netlify/database";
-import { json, fail, parseCostOverrides } from "../lib/shared.mts";
+import { json, fail, parseCostOverrides, tripIdOf, NO_TRIP } from "../lib/shared.mts";
 
 /**
  * PUT /api/cost
@@ -15,6 +15,9 @@ import { json, fail, parseCostOverrides } from "../lib/shared.mts";
  */
 export default async (req: Request) => {
   if (req.method !== "PUT") return fail("שיטה לא נתמכת", 405);
+
+  const trip = tripIdOf(req);
+  if (!trip) return fail(NO_TRIP, 400);
 
   let body: { overrides?: unknown } | null;
   try {
@@ -34,17 +37,20 @@ export default async (req: Request) => {
 
     for (const [key, value] of Object.entries(overrides)) {
       if (value === null) {
-        await client.query("DELETE FROM cost_overrides WHERE item_key = $1", [key]);
+        await client.query(
+          "DELETE FROM cost_overrides WHERE trip_id = $1 AND item_key = $2",
+          [trip, key]
+        );
         continue;
       }
       await client.query(
-        `INSERT INTO cost_overrides (item_key, low_amount, high_amount, updated_at)
-         VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (item_key) DO UPDATE
+        `INSERT INTO cost_overrides (trip_id, item_key, low_amount, high_amount, updated_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (trip_id, item_key) DO UPDATE
            SET low_amount  = EXCLUDED.low_amount,
                high_amount = EXCLUDED.high_amount,
                updated_at  = NOW()`,
-        [key, value.low, value.high]
+        [trip, key, value.low, value.high]
       );
     }
 

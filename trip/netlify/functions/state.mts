@@ -1,15 +1,20 @@
 import type { Config } from "@netlify/functions";
 import { getDatabase } from "@netlify/database";
-import { json, fail, num, isoDate } from "../lib/shared.mts";
+import { json, fail, num, isoDate, tripIdOf, NO_TRIP } from "../lib/shared.mts";
 
 /**
  * GET /api/state
- * מחזיר את כל המצב המשותף בבקשה אחת — הוצאות, מטיילים, שערים ותכנון העלויות.
+ * מחזיר את כל המצב המשותף של טיול אחד בבקשה אחת — הוצאות, מטיילים,
+ * שערים ותכנון העלויות. הטיול נקבע ב-?trip=<id>.
+ * שערי ההמרה הם היחידים שאינם משויכים לטיול: שער דולר-שקל אינו תכונה שלו.
  * הצורה זהה למבנה שהלקוח מחזיק ב-localStorage, כדי ששני המצבים
  * (מסונכרן ומקומי) ישתמשו באותו קוד רינדור.
  */
 export default async (req: Request) => {
   if (req.method !== "GET") return fail("שיטה לא נתמכת", 405);
+
+  const trip = tripIdOf(req);
+  if (!trip) return fail(NO_TRIP, 400);
 
   try {
     const db = getDatabase();
@@ -18,12 +23,12 @@ export default async (req: Request) => {
       db.sql`
         SELECT id, spent_on, amount, currency, category, payer, note
         FROM expenses
-        WHERE deleted_at IS NULL
+        WHERE deleted_at IS NULL AND trip_id = ${trip}
         ORDER BY spent_on, created_at
       `,
-      db.sql`SELECT name, couple_group FROM travellers ORDER BY sort_order, name`,
+      db.sql`SELECT name, couple_group FROM travellers WHERE trip_id = ${trip} ORDER BY sort_order, name`,
       db.sql`SELECT currency, ils_per_unit FROM fx_rates`,
-      db.sql`SELECT item_key, low_amount, high_amount FROM cost_overrides`,
+      db.sql`SELECT item_key, low_amount, high_amount FROM cost_overrides WHERE trip_id = ${trip}`,
     ]);
 
     return json({

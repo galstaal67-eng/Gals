@@ -1,6 +1,6 @@
 import type { Config, Context } from "@netlify/functions";
 import { getDatabase } from "@netlify/database";
-import { json, fail, num, isoDate, newId, parseExpense } from "../lib/shared.mts";
+import { json, fail, num, isoDate, newId, parseExpense, tripIdOf, NO_TRIP } from "../lib/shared.mts";
 
 /**
  * POST   /api/expenses          הוספת הוצאה אחת
@@ -16,7 +16,11 @@ export default async (req: Request, context: Context) => {
     if (req.method === "POST" && id === "bulk") return await addBulk(db, req);
     if (req.method === "POST") return await addOne(db, req);
     if (req.method === "DELETE" && id) return await softDelete(db, id);
-    if (req.method === "DELETE") return await softDeleteAll(db);
+    if (req.method === "DELETE") {
+      const trip = tripIdOf(req);
+      if (!trip) return fail(NO_TRIP, 400);
+      return await softDeleteAll(db, trip);
+    }
     return fail("שיטה לא נתמכת", 405);
   } catch (err) {
     console.error("expenses: הפעולה נכשלה", err);
@@ -33,13 +37,16 @@ async function readJson(req: Request): Promise<unknown> {
 }
 
 async function addOne(db: ReturnType<typeof getDatabase>, req: Request) {
+  const trip = tripIdOf(req);
+  if (!trip) return fail(NO_TRIP, 400);
+
   const parsed = parseExpense(await readJson(req));
   if (typeof parsed === "string") return fail(parsed, 422);
 
   const id = newId();
   const [row] = await db.sql`
-    INSERT INTO expenses (id, spent_on, amount, currency, category, payer, note)
-    VALUES (${id}, ${parsed.date}, ${parsed.amount}, ${parsed.currency},
+    INSERT INTO expenses (id, trip_id, spent_on, amount, currency, category, payer, note)
+    VALUES (${id}, ${trip}, ${parsed.date}, ${parsed.amount}, ${parsed.currency},
             ${parsed.category}, ${parsed.payer}, ${parsed.note})
     RETURNING id, spent_on, amount, currency, category, payer, note
   `;
@@ -59,6 +66,9 @@ async function addOne(db: ReturnType<typeof getDatabase>, req: Request) {
 }
 
 async function addBulk(db: ReturnType<typeof getDatabase>, req: Request) {
+  const trip = tripIdOf(req);
+  if (!trip) return fail(NO_TRIP, 400);
+
   const body = (await readJson(req)) as { items?: unknown } | null;
   const items = body?.items;
   if (!Array.isArray(items)) return fail("נדרש שדה items שהוא מערך", 422);
@@ -74,10 +84,10 @@ async function addBulk(db: ReturnType<typeof getDatabase>, req: Request) {
   }
 
   const values = db.sql.values(
-    clean.map((e) => [newId(), e.date, e.amount, e.currency, e.category, e.payer, e.note])
+    clean.map((e) => [newId(), trip, e.date, e.amount, e.currency, e.category, e.payer, e.note])
   );
   await db.sql`
-    INSERT INTO expenses (id, spent_on, amount, currency, category, payer, note)
+    INSERT INTO expenses (id, trip_id, spent_on, amount, currency, category, payer, note)
     VALUES ${values}
   `;
 
@@ -96,10 +106,10 @@ async function softDelete(db: ReturnType<typeof getDatabase>, id: string) {
   return new Response(null, { status: 204 });
 }
 
-async function softDeleteAll(db: ReturnType<typeof getDatabase>) {
+async function softDeleteAll(db: ReturnType<typeof getDatabase>, trip: string) {
   const rows = await db.sql`
     UPDATE expenses SET deleted_at = NOW()
-    WHERE deleted_at IS NULL
+    WHERE deleted_at IS NULL AND trip_id = ${trip}
     RETURNING id
   `;
   return json({ deleted: rows.length });
