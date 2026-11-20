@@ -62,27 +62,44 @@ const TripStore = (() => {
    *
    * spec: { title, where, from, to, currency, travellers:[{name,couple}], notes }
    */
+  const round3 = (n) => Math.round(n * 1000) / 1000;
+
   function buildTrip(spec) {
     const dates = dateRange(spec.from, spec.to);
     const nights = Math.max(dates.length - 1, 0);
+
+    // היעד שאותר (אם אותר) הוא מה שמפעיל את כל השכבה החיצונית: בלי
+    // קואורדינטות אין תחזית, אין חגים, אין מפה ואין התרעות. לכן כל יום
+    // מקבל נקודה אחת כברירת מחדל — מרכז היעד — שאפשר להחליף בעריכה.
+    const place = spec.place && Number.isFinite(spec.place.lat) ? spec.place : null;
+    const basePoint = place
+      ? [{ name: place.name, lat: place.lat, lng: place.lng, type: "city" }]
+      : [];
 
     const days = dates.map((date, i) => ({
       n: i + 1,
       date,
       dow: dowOf(date),
       title: i === 0 ? "הגעה" : i === dates.length - 1 ? "חזרה" : "",
-      region: spec.where || spec.title,
+      region: place ? place.name : spec.where || spec.title,
       mode: i === 0 || i === dates.length - 1 ? "flight" : "city",
       summary: "",
       drive: { km: 0, hours: 0, note: "" },
       plan: [],
       tips: [],
-      points: [],
+      points: basePoint.map((p) => ({ ...p })),
       path: [],
       pathMode: i === 0 || i === dates.length - 1 ? "flight" : "city",
       // ימי אמצע מקבלים את הלינה כברירת מחדל; יום החזרה לא
       ...(i < dates.length - 1 && spec.hotel
-        ? { hotel: { name: spec.hotel, area: spec.where || "", lat: 0, lng: 0 } }
+        ? {
+            hotel: {
+              name: spec.hotel,
+              area: spec.where || "",
+              lat: place ? place.lat : 0,
+              lng: place ? place.lng : 0,
+            },
+          }
         : {}),
     }));
 
@@ -103,7 +120,18 @@ const TripStore = (() => {
         endDate: `${spec.to}T23:59:59+02:00`,
         travellers: (spec.travellers || []).length > 2 ? "שני זוגות" : "זוג",
         totalDrivingKm: 0,
-        countries: spec.where ? [spec.where] : [],
+        countries: place?.country ? [place.country] : spec.where ? [spec.where] : [],
+        countryCode: place?.countryCode || "",
+        // תיחום נדיב סביב היעד: מכסה טיולי יום לכל כיוון, ומשמש גם
+        // למפה וגם לחיפוש רעידות אדמה באזור
+        bbox: place
+          ? {
+              latMin: round3(place.lat - 1.2),
+              latMax: round3(place.lat + 1.2),
+              lngMin: round3(place.lng - 1.6),
+              lngMax: round3(place.lng + 1.6),
+            }
+          : null,
         emergency: "חירום 112",
       },
       flights: {

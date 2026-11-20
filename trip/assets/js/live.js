@@ -27,6 +27,9 @@ const LiveView = (() => {
   let lastLoad = 0;
   let briefPoll = null;
   let briefError = "";
+  /** הטיול שהנתונים שבזיכרון שייכים לו. בלי זה טיול חדש היה מציג את
+      התחזית של הקודם, כי הנתונים עדיין "טריים". */
+  let dataTripId = "";
 
   const FRESH_MS = 30 * 60_000;
 
@@ -101,6 +104,13 @@ const LiveView = (() => {
   async function load(force = false) {
     const trip = host?.getTrip();
     if (!trip || loading) return;
+
+    // מעבר טיול — או טיול חדש שנוצר זה עתה — פוסל את מה שבזיכרון
+    if (trip.id !== dataTripId) {
+      clear();
+      dataTripId = trip.id;
+      force = true;
+    }
     if (!force && data && Date.now() - lastLoad < FRESH_MS) return;
 
     loading = true;
@@ -305,8 +315,26 @@ const LiveView = (() => {
       return;
     }
     if (data.empty) {
-      view.innerHTML = `<p class="muted">אין במסלול ימים עם מיקום, ולכן אין על מה להביא תחזית.
-        הוסיפו נקודות למפה ונסו שוב.</p>`;
+      // טיול בלי קואורדינטות אינו מקרה קצה אלא ברירת המחדל של טיול ישן:
+      // במקום להודיע שאין נתונים, נותנים כאן את הפעולה שפותרת את זה.
+      const trip = host.getTrip();
+      view.innerHTML = `
+        <div class="live-alert is-info">
+          <b>ℹ️ לטיול הזה אין עדיין מיקום</b>
+          <p>בלי קואורדינטות אין תחזית, אין חגים ואין התרעות. אתרו את היעד
+             פעם אחת — זה יעדכן גם את המפה.</p>
+        </div>
+        <div class="live-locate">
+          <input type="text" id="liveWhere" value="${esc(trip.meta.title || "")}"
+                 placeholder="שם העיר או היעד" autocomplete="off" />
+          <button class="btn btn--primary btn--sm" id="liveLocate">אתר את היעד</button>
+        </div>
+        <p class="muted" id="liveLocateOut"></p>`;
+
+      $("#liveLocate").addEventListener("click", locate);
+      $("#liveWhere").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") locate();
+      });
       return;
     }
     if (data.failed) {
@@ -426,6 +454,33 @@ const LiveView = (() => {
     strip();
   }
 
+  /** איתור היעד של טיול שנוצר בלי מיקום, והחלתו על המסלול */
+  async function locate() {
+    const input = $("#liveWhere");
+    const out = $("#liveLocateOut");
+    const q = input.value.trim();
+    if (q.length < 2) { out.textContent = "צריך שם יעד."; return; }
+
+    out.textContent = "מאתר…";
+    $("#liveLocate").disabled = true;
+    try {
+      const res = await fetch(`/api/geo?q=${encodeURIComponent(q)}`);
+      const found = await TripAPI.readJson(res);
+      if (!found || !found.found) {
+        out.textContent = found?.error || "לא מצאתי את היעד הזה. נסו שם אחר או כתיב אחר.";
+        return;
+      }
+      host.applyPlace(found.place);
+      data = null;
+      await load(true);
+    } catch {
+      out.textContent = "אין חיבור לשרת, ולכן אי אפשר לאתר כרגע.";
+    } finally {
+      const btn = $("#liveLocate");
+      if (btn) btn.disabled = false;
+    }
+  }
+
   /** פס ההתרעה שמופיע בכל לשונית, לא רק כאן */
   function strip() {
     const el = $("#liveStrip");
@@ -457,6 +512,16 @@ const LiveView = (() => {
 
   /* ------------------------------------------------------------------ */
 
+  function clear() {
+    data = null;
+    lastLoad = 0;
+    briefError = "";
+    dataTripId = "";
+    clearInterval(briefPoll);
+    const el = $("#liveStrip");
+    if (el) el.hidden = true;
+  }
+
   function init(options) {
     host = options;
     // רענון כל חצי שעה כל עוד הדף פתוח, ובכל חזרה אליו אחרי הפסקה
@@ -472,12 +537,6 @@ const LiveView = (() => {
     render,
     decorateDays,
     /** נקרא כשעוברים טיול — הנתונים של הטיול הקודם אינם רלוונטיים */
-    reset() {
-      data = null;
-      lastLoad = 0;
-      clearInterval(briefPoll);
-      const el = $("#liveStrip");
-      if (el) el.hidden = true;
-    },
+    reset: clear,
   };
 })();

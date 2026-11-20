@@ -1958,6 +1958,10 @@ ${folders}
   function openWizard() {
     $("#wizForm").reset();
     $("#wizErr").hidden = true;
+    $("#wizFound").hidden = true;
+    wizPlace = null;
+    wizPlaceFor = "";
+    wizLookup = null;
     const soon = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
     $("#wizFrom").value = soon;
     $("#wizTo").value = new Date(Date.now() + 35 * 86400000).toISOString().slice(0, 10);
@@ -1968,6 +1972,50 @@ ${folders}
     $("#wizWhere").focus();
   }
 
+  /* היעד שאותר באשף. בלי קואורדינטות הטיול נוצר בלי מפה, בלי תחזית
+     ובלי חגים — ולכן זה קורה כאן, לפני היצירה, ולא אחריה. */
+  let wizPlace = null;
+  let wizPlaceFor = "";
+  let wizLookup = null;   // החיפוש שרץ כרגע, כדי לא לשלוח אותו פעמיים
+
+  function lookupWhere() {
+    wizLookup = (wizLookup || Promise.resolve()).then(runLookup, runLookup);
+    return wizLookup;
+  }
+
+  async function runLookup() {
+    const where = $("#wizWhere").value.trim();
+    const out = $("#wizFound");
+    if (where.length < 2) {
+      wizPlace = null; wizPlaceFor = "";
+      out.hidden = true;
+      return;
+    }
+    if (wizPlaceFor === where) return;      // כבר אותר עבור הטקסט הזה
+
+    out.hidden = false;
+    out.textContent = "מאתר…";
+    try {
+      const res = await fetch(`/api/geo?q=${encodeURIComponent(where)}`);
+      const data = await TripAPI.readJson(res);
+      wizPlaceFor = where;
+      if (data && data.found) {
+        wizPlace = data.place;
+        const parts = [data.place.name, data.place.admin, data.place.country].filter(Boolean);
+        out.textContent = `📍 ${parts.join(", ")}`;
+      } else {
+        wizPlace = null;
+        out.textContent = "לא מצאתי את היעד הזה. אפשר להמשיך — אבל בלי מפה ובלי תחזית.";
+      }
+    } catch {
+      // בלי שרת אין איתור. זו אינה סיבה למנוע יצירת טיול.
+      wizPlace = null; wizPlaceFor = "";
+      out.textContent = "אין חיבור לשרת, ולכן היעד לא אותר. הטיול ייווצר בלי מפה.";
+    }
+  }
+
+  $("#wizWhere").addEventListener("blur", lookupWhere);
+
   $("#newTripBtn").addEventListener("click", openWizard);
   $("#wizCancel").addEventListener("click", closeTrips);
   $("#wizBack").addEventListener("click", openTrips);
@@ -1975,7 +2023,7 @@ ${folders}
   $("#wizFrom").addEventListener("change", updateWizLen);
   $("#wizTo").addEventListener("change", updateWizLen);
 
-  $("#wizForm").addEventListener("submit", (e) => {
+  $("#wizForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const err = $("#wizErr");
     const where = $("#wizWhere").value.trim();
@@ -1997,6 +2045,10 @@ ${folders}
     if (!travellers.length) return fail("צריך לפחות נוסע אחד — ההוצאות נרשמות על שמות.");
 
     err.hidden = true;
+
+    // מי שהקליד ולחץ מיד לא עבר דרך blur — מאתרים כאן לפני היצירה
+    await lookupWhere();
+
     const doc = TripStore.create({
       title: $("#wizTitle").value.trim() || where,
       where,
@@ -2005,6 +2057,7 @@ ${folders}
       currency: $("#wizCurrency").value,
       notes: $("#wizNotes").value.trim(),
       travellers,
+      place: wizPlace,
     });
 
     TRIP = doc;
@@ -2251,6 +2304,37 @@ ${folders}
       getTrip: () => TRIP,
       getRates: () => state.rates,
       openTab: (name) => selectTab($("#tab-" + name)),
+
+      /**
+       * מחיל יעד שאותר על טיול שנוצר בלי מיקום.
+       *
+       * רק ימים שאין בהם נקודה מקבלים אותה, ורק מלון בלי קואורדינטות
+       * מקבל אותן — מסלול שכבר נבנה ביד לא נדרס.
+       */
+      applyPlace: (place) => {
+        if (!place || !Number.isFinite(place.lat)) return;
+        const r3 = (n) => Math.round(n * 1000) / 1000;
+
+        TRIP.meta.countryCode = place.countryCode || TRIP.meta.countryCode || "";
+        if (place.country && !(TRIP.meta.countries || []).length) {
+          TRIP.meta.countries = [place.country];
+        }
+        if (!TRIP.meta.bbox) {
+          TRIP.meta.bbox = {
+            latMin: r3(place.lat - 1.2), latMax: r3(place.lat + 1.2),
+            lngMin: r3(place.lng - 1.6), lngMax: r3(place.lng + 1.6),
+          };
+        }
+        TRIP.days.forEach((d) => {
+          if (!(d.points || []).length) {
+            d.points = [{ name: place.name, lat: place.lat, lng: place.lng, type: "city" }];
+          }
+          if (d.hotel && !d.hotel.lat) { d.hotel.lat = place.lat; d.hotel.lng = place.lng; }
+        });
+
+        TRIP = TripStore.save(TRIP);
+        renderTrip();
+      },
 
       /** עדכון שערים מהשער החי, בלחיצה מפורשת ולא מאחורי הגב */
       applyRates: (rates) => {

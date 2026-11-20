@@ -878,7 +878,10 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 900;
+  /* מעל סרגל הניווט הדביק (900), לא באותה רמה איתו: שתי השכבות מודפסות
+     באותו z-index, והסרגל מופיע אחרי החלוניות ב-DOM — כלומר הוא כיסה
+     חלק מהאשף וחסם לחיצות על השדות שמאחוריו. */
+  z-index: 1000;
   display: grid;
   place-items: center;
   padding: 16px;
@@ -1243,6 +1246,18 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 .live-list li { margin: .3rem 0; }
 
 .live-busy { padding: 36px 16px; text-align: center; color: var(--txt-dim); }
+
+.live-locate { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 .5rem; }
+.live-locate input {
+  flex: 1 1 200px; min-width: 0;
+  background: var(--ink-800); border: 1px solid var(--line-strong);
+  color: var(--txt); font: inherit; font-size: .88rem;
+  padding: .45rem .7rem; border-radius: var(--radius-sm);
+}
+[data-theme="light"] .live-locate input { background: #fff; }
+
+.wiz-found { margin: -.3rem 0 .6rem; font-size: .82rem; color: var(--txt-dim); }
+.wiz-found[hidden] { display: none; }
 
 .live-sources ul { list-style: none; margin: 0; padding: 0; font-size: .82rem; }
 .live-sources li { margin: .3rem 0; }
