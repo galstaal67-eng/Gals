@@ -1835,6 +1835,7 @@ ${folders}
     renderImprovements();
     renderInfo();
     renderPacking();
+    FlightsView.render();        // אסינכרוני — קורא מסמכים מ-IndexedDB
 
     fillSelects();
     renderPeople();
@@ -2232,6 +2233,13 @@ ${folders}
 
     applyTheme();
     setInterval(tickCountdown, 60_000);
+
+    // לפני renderTrip: הרינדור הראשון כבר קורא ל-FlightsView.render
+    FlightsView.init({
+      getTrip: () => TRIP,
+      saveTrip: () => { TRIP = TripStore.save(TRIP); },
+    });
+
     renderTrip();
 
     // עוזר ה-AI מקבל גישה לטיול הפעיל ולשמירה, ולא למשתנים הפנימיים

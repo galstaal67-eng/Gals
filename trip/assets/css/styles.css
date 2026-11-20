@@ -1237,3 +1237,105 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 }
 .ai-exp__amt { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .ai-exp__meta { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; font-size: .83rem; color: var(--txt-dim); }
+
+/* =====================================================================
+   לשונית הטיסות
+   ===================================================================== */
+
+.fl-carrier { margin: 0 0 14px; color: var(--txt-dim); font-size: .9rem; }
+
+.fl-cards { display: grid; gap: 14px; margin-bottom: 16px; }
+@media (min-width: 900px) { .fl-cards { grid-template-columns: 1fr 1fr; } }
+
+.fl-card {
+  background: var(--ink-850);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+[data-theme="light"] .fl-card { background: #fff; }
+.fl-card.is-soon { border-color: var(--gold); }
+
+.fl-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 14px; }
+.fl-card__head h3 { margin: 0; font-size: .96rem; flex: 1; min-width: 180px; }
+
+.fl-leg {
+  font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+  padding: 3px 9px; border-radius: 999px;
+  background: var(--moss); color: var(--ink-900);
+}
+.fl-cd {
+  font-size: .78rem; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--gold); color: var(--gold); white-space: nowrap;
+}
+.fl-cd.is-past { border-color: var(--line-strong); color: var(--txt-mute); }
+
+.fl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 12px 14px;
+}
+.fl-grid > div { display: flex; flex-direction: column; gap: 2px; }
+.fl-grid b { font-size: .72rem; color: var(--txt-mute); font-weight: 600; }
+.fl-grid span { font-size: .9rem; }
+.fl-big { font-size: 1.3rem !important; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.fl-seats { display: flex; flex-wrap: wrap; gap: 6px; }
+.fl-seat {
+  font-size: .78rem; padding: 2px 8px; border-radius: 6px;
+  background: var(--ink-700); border: 1px solid var(--line);
+}
+[data-theme="light"] .fl-seat { background: #eef2f8; }
+.fl-seat b { font-size: .84rem !important; color: var(--txt) !important; }
+
+.fl-note {
+  margin: 13px 0 0; padding: 9px 12px;
+  background: rgba(240, 162, 2, .08);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-sm);
+  font-size: .84rem;
+}
+
+/* ---------- מסמכים ---------- */
+
+.fl-docs { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 13px; }
+.fl-docs h4 { margin: 0 0 9px; font-size: .84rem; }
+.fl-docs ul { list-style: none; margin: 0 0 11px; padding: 0; display: grid; gap: 6px; }
+
+.fl-doc {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 7px 10px;
+  background: var(--ink-800);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: .84rem;
+}
+[data-theme="light"] .fl-doc { background: #f6f8fc; }
+.fl-doc__kind {
+  font-size: .7rem; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid var(--sky); color: var(--sky); white-space: nowrap;
+}
+.fl-doc__name { flex: 1; min-width: 120px; color: var(--txt); text-decoration: none; }
+.fl-doc__name:hover { text-decoration: underline; }
+
+.fl-upload { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+.fl-upload label { cursor: pointer; margin: 0; }
+.fl-upload select {
+  padding: 6px 9px; font: inherit; font-size: .82rem;
+  background: var(--ink-900); color: var(--txt);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+}
+[data-theme="light"] .fl-upload select { background: #fff; }
+
+.fl-pax { margin-bottom: 16px; }
+.fl-pax code { font-size: 1rem; letter-spacing: .06em; color: var(--moss); }
+.fl-pax table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+.fl-pax th, .fl-pax td { text-align: start; padding: 7px 4px; border-bottom: 1px solid var(--line); }
+.fl-pax th { font-size: .76rem; color: var(--txt-mute); font-weight: 600; }
+
+.fl-empty {
+  margin: 0 0 12px; padding: 10px 12px;
+  background: var(--ink-800); border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm); font-size: .84rem; color: var(--txt-dim);
+}
+[data-theme="light"] .fl-empty { background: #f6f8fc; }

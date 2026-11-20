@@ -165,3 +165,17 @@ export function tripIdOf(req: Request): string | null {
 
 /** תשובת השגיאה האחידה כשחסר trip בבקשה */
 export const NO_TRIP = "חסר מזהה טיול בבקשה";
+
+/**
+ * שמות משתני סביבה הם case-sensitive ב-Node, ו-`Anthropic_API_KEY` אינו
+ * `ANTHROPIC_API_KEY`. הטעות הזו מתבטאת כ"העוזר אינו מוגדר" בלי שום רמז
+ * למה, ולכן מחפשים גם התאמה שאינה תלוית רישיות.
+ * השם הקנוני נשאר ANTHROPIC_API_KEY — זה גם מה שה-SDK קורא לבד.
+ */
+export function resolveApiKey(): string | undefined {
+  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
+  const hit = Object.keys(process.env).find(
+    (k) => k.toLowerCase() === "anthropic_api_key"
+  );
+  return hit ? process.env[hit] : undefined;
+}

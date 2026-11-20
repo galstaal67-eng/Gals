@@ -205,6 +205,7 @@
   <div class="nav__inner" role="tablist">
     <button class="tab" role="tab" id="tab-map"      aria-controls="view-map"      aria-selected="true">🗺️ מפה</button>
     <button class="tab" role="tab" id="tab-route"    aria-controls="view-route"    aria-selected="false">📅 מסלול יומי</button>
+    <button class="tab" role="tab" id="tab-flights"  aria-controls="view-flights"  aria-selected="false">✈️ טיסות</button>
     <button class="tab" role="tab" id="tab-tips"     aria-controls="view-tips"     aria-selected="false">💡 שיפורים</button>
     <button class="tab" role="tab" id="tab-cost"     aria-controls="view-cost"     aria-selected="false">💰 תכנון עלויות</button>
     <button class="tab" role="tab" id="tab-expenses" aria-controls="view-expenses" aria-selected="false">💸 הוצאות בפועל</button>
@@ -286,7 +287,14 @@
   </section>
 
   <!-- ================================================ VIEW: TIPS ===== -->
-  <section class="view" id="view-tips" role="tabpanel" aria-labelledby="tab-tips">
+  <section class="view" id="view-flights" role="tabpanel" aria-labelledby="tab-flights">
+    <div class="wrap">
+      <h2 class="sr-only">טיסות</h2>
+      <div id="flightsView"></div>
+    </div>
+  </section>
+
+<section class="view" id="view-tips" role="tabpanel" aria-labelledby="tab-tips">
     <div class="section-head">
       <h2>המלצות לשיפור המסלול</h2>
       <p>עברתי על המסלול. אלה הנקודות שהייתי משנה או מוודא מראש, מסודרות לפי דחיפות.
@@ -509,6 +517,7 @@
 <script src="assets/js/data.js"></script>
 <script src="assets/js/trips.js"></script>
 <script src="assets/js/ai.js"></script>
+<script src="assets/js/flights.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
 </html>

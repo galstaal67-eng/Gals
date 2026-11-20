@@ -2,7 +2,7 @@ import type { Config } from "@netlify/functions";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { json, fail } from "../lib/shared.mts";
+import { json, fail, resolveApiKey } from "../lib/shared.mts";
 
 /**
  * POST /api/ai — בקשה חופשית בעברית, מוקלדת או מוכתבת.
@@ -156,20 +156,6 @@ function expenseContext(ctx: Record<string, unknown> | undefined) {
     categories: arr(ctx?.categories, ["אחר"]),
     currencies: arr(ctx?.currencies, ["$"]),
   };
-}
-
-/**
- * שמות משתני סביבה הם case-sensitive ב-Node, ו-`Anthropic_API_KEY` אינו
- * `ANTHROPIC_API_KEY`. הטעות הזו מתבטאת כ"העוזר אינו מוגדר" בלי שום רמז
- * למה, ולכן מחפשים גם התאמה שאינה תלוית רישיות.
- * השם הקנוני נשאר ANTHROPIC_API_KEY — זה גם מה שה-SDK קורא לבד.
- */
-function resolveApiKey(): string | undefined {
-  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
-  const hit = Object.keys(process.env).find(
-    (k) => k.toLowerCase() === "anthropic_api_key"
-  );
-  return hit ? process.env[hit] : undefined;
 }
 
 /* ------------------------------------------------------------------ */

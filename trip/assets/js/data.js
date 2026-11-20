@@ -38,9 +38,19 @@ const TRIP_TBILISI = {
       "מזוודה אחת לנוסע כלולה, ואין צורך להוסיף כלום. " +
       "ארוחות ללא גלוטן (GFML) הוזמנו לשני הכיוונים — ודאו אותן מול אל על 48 שעות לפני.",
     out:  { date: "2026-11-24", dow: "שלישי", from: "תל אביב (TLV) · טרמינל 1", dep: "07:20",
-            via: "ישיר", layover: "—", to: "טביליסי (TBS)", arr: "11:55" },
+            via: "ישיר", layover: "—", to: "טביליסי (TBS)", arr: "11:55",
+            flightNo: "LY5117", duration: "2:35", terminal: "1",
+            seats: [{ who: "גל", seat: "14D" }, { who: "נועה", seat: "14F" }] },
     back: { date: "2026-11-29", dow: "ראשון",  from: "טביליסי (TBS)", dep: "12:05",
-            via: "ישיר", layover: "—", to: "תל אביב (TLV) · טרמינל 3", arr: "12:45" },
+            via: "ישיר", layover: "—", to: "תל אביב (TLV) · טרמינל 3", arr: "12:45",
+            flightNo: "LY5118", duration: "2:40", terminal: "3",
+            seats: [{ who: "גל", seat: "17C" }, { who: "נועה", seat: "17A" }] },
+    // כרטיס לכל נוסע. המסמכים עצמם נשמרים במכשיר (ראו flights.js)
+    passengers: [
+      { name: "גל", ticket: "1142496780654", pnr: "XH5M3F", frequentFlyer: "616166" },
+      { name: "נועה", ticket: "1142496780658", pnr: "XH8E9I", frequentFlyer: "896770" },
+    ],
+    checkIn: { opensHours: 48, airportBefore: 3 },
   },
 
   /* ------------------------------------------------------------------
