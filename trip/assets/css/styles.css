@@ -751,7 +751,7 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 /* =========================================================== PRINT === */
 
 @media print {
-  .nav, .map-shell, .map-filter, .day__actions, .icon-btn, .btn, .fab, .foot { display: none !important; }
+  .nav, .map-shell, .map-filter, .day__actions, .icon-btn, .btn, .fab, .live-strip, .foot { display: none !important; }
   body { background: #fff; color: #000; }
   .view { display: block !important; page-break-before: always; }
   .day__body { display: block !important; }
@@ -1173,6 +1173,91 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 .ai-list li { margin: 2px 0; }
 
 /* פס הביטול שנשאר אחרי החלה */
+/* =====================================================================
+   שכבת המידע החיצוני — לשונית "עכשיו" ופס ההתרעה
+
+   שלוש רמות, ולכל אחת צבע קבוע לאורך כל האפליקציה: אדום לחוסם,
+   זהוב למשנה תוכנית, תכלת למידע. העקביות הזו היא מה שמאפשר לזהות
+   חומרה במבט אחד בלי לקרוא.
+   ===================================================================== */
+
+.live-strip {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 0 0 1.1rem; padding: .75rem 1rem;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  font-size: .88rem; line-height: 1.5;
+}
+.live-strip[hidden] { display: none; }
+.live-strip > span { flex: 1 1 260px; }
+
+.live-alert, .live-item {
+  border: 1px solid var(--line); border-left: 3px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: .7rem .9rem; margin: 0 0 .6rem;
+  background: var(--ink-800);
+}
+[data-theme="light"] .live-alert,
+[data-theme="light"] .live-item { background: #f6f8fc; }
+.live-alert b, .live-item b { display: block; font-size: .92rem; margin-bottom: .25rem; }
+.live-alert p, .live-item p { margin: .25rem 0 0; font-size: .85rem; color: var(--txt-dim); }
+
+/* הצבע נקבע פעם אחת ומשרת גם את הפס, גם את ההתרעה וגם את הפריט */
+.is-urgent { border-inline-start-color: var(--danger); }
+.is-warn   { border-inline-start-color: var(--gold); }
+.is-info   { border-inline-start-color: var(--sky); }
+.live-strip.is-urgent { background: color-mix(in srgb, var(--danger) 14%, var(--ink-850)); }
+.live-strip.is-warn   { background: color-mix(in srgb, var(--gold) 12%, var(--ink-850)); }
+.live-strip.is-info   { background: color-mix(in srgb, var(--sky) 12%, var(--ink-850)); }
+
+.live-src, .live-when {
+  display: block; margin-top: .35rem;
+  font-size: .76rem; color: var(--txt-mute);
+}
+.live-item a { font-size: .78rem; }
+
+.live-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; margin-bottom: 1rem;
+}
+.live-meta { margin: 0; font-size: .8rem; color: var(--txt-mute); }
+.live-summary { margin: 0 0 .8rem; font-size: .9rem; }
+
+.live-block { margin: 0 0 1.6rem; }
+.live-block > h3 {
+  margin: 0 0 .7rem; font-size: 1rem;
+  padding-bottom: .4rem; border-bottom: 1px solid var(--line);
+}
+
+.live-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.live-table th {
+  text-align: right; font-size: .76rem; color: var(--txt-mute);
+  font-weight: 700; padding: .4rem .5rem; border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.live-table td { padding: .5rem; border-bottom: 1px solid var(--line); }
+.live-table tr:last-child td { border-bottom: 0; }
+.live-wx { white-space: nowrap; }
+.live-diff { color: var(--gold); font-weight: 700; }
+
+.live-list { margin: 0; padding-inline-start: 1.1rem; font-size: .87rem; }
+.live-list li { margin: .3rem 0; }
+
+.live-busy { padding: 36px 16px; text-align: center; color: var(--txt-dim); }
+
+.live-sources ul { list-style: none; margin: 0; padding: 0; font-size: .82rem; }
+.live-sources li { margin: .3rem 0; }
+.live-sources .is-ok { color: var(--moss); }
+.live-sources .is-off { color: var(--txt-mute); }
+.live-sources .muted { margin-inline-start: .4rem; }
+
+/* צ'יפ התחזית על כרטיס היום */
+.day__wx { white-space: nowrap; }
+
+/* בטלפון הטבלה הרחבה נגללת לרוחב במקום להידחס לבלי קרוא */
+@media (max-width: 640px) {
+  .live-wx-table { display: block; overflow-x: auto; white-space: nowrap; }
+}
+
 /* =====================================================================
    כפתור העוזר הצף
 

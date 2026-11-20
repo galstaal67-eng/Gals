@@ -149,6 +149,11 @@ const TripAPI = (() => {
       );
     },
 
+    /** כתובת עם מזהה הטיול הפעיל, למי שקורא לשרת בעצמו */
+    tripUrl(path) {
+      return tripParam(path);
+    },
+
     /**
      * קורא תשובה מנקודות ה-AI.
      *
@@ -158,6 +163,10 @@ const TripAPI = (() => {
      */
     async readJson(res) {
       const text = await res.text().catch(() => "");
+      if (!text.trim()) return null;
+      // תשובה רגילה היא JSON שלם; רק אם היא אינה כזו מחפשים את שורת
+      // ה-JSON האחרונה של תשובה מוזרמת
+      try { return JSON.parse(text); } catch { /* ננסה כמוזרמת */ }
       const line = text.split("\n").map((l) => l.trim()).filter(Boolean).pop();
       if (!line) return null;
       try { return JSON.parse(line); } catch { return null; }

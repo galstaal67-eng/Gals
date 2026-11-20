@@ -1846,6 +1846,10 @@ ${folders}
     const inTrip = TRIP.days.some((d) => d.date === today);
     $("#exDate").value = inTrip ? today : TRIP.days[0]?.date || today;
     renderExpenses();
+
+    // הנתונים החיצוניים תלויים במסלול עצמו (תאריכים ונקודות), ולכן הם
+    // נטענים אחרי שהוא רונדר ולא לפניו
+    LiveView.load(false);
   }
 
   function switchTrip(id) {
@@ -1854,6 +1858,7 @@ ${folders}
     TRIP = doc;
     state = load();         // ההעדפות המקומיות של הטיול הזה (ציוד, overrides)
     applyTheme();
+    LiveView.reset();       // תחזית של היעד הקודם אינה אומרת דבר על החדש
     renderTrip();
     closeTrips();
   }
@@ -2238,6 +2243,28 @@ ${folders}
     FlightsView.init({
       getTrip: () => TRIP,
       saveTrip: () => { TRIP = TripStore.save(TRIP); },
+    });
+
+    // שכבת המידע החיצוני. היא מקבלת גישה לטיול, ללשוניות ולשערים —
+    // ולא לשום משתנה פנימי אחר.
+    LiveView.init({
+      getTrip: () => TRIP,
+      getRates: () => state.rates,
+      openTab: (name) => selectTab($("#tab-" + name)),
+
+      /** עדכון שערים מהשער החי, בלחיצה מפורשת ולא מאחורי הגב */
+      applyRates: (rates) => {
+        Object.entries(rates || {}).forEach(([sign, value]) => {
+          if (Number.isFinite(value) && value > 0 && sign in state.rates) {
+            state.rates[sign] = value;
+          }
+        });
+        save();
+        renderRates();
+        renderExpenses();
+        renderCostPlan();
+        queueRateSync();
+      },
     });
 
     renderTrip();
