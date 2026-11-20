@@ -2,7 +2,7 @@
   "name": "manchester-scotland-trip",
   "version": "1.0.0",
   "private": true,
-  "description": "אתר הטיול למנצ'סטר וסקוטלנד — אתר סטטי עם פונקציות Netlify וסנכרון הוצאות ל-Postgres",
+  "description": "אתר הטיול לטביליסי — אתר סטטי עם פונקציות Netlify וסנכרון הוצאות ל-Postgres",
   "type": "module",
   "scripts": {
     "dev": "netlify dev",

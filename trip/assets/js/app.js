@@ -8,7 +8,7 @@
   const $  = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  const STORE_KEY = "scotland2026:v1";
+  const STORE_KEY = "tbilisi2026:v1";
 
   /* ==================================================================== */
   /*  עזרי פורמט                                                          */
@@ -52,7 +52,7 @@
 
   const DEFAULT_STATE = {
     theme: "dark",
-    rates: { "£": 4.65, "€": 4.00, "$": 3.45, "₪": 1 },
+    rates: { "₾": 1.33, "$": 3.45, "€": 4.00, "£": 4.65, "₪": 1 },
     people: [
       { name: "גל",  group: 1 },
       { name: "נועה", group: 1 },
@@ -164,7 +164,7 @@
 
   const TYPE_ICON = {
     airport: "✈️", station: "🚆", hotel: "🛏️", sight: "📷",
-    hike: "🥾", food: "🍽️", town: "🏘️", car: "🚗",
+    hike: "🥾", food: "🍽️", town: "🏘️", car: "🚗", pass: "⛰️",
   };
 
   function initMap() {
@@ -535,7 +535,16 @@
   /* ==================================================================== */
 
   /** תיבה תוחמת של בריטניה — כדי לסנן את נתב"ג ופרנקפורט מהייצוא */
-  const inBritain = (p) => p.lat > 49 && p.lat < 61 && p.lng > -9 && p.lng < 2;
+  /**
+   * האם הנקודה בתוך תיבת היעד. זה מה שמשאיר מחוץ ל-KML את נתב"ג ואת
+   * שדות הקונקשן — הם נקודות של יום הטיסה ולא של המסלול עצמו.
+   * התיבה מגיעה מ-TRIP.meta.bbox; בלעדיה לא מסננים כלום.
+   */
+  const inDestination = (p) => {
+    const b = TRIP.meta.bbox;
+    if (!b) return true;
+    return p.lat > b.latMin && p.lat < b.latMax && p.lng > b.lngMin && p.lng < b.lngMax;
+  };
 
   const xml = (s) =>
     String(s ?? "").replace(/[&<>"']/g, (c) => ({
@@ -575,7 +584,7 @@
         const body = days
           .map((day) => {
             const marks = (day.points || [])
-              .filter((p) => p.lat && p.lng && inBritain(p))
+              .filter((p) => p.lat && p.lng && inDestination(p))
               .map(
                 (p) => `      <Placemark>
         <name>${xml(`${day.n} · ${p.name}`)}</name>
@@ -627,7 +636,7 @@ ${folders}
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "scotland-2026-route.kml";
+    a.download = "tbilisi-2026-route.kml";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -824,9 +833,13 @@ ${folders}
     const nights = days.filter((d) => d.hotel).length;
     const walkKm = days.reduce((s, d) => s + (d.walk?.km || 0), 0);
 
+    // טיסה ישירה מסומנת ב-via ריק או "ישיר" — אין טעם להדפיס "קונקשן —"
+    const legVia = (l) =>
+      !l.via || l.via === "ישיר" ? "טיסה ישירה" : `דרך ${esc(l.via)}, קונקשן ${l.layover}`;
+
     const leg = (l, dir) => `
       <div class="kv"><b>${dir}</b><span>${psDate(l.date, l.dow)} · ${esc(l.from)} ${l.dep}
-        → ${esc(l.to)} ${l.arr} · דרך ${esc(l.via)}, קונקשן ${l.layover}</span></div>`;
+        → ${esc(l.to)} ${l.arr} · ${legVia(l)}</span></div>`;
 
     const stays = staySegments()
       .map(
@@ -841,15 +854,18 @@ ${folders}
       )
       .join("");
 
-    // "מה להזמין מראש" — נלקח מלשונית המידע כדי שלא יתפצל לשני מקורות אמת
+    // שתי התיבות בעמוד 2 נלקחות מלשונית המידע, כדי שלא יהיו שני מקורות אמת.
+    // איזו סקציה מודגשת נקבע ב-meta.printHighlight; בלעדיו נבחרת הראשונה
+    // שאינה "להזמין מראש", כך שהתיבה לעולם לא נשארת ריקה.
     const booking = TRIP.practical.find((p) => p.title.includes("להזמין"));
-    const walking = TRIP.practical.find((p) => p.title.includes("ההליכה"));
+    const highlight =
+      (m.printHighlight && TRIP.practical.find((p) => p.title.includes(m.printHighlight))) ||
+      TRIP.practical.find((p) => p !== booking);
 
     // חלוקת הימים לשני עמודים נגזרת מהאורך, כדי שהוספת יום לא תדחוף לעמוד שלישי.
     // עמוד 2 נושא גם את טבלת הלינה ואת שתי התיבות, ולכן הוא מקבל פחות ימים.
     const split = Math.max(Math.ceil(days.length / 2), days.length - 5);
     const range = `${psDate(days[0].date, "")}–${psDate(days[days.length - 1].date, "")}`;
-    const walkDays = days.filter((d) => d.walk).length;
 
     const sheet = document.createElement("div");
     sheet.className = "psheet";
@@ -866,8 +882,7 @@ ${folders}
           <h2>✈️ טיסות — ${esc(f.carrier)} · ${esc(f.fare)}</h2>
           ${leg(f.out, "הלוך")}
           ${leg(f.back, "חזור")}
-          <div class="kv"><b>שימו לב</b><span>החזרה ממריאה ב-06:10 — להיות בטרמינל ב-04:15.
-            ${esc(f.fare)} לרוב אינו כולל מזוודה לבטן המטוס.</span></div>
+          ${f.note ? `<div class="kv"><b>שימו לב</b><span>${esc(f.note)}</span></div>` : ""}
         </div>
 
         <h2><bdi class="rng">המסלול — ימים 1–${split}</bdi></h2>
@@ -886,8 +901,8 @@ ${folders}
 
         <div class="psheet__cols">
           <div class="psheet__box">
-            <h2>🥾 ${walkDays} ימי ההליכה</h2>
-            <ul>${(walking?.items || []).slice(0, 5).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+            <h2>${esc(highlight?.icon || "ℹ️")} ${esc(highlight?.title || "")}</h2>
+            <ul>${(highlight?.items || []).slice(0, 5).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
           </div>
           <div class="psheet__box">
             <h2>✅ להזמין מראש</h2>
@@ -897,7 +912,7 @@ ${folders}
 
         <div class="psheet__foot">
           <span>עמוד 2 מתוך 2</span>
-          <span>חירום 999 / 112 · Mountain Rescue דרך 999 → Police</span>
+          <span>${esc(m.emergency || "חירום 112")}</span>
         </div>
       </section>`;
     return sheet;
@@ -1020,6 +1035,13 @@ ${folders}
   /*  תכנון עלויות מראש                                                   */
   /* ==================================================================== */
 
+  /** תווית הסיכום: האם הקבוצות האופציונליות (אוכל) נספרות בסכום המוצג */
+  function extrasLabel() {
+    const extras = TRIP.costPlan.groups.filter((g) => !g.core).map((g) => g.title);
+    if (!extras.length) return "ללא אוכל";
+    return (state.costIncludeExtras ? "כולל " : "ללא ") + extras.join(" ו");
+  }
+
   /** הערך בפועל של שורה — override של המשתמש אם קיים, אחרת האומדן מהנתונים */
   function costValue(groupKey, idx, item) {
     const o = state.costOverrides[groupKey + ":" + idx];
@@ -1060,7 +1082,7 @@ ${folders}
       <div class="exp-tile exp-tile--settle">
         <div class="exp-tile__lbl">סה"כ לזוג</div>
         <div class="exp-tile__val">${ils(c.mid)}</div>
-        <div class="exp-tile__sub">טווח ${ilsRange(c.low, c.high)} · ללא אוכל</div>
+        <div class="exp-tile__sub">טווח ${ilsRange(c.low, c.high)} · ${extrasLabel()}</div>
       </div>
       <div class="exp-tile">
         <div class="exp-tile__lbl">לאדם</div>
@@ -1191,7 +1213,7 @@ ${folders}
       tiles[1].textContent = ils(c.mid / 2);
       tiles[2].textContent = ils(c.mid / nights);
       tiles[3].textContent = ils(c.mid / TRIP.days.length);
-      subs[0].innerHTML = `טווח ${ilsRange(c.low, c.high)} · ללא אוכל`;
+      subs[0].innerHTML = `טווח ${ilsRange(c.low, c.high)} · ${extrasLabel()}`;
       subs[1].innerHTML = `טווח ${ilsRange(c.low / 2, c.high / 2)}`;
     }
     const maxGroup = Math.max(...c.groups.map((g) => g.highILS), 1);
@@ -1234,8 +1256,8 @@ ${folders}
     { name: "אחר",       color: "#8898aa" },
   ];
 
-  const CURRENCIES = ["£", "€", "$", "₪"];
-  const CURRENCY_LABEL = { "£": "ליש\"ט", "€": "אירו", "$": "דולר", "₪": "שקל" };
+  const CURRENCIES = ["₾", "$", "€", "₪"];
+  const CURRENCY_LABEL = { "₾": "לארי", "$": "דולר", "€": "אירו", "₪": "שקל", "£": "ליש\"ט" };
 
   const catColor = (name) =>
     (CATEGORIES.find((c) => c.name === name) || { color: "#8898aa" }).color;
@@ -1630,7 +1652,7 @@ ${folders}
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "הוצאות-סקוטלנד-2026.csv";
+    a.download = "הוצאות-טביליסי-2026.csv";
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -1662,7 +1684,7 @@ ${folders}
             id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
             date: normalizeDate(r[iDate]),
             amount,
-            currency: CURRENCIES.includes(r[iCur]?.trim()) ? r[iCur].trim() : "£",
+            currency: CURRENCIES.includes(r[iCur]?.trim()) ? r[iCur].trim() : "₾",
             category: r[iCat]?.trim() || "אחר",
             payer: r[iPay]?.trim() || state.people[0]?.name || "",
             note: r[iNote]?.trim() || "",

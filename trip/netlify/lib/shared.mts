@@ -3,7 +3,7 @@
  * אין כאן לוגיקה גלובלית שרצה בטעינת המודול — הכול עטוף בפונקציות.
  */
 
-export const CURRENCIES = ["£", "€", "$", "₪"] as const;
+export const CURRENCIES = ["₾", "$", "€", "£", "₪"] as const;
 export type Currency = (typeof CURRENCIES)[number];
 
 export interface ExpenseInput {
