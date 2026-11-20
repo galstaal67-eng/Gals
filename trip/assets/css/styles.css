@@ -1076,3 +1076,164 @@ table.data.cost-table td:first-child { min-width: 15rem; }
   pointer-events: none;
   text-shadow: 0 1px 6px rgba(0,0,0,.6);
 }
+
+/* =====================================================================
+   עוזר ה-AI
+   ===================================================================== */
+
+#aiPrompt {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--ink-900);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--txt);
+  font: inherit;
+  resize: vertical;
+}
+[data-theme="light"] #aiPrompt { background: #fff; }
+
+.ai-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ai-chips button {
+  background: var(--ink-800);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--txt-dim);
+  font: inherit;
+  font-size: .78rem;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+[data-theme="light"] .ai-chips button { background: #f2f5fa; }
+.ai-chips button:hover { border-color: var(--moss); color: var(--txt); }
+
+.ai-code { display: block; margin-top: 12px; font-size: .82rem; color: var(--txt-dim); }
+.ai-code[hidden] { display: none; }
+.ai-code input {
+  display: block; width: 100%; margin-top: 4px; padding: 8px 10px;
+  background: var(--ink-900); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm); color: var(--txt); font: inherit;
+}
+
+/* ---------- המתנה ---------- */
+
+.ai-busy { padding: 42px 18px; text-align: center; }
+.ai-busy p { margin: 10px 0 0; }
+.ai-spin {
+  display: inline-block;
+  width: 26px; height: 26px;
+  border: 3px solid var(--line-strong);
+  border-top-color: var(--moss);
+  border-radius: 50%;
+  animation: ai-spin .8s linear infinite;
+}
+@keyframes ai-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ai-spin { animation-duration: 2.4s; }
+}
+
+/* ---------- ההצעה ---------- */
+
+.ai-summary {
+  margin: 0 0 10px;
+  padding: 11px 13px;
+  background: rgba(76, 201, 164, .08);
+  border: 1px solid var(--moss);
+  border-radius: var(--radius-sm);
+  font-size: .9rem;
+}
+.ai-warning {
+  margin: 0 0 10px;
+  padding: 11px 13px;
+  background: rgba(240, 162, 2, .09);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-sm);
+  font-size: .86rem;
+}
+.ai-warning[hidden] { display: none; }
+
+.ai-diff { display: grid; gap: 10px; }
+.ai-day {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--ink-800);
+}
+[data-theme="light"] .ai-day { background: #f6f8fc; }
+.ai-day h4 { margin: 0 0 7px; font-size: .88rem; }
+.ai-field { font-size: .83rem; margin: 5px 0; line-height: 1.5; }
+.ai-field b { color: var(--txt-dim); font-weight: 600; }
+.ai-old {
+  color: var(--txt-mute);
+  text-decoration: line-through;
+  text-decoration-color: var(--danger);
+}
+.ai-new { color: var(--moss); }
+.ai-list { margin: 4px 0 0; padding-inline-start: 18px; font-size: .82rem; color: var(--txt-dim); }
+.ai-list li { margin: 2px 0; }
+
+/* פס הביטול שנשאר אחרי החלה */
+.ai-undo {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 14px;
+  z-index: 880;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.ai-undo[hidden] { display: none; }
+.ai-undo > div {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 28px);
+  padding: 10px 14px;
+  background: var(--ink-700);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  font-size: .85rem;
+}
+[data-theme="light"] .ai-undo > div { background: #fff; }
+
+/* ---------- הכתבה ---------- */
+
+.ai-input { position: relative; }
+.ai-input #aiPrompt { padding-inline-end: 46px; }
+.ai-mic {
+  position: absolute;
+  inset-inline-end: 8px;
+  top: 8px;
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  background: var(--ink-800);
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: .95rem;
+  line-height: 1;
+}
+[data-theme="light"] .ai-mic { background: #eef2f8; }
+.ai-mic[hidden] { display: none; }
+.ai-mic.is-live {
+  border-color: var(--danger);
+  background: rgba(255, 107, 107, .16);
+  animation: ai-pulse 1.1s ease-in-out infinite;
+}
+@keyframes ai-pulse { 50% { box-shadow: 0 0 0 7px rgba(255, 107, 107, 0); } }
+@media (prefers-reduced-motion: reduce) { .ai-mic.is-live { animation: none; } }
+.ai-mic-note { margin: 6px 2px 0; }
+.ai-mic-note[hidden] { display: none; }
+
+/* ---------- כרטיס הוצאה בהצעה ---------- */
+
+.ai-exp {
+  border: 1px solid var(--moss);
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
+  background: rgba(76, 201, 164, .06);
+}
+.ai-exp__amt { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ai-exp__meta { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; font-size: .83rem; color: var(--txt-dim); }

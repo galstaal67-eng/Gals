@@ -23,6 +23,66 @@
 </head>
 <body>
 
+<!-- =============================================== AI OVERLAY ======== -->
+<div class="overlay" id="aiOverlay" hidden>
+  <div class="overlay__sheet" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
+    <div class="ov-head">
+      <h2 id="aiTitle">✨ עוזר הטיול</h2>
+      <button class="icon-btn" id="aiClose" aria-label="סגירה">✕</button>
+    </div>
+
+    <!-- ---------- שלב 1: הבקשה ---------- -->
+    <section class="ai-step" id="aiAsk">
+      <p class="muted sm" style="padding:0 18px">
+        כתבו או הכתיבו — שינוי במסלול או הוצאה לרישום.
+        העוזר מציע, ואתם מאשרים לפני שנשמר.
+      </p>
+      <div style="padding:10px 18px 0">
+        <div class="ai-input">
+          <textarea id="aiPrompt" rows="3"
+            placeholder="למשל: תשנה את יום 3 להישאר בעיר וללא נסיעה&#10;או: שילמתי 45 לארי על קפה"></textarea>
+          <button type="button" class="ai-mic" id="aiMic" hidden
+                  title="הכתבה" aria-label="הכתבה בקול">🎤</button>
+        </div>
+        <p class="ai-mic-note muted sm" id="aiMicNote" hidden></p>
+        <div class="ai-chips" id="aiChips"></div>
+        <label class="ai-code" id="aiCodeWrap" hidden>קוד גישה
+          <input type="password" id="aiCode" autocomplete="off" />
+        </label>
+      </div>
+      <p class="wiz__err" id="aiErr" hidden></p>
+      <div class="ov-foot">
+        <button type="button" class="btn" id="aiCancel">ביטול</button>
+        <button type="button" class="btn btn--primary" id="aiSend">שלח</button>
+      </div>
+    </section>
+
+    <!-- ---------- שלב 2: המתנה ---------- -->
+    <section class="ai-step" id="aiBusy" hidden>
+      <div class="ai-busy">
+        <span class="ai-spin" aria-hidden="true"></span>
+        <p>חושב על השינוי…</p>
+        <p class="muted sm" id="aiBusyNote">זה לוקח בדרך כלל כמה שניות.</p>
+      </div>
+    </section>
+
+    <!-- ---------- שלב 3: הצעה לאישור ---------- -->
+    <section class="ai-step" id="aiReview" hidden>
+      <div style="padding:14px 18px 0">
+        <p id="aiSummary" class="ai-summary"></p>
+        <p id="aiWarning" class="ai-warning" hidden></p>
+        <div id="aiDiff" class="ai-diff"></div>
+        <p class="muted sm" id="aiUsage"></p>
+      </div>
+      <div class="ov-foot">
+        <button type="button" class="btn" id="aiReject">בטל</button>
+        <button type="button" class="btn" id="aiRetry">נסח מחדש</button>
+        <button type="button" class="btn btn--primary" id="aiApply">החל את השינוי</button>
+      </div>
+    </section>
+  </div>
+</div>
+
 <!-- ============================================ TRIPS OVERLAY ======== -->
 <div class="overlay" id="tripsOverlay" hidden>
   <div class="overlay__sheet" role="dialog" aria-modal="true" aria-labelledby="tripsTitle">
@@ -150,6 +210,7 @@
     <button class="tab" role="tab" id="tab-expenses" aria-controls="view-expenses" aria-selected="false">💸 הוצאות בפועל</button>
     <button class="tab" role="tab" id="tab-info"     aria-controls="view-info"     aria-selected="false">ℹ️ מידע וציוד</button>
     <span class="nav__spacer"></span>
+    <button class="icon-btn" id="aiBtn" title="שינוי חופשי בעזרת AI" aria-label="עוזר AI">✨</button>
     <button class="icon-btn" id="tripsBtn" title="הטיולים שלי" aria-label="מעבר בין טיולים">🧳</button>
     <button class="icon-btn" id="themeToggle" title="מצב בהיר / כהה" aria-label="החלפת ערכת צבעים">🌙</button>
     <button class="icon-btn" id="printBtn" title="הדפסה" aria-label="הדפסה">🖨️</button>
@@ -447,6 +508,7 @@
 <script src="assets/js/api.js"></script>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/trips.js"></script>
+<script src="assets/js/ai.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
 </html>

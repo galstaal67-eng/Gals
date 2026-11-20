@@ -2234,6 +2234,49 @@ ${folders}
     setInterval(tickCountdown, 60_000);
     renderTrip();
 
+    // עוזר ה-AI מקבל גישה לטיול הפעיל ולשמירה, ולא למשתנים הפנימיים
+    TripAI.init({
+      getTrip: () => TRIP,
+
+      /** הרשימות שמהן העוזר חייב לבחור כשהוא רושם הוצאה */
+      getContext: () => ({
+        today: new Date().toISOString().slice(0, 10),
+        people: state.people.map((p) => p.name),
+        categories: CATEGORIES.map((c) => c.name),
+        currencies: CURRENCIES,
+      }),
+
+      onApply: (doc, { undo }) => {
+        TRIP = TripStore.save(Object.assign(TRIP, doc));
+        renderTrip();
+        if (!undo) selectTab($("#tab-route"));
+      },
+
+      /** רישום הוצאות דרך אותו צינור שהטופס הידני משתמש בו */
+      onExpenses: async (rows) => {
+        let added = 0;
+        for (const r of rows) {
+          const amount = Number(r.amount);
+          if (!Number.isFinite(amount) || amount <= 0) continue;
+          const expense = {
+            date: TRIP.days.some((d) => d.date === r.date) ? r.date : TRIP.days[0].date,
+            amount,
+            currency: CURRENCIES.includes(r.currency) ? r.currency : CURRENCIES[0],
+            category: CATEGORIES.some((c) => c.name === r.category) ? r.category : "אחר",
+            payer: state.people.some((p) => p.name === r.payer) ? r.payer : state.people[0]?.name || "",
+            note: String(r.note || "").trim(),
+          };
+          const saved = await TripAPI.addExpense(expense);
+          state.expenses.push(saved && saved.id ? saved : { ...expense, id: localId() });
+          added++;
+        }
+        save();
+        renderExpenses();
+        selectTab($("#tab-expenses"));
+        return added;
+      },
+    });
+
     // רץ אחרי הרינדור הראשון: הדף שמיש מיד, והסנכרון מתעדכן כשהוא חוזר
     Promise.allSettled([initSync(), TripStore.sync()]).then(([, trips]) => {
       // מסמך טיול שהגיע מהשרת מנצח רק אם הוא חדש יותר — TripStore כבר הכריע
