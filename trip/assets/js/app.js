@@ -1030,9 +1030,16 @@
   /*  מסלול יומי                                                          */
   /* ==================================================================== */
 
+  /**
+   * מסלול נהיגה של יום ב-Google Maps.
+   *
+   * הנקודות מסוננות ליעד עצמו. בלי זה יום טיסה היה מבקש מגוגל מסלול
+   * נהיגה מנתב"ג לכיכר החירות — שלושת אלפים ק"מ, או "לא נמצא מסלול".
+   * מה שרוצים ביום כזה הוא מה שקורה אחרי הנחיתה.
+   */
   function gmapsLink(day) {
-    const pts = (day.points || []).filter((p) => p.lat && p.lng);
-    if (!pts.length) return null;
+    const pts = (day.points || []).filter((p) => p.lat && p.lng && inDestination(p));
+    if (pts.length < 2) return null;
     const origin = pts[0];
     const dest = pts[pts.length - 1];
     const mid = pts.slice(1, -1).slice(0, 9);
@@ -1146,14 +1153,62 @@ ${folders}
 </kml>`;
   }
 
-  function downloadKML() {
-    const blob = new Blob([buildKML()], {
+  /** אותן נקודות ואותו קו, ליום אחד — שכבה אחת ב-Google My Maps */
+  function buildDayKML(day) {
+    const marks = (day.points || [])
+      .filter((p) => p.lat && p.lng && inDestination(p))
+      .map(
+        (p, i) => `      <Placemark>
+        <name>${xml(`${i + 1}. ${p.name}`)}</name>
+        <description>${xml(`יום ${day.n}, ${fullDate(day.date)} — ${day.title}`)}</description>
+        <Point><coordinates>${p.lng},${p.lat},0</coordinates></Point>
+      </Placemark>`
+      )
+      .join("\n");
+
+    const line =
+      day.pathMode !== "flight" && day.path?.length > 1
+        ? `      <Placemark>
+        <name>${xml(`מסלול יום ${day.n}`)}</name>
+        <styleUrl>#${day.pathMode}</styleUrl>
+        <LineString><tessellate>1</tessellate><coordinates>
+          ${day.path.map(([lat, lng]) => `${lng},${lat},0`).join(" ")}
+        </coordinates></LineString>
+      </Placemark>`
+        : "";
+
+    const styles = Object.entries(TRIP.modes)
+      .map(
+        ([key, m]) => `  <Style id="${key}">
+    <LineStyle><color>${kmlColor(m.color)}</color><width>4</width></LineStyle>
+    <IconStyle><color>${kmlColor(m.color)}</color></IconStyle>
+  </Style>`
+      )
+      .join("\n");
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${xml(`${TRIP.meta.title} · יום ${day.n} · ${day.date}`)}</name>
+    <description>${xml(day.title || "")}</description>
+${styles}
+    <Folder>
+      <name>${xml(`יום ${day.n} — ${day.title || ""}`)}</name>
+${[marks, line].filter(Boolean).join("\n")}
+    </Folder>
+  </Document>
+</kml>`;
+  }
+
+  /** הורדה כקובץ. אותו מסלול בדיוק שבכפתור של כל הטיול, ליום אחד. */
+  function saveKML(text, name) {
+    const blob = new Blob([text], {
       type: "application/vnd.google-earth.kml+xml;charset=utf-8",
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "tbilisi-2026-route.kml";
+    a.download = name;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -1161,7 +1216,21 @@ ${folders}
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  function downloadKML() {
+    const from = TRIP.days[0]?.date || "";
+    saveKML(buildKML(), `trip-${from}-route.kml`);
+  }
+
   $("#kmlBtn").addEventListener("click", downloadKML);
+
+  // ההורדה ליום בודד מופיעה גם בחלון היום וגם בכרטיס שבמסלול היומי,
+  // ולכן היא נתפסת על המסמך ולא על אחד מהם
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-kml-day]");
+    if (!btn) return;
+    const day = TRIP.days.find((d) => d.n === Number(btn.dataset.kmlDay));
+    if (day) saveKML(buildDayKML(day), `trip-day-${day.n}-${day.date}.kml`);
+  });
 
   /** כפתור הניווט פעיל רק כשנבחר יום — לגוגל אין מסלול אחד לכל הטיול */
   function syncNavButton() {
@@ -1220,7 +1289,14 @@ ${folders}
       <div class="day__docs" data-docs="${day.n}" hidden></div>
       <div class="day__actions">
         <button class="btn btn--sm" data-focus="${day.n}">🗺️ הצג את היום על המפה</button>
-        ${dirLink ? `<a class="btn btn--sm" target="_blank" rel="noopener" href="${dirLink}">🧭 ניווט ב-Google Maps</a>` : ""}
+        ${dirLink
+          ? `<a class="btn btn--sm" target="_blank" rel="noopener" href="${dirLink}"
+               title="כל נקודות היום כמסלול נהיגה אחד">🧭 מסלול היום ב-Google Maps</a>`
+          : ""}
+        ${(day.points || []).some((p) => p.lat && p.lng && inDestination(p))
+          ? `<button class="btn btn--sm" data-kml-day="${day.n}"
+               title="קובץ KML לייבוא ל-Google My Maps">⬇️ הורדת נקודות היום</button>`
+          : ""}
         ${full
           ? `<button class="btn btn--sm" data-edit="${day.n}">✏️ ערוך את היום</button>`
           : `<button class="btn btn--sm" data-open-route="${day.n}">✏️ ערוך במסלול היומי</button>`}
