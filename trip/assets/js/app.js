@@ -2476,9 +2476,12 @@ ${folders}
         FlightsView.render();
       },
 
-      /** רישום הוצאות דרך אותו צינור שהטופס הידני משתמש בו */
-      onExpenses: async (rows) => {
-        let added = 0;
+      /**
+       * רישום הוצאות דרך אותו צינור שהטופס הידני משתמש בו.
+       * מחזיר את המזהים שנוצרו, כדי שביטול יוכל להסיר אותם.
+       */
+      onExpenses: async (rows, { focus = true } = {}) => {
+        const ids = [];
         for (const r of rows) {
           const amount = Number(r.amount);
           if (!Number.isFinite(amount) || amount <= 0) continue;
@@ -2491,13 +2494,28 @@ ${folders}
             note: String(r.note || "").trim(),
           };
           const saved = await TripAPI.addExpense(expense);
-          state.expenses.push(saved && saved.id ? saved : { ...expense, id: localId() });
-          added++;
+          const row = saved && saved.id ? saved : { ...expense, id: localId() };
+          state.expenses.push(row);
+          ids.push(row.id);
         }
         save();
         renderExpenses();
-        selectTab($("#tab-expenses"));
-        return added;
+        if (focus) selectTab($("#tab-expenses"));
+        return ids;
+      },
+
+      /** ביטול של הצעה שרשמה הוצאות — אותה מחיקה של כפתור המחיקה בטבלה */
+      onExpensesRemove: async (ids) => {
+        for (const id of ids || []) {
+          try {
+            await TripAPI.deleteExpense(id);
+          } catch {
+            /* נמחקה כבר, או שאין רשת — השורה המקומית יורדת בכל מקרה */
+          }
+          state.expenses = state.expenses.filter((x) => x.id !== id);
+        }
+        save();
+        renderExpenses();
       },
     });
 

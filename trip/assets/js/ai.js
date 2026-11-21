@@ -50,6 +50,7 @@ const TripAI = (() => {
   let answers = [];         // התשובות שנאספו — נשלחות שוב בכל סבב
   let rounds = 0;           // כמה פעמים כבר נשאלנו על אותה בקשה
   let savedDocs = [];       // מזהי המסמכים שנשמרו בהחלה האחרונה, לביטול
+  let savedExpenses = [];   // מזהי ההוצאות שנרשמו בה, לאותה מטרה
 
   /* ------------------------------------------------------------------ */
   /*  עזרים                                                              */
@@ -468,6 +469,23 @@ const TripAI = (() => {
   /*  פס הביטול                                                          */
   /* ------------------------------------------------------------------ */
 
+  /** מה לכתוב בפס אחרי ההחלה — מה שבאמת קרה, ולא רק הסיכום של המודל */
+  function applyNote(set, touchedTrip, expenseCount) {
+    if (touchedTrip && expenseCount) {
+      const summary = set.summary || "השינוי הוחל";
+      // הסיכום של המודל כבר אומר לא פעם שההוצאה נרשמה, ואז התוספת
+      // הופכת את הפס ל"...וההוצאה נרשמה · הוצאה נרשמה"
+      if (/הוצא/.test(summary)) return summary;
+      return summary +
+        (expenseCount === 1 ? " · הוצאה נרשמה" : ` · ${expenseCount} הוצאות נרשמו`);
+    }
+    if (expenseCount) {
+      return expenseCount === 1 ? "הוצאה נרשמה" : `${expenseCount} הוצאות נרשמו`;
+    }
+    if (touchedTrip) return set.summary || "השינוי הוחל";
+    return (set.docs || []).length > 1 ? "המסמכים נשמרו" : "המסמך נשמר";
+  }
+
   function undoBar(show, text = "", canUndo = true) {
     let bar = $("#aiUndo");
     if (!bar) {
@@ -480,12 +498,12 @@ const TripAI = (() => {
       document.body.appendChild(bar);
       bar.addEventListener("click", (e) => {
         if (!e.target.closest("#aiUndoBtn")) return;
-        if (!undoDoc) return;
-        host.onApply(undoDoc, { undo: true });
-        undoDoc = null;
-        // ביטול שמשאיר את המסמך מצורף ליום הוא ביטול חלקי: הכרטיס היה
-        // ממשיך להופיע בכרטיס היום אחרי שהשינוי עצמו כבר בוטל
+        // ביטול מחזיר את **כל** מה שההחלה עשתה. ביטול חלקי — שמשאיר
+        // מסמך מצורף ליום או הוצאה בטבלה אחרי שהשינוי עצמו בוטל — גרוע
+        // מלא לבטל, כי אי אפשר לדעת ממנו מה נשאר
+        if (undoDoc) { host.onApply(undoDoc, { undo: true }); undoDoc = null; }
         if (savedDocs.length) { host.onDocsRemove(savedDocs); savedDocs = []; }
+        if (savedExpenses.length) { host.onExpensesRemove(savedExpenses); savedExpenses = []; }
         undoBar(false);
       });
     }
@@ -570,26 +588,33 @@ const TripAI = (() => {
       $("#aiWarning").textContent = data.warning || "";
       $("#aiWarning").hidden = !data.warning;
 
+      // הצעה אחת יכולה לכלול כמה דברים בבת אחת: מידע מודבק על מופע
+      // שהוזמן הוא גם שורה בלוח הזמנים וגם הוצאה ששולמה. התצוגה מראה
+      // את כולם, וההחלה מבצעת את כולם.
       const expenses = data.expenses || [];
-      const isExpense = data.kind === "expense" && expenses.length;
       const plan = docPlan(data);
       const dayChanges = data.dayChanges || [];
       const flights = data.flights || [];
-      $("#aiDiff").innerHTML = isExpense
-        ? renderExpenses(expenses) + renderDocs(plan)
-        : renderFlights(trip, flights) +
-          (dayChanges.length ? renderDiff(trip, dayChanges) : "") +
-          renderDocs(plan);
-      // הכפתור אומר מה הוא עושה: רישום הוצאה אינו "שינוי במסלול",
-      // ומסמך שרק נשמר אינו שינוי בכלל
-      $("#aiApply").textContent = isExpense
-        ? expenses.length > 1 ? `רשום ${expenses.length} הוצאות` : "רשום את ההוצאה"
-        : dayChanges.length || flights.length
-        ? "החל את השינוי"
+      const touchesTrip = dayChanges.length || flights.length;
+
+      $("#aiDiff").innerHTML =
+        renderFlights(trip, flights) +
+        (dayChanges.length ? renderDiff(trip, dayChanges) : "") +
+        renderExpenses(expenses) +
+        renderDocs(plan);
+
+      // הכפתור אומר מה הוא עושה בפועל
+      const expLabel = expenses.length > 1
+        ? `רשום ${expenses.length} הוצאות`
+        : "רשום את ההוצאה";
+      $("#aiApply").textContent = touchesTrip && expenses.length
+        ? "החל והוסף להוצאות"
+        : expenses.length ? expLabel
+        : touchesTrip ? "החל את השינוי"
         : plan.length > 1 ? "שמור את המסמכים" : "שמור את המסמך";
       // אין מה להחיל כשהבקשה לא הובנה ושום מסמך לא צורף
       $("#aiApply").hidden = data.kind === "unclear" ||
-        !(isExpense || dayChanges.length || flights.length || plan.length);
+        !(touchesTrip || expenses.length || plan.length);
       $("#aiUsage").textContent = data.usage
         ? `${data.usage.input.toLocaleString("he-IL")} טוקנים נכנסים · ` +
           `${data.usage.output.toLocaleString("he-IL")} יוצאים`
@@ -786,22 +811,22 @@ const TripAI = (() => {
         proposal = null;
         // התוכנית נבנית לפני הסגירה: close() מנקה את הקבצים המצורפים
         const plan = docPlan(p);
-
-        if (p.kind === "expense" && (p.expenses || []).length) {
-          close();
-          savedDocs = await host.onDocs(plan);
-          const n = await host.onExpenses(p.expenses);
-          // אין undoDoc כאן: הוצאה נמחקת מהטבלה שלה, לא בשחזור המסמך
-          undoBar(true, n === 1 ? "הוצאה נרשמה" : `${n} הוצאות נרשמו`, false);
-          return;
-        }
+        const expenses = p.expenses || [];
+        const touchesTrip = (p.dayChanges || []).length || (p.flights || []).length;
 
         const trip = host.getTrip();
-        undoDoc = clone(trip);
+        undoDoc = touchesTrip ? clone(trip) : null;
+
         savedDocs = await host.onDocs(plan);
-        host.onApply(applyChangeSet(clone(trip), p), { undo: false });
-        undoBar(true, p.summary || "השינוי הוחל", true);
+        if (touchesTrip) host.onApply(applyChangeSet(clone(trip), p), { undo: false });
+        // focus: לאן לקפוץ אחרי ההחלה. כששונה גם המסלול, הוא מה שרוצים
+        // לראות — ההוצאה נרשמה ברקע ואפשר לבדוק אותה בלשונית שלה
+        savedExpenses = expenses.length
+          ? await host.onExpenses(expenses, { focus: !touchesTrip })
+          : [];
+
         close();
+        undoBar(true, applyNote(p, touchesTrip, savedExpenses.length), true);
       });
     },
 
