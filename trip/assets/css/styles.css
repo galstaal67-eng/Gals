@@ -158,16 +158,23 @@ html[data-theme="light"] .stat { background: #fff; }
 
 /* =============================================================== NAV === */
 
+/* הסרגל יושב מתחת למבט העל ולפס ההתרעה, ופותח את החלק המפורט של הדף.
+   כשגוללים הוא נדבק לראש המסך, ולכן הרקע חייב להיות אטום מספיק כדי
+   שתוכן שעובר מתחתיו לא ייקרא דרכו. */
 .nav {
   position: sticky; top: 0; z-index: 900;
-  background: color-mix(in srgb, var(--ink-900) 88%, transparent);
+  background: color-mix(in srgb, var(--ink-800) 92%, transparent);
   backdrop-filter: blur(14px) saturate(1.4);
-  border-bottom: 1px solid var(--line);
+  border-block: 1px solid var(--line-strong);
+  box-shadow: 0 6px 18px -14px rgba(0, 0, 0, .9);
+}
+[data-theme="light"] .nav {
+  background: color-mix(in srgb, #e8edf6 92%, transparent);
 }
 
 .nav__inner {
   display: flex; align-items: center; gap: .4rem;
-  overflow-x: auto; scrollbar-width: none; padding: .55rem 1.15rem;
+  overflow-x: auto; scrollbar-width: none; padding: .5rem 1.15rem;
   max-width: var(--maxw); margin: 0 auto;
 }
 .nav__inner::-webkit-scrollbar { display: none; }
