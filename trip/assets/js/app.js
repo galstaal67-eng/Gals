@@ -322,11 +322,101 @@
     </article>`;
   }
 
+  /* ---------------------------------------------------------------------
+     הרצועה — בר לכל יום, והנקודות שבו
+
+     זו התמונה שנותנת את מבנה הטיול במבט אחד: עמודה לכל יום, ובתוכה
+     הנקודות לפי סדר הביקור. לכל העמודות אותו גובה, לפי היום העמוס
+     ביותר, ולכן גובה המילוי עצמו מעיד על עומס היום — יום עמוס ממלא
+     את הבר, ויום פנוי משאיר אותו חצי ריק.
+
+     מתחת לרצועה יושבים כרטיסי הימים עם הפירוט. לחיצה על עמודה פותחת
+     את היום שלה שם.
+     --------------------------------------------------------------------- */
+
+  /** צבע לכל סוג נקודה. אותם טוקנים ששאר האפליקציה משתמשת בהם. */
+  const OV_TONE = {
+    airport: "rose", station: "rose",
+    hotel: "heather",
+    sight: "moss", town: "moss",
+    food: "gold",
+    hike: "sky", pass: "sky", car: "sky",
+  };
+
+  /** מעל זה העמודה נהיית בלתי קריאה, והשאר נספר ב-"ועוד" */
+  const OV_MAX = 8;
+
+  const ovShortDate = (iso) =>
+    iso ? `${+iso.slice(8, 10)}.${+iso.slice(5, 7)}` : "";
+
+  function renderOverview(days) {
+    const track = $("#ovTrack");
+    if (!track) return;
+
+    const counts = days.map((d) => (d.points || []).filter((p) => p && p.name).length);
+    const most = Math.min(Math.max(...counts, 1), OV_MAX);
+
+    if (!counts.some(Boolean)) {
+      track.innerHTML =
+        '<p class="overview__empty">לטיול הזה עדיין אין נקודות על המפה. ' +
+        'הוסיפו אותן בעריכת היום או דרך העוזר, והן יופיעו כאן.</p>';
+      return;
+    }
+
+    track.innerHTML = days
+      .map((day) => {
+        const pts = (day.points || []).filter((p) => p && p.name);
+        const shown = pts.slice(0, OV_MAX);
+        const extra = pts.length - shown.length;
+        const mode = TRIP.modes[day.mode] || {};
+
+        const times = (day.plan || [])
+          .map((p) => String(p.time || "").trim())
+          .filter((t) => /^\d/.test(t));
+        const span = times.length > 1 ? `${times[0]}–${times[times.length - 1]}` : times[0] || "";
+
+        const segs = shown
+          .map(
+            (p) => `<button type="button" class="ov-seg ov-seg--${OV_TONE[p.type] || "mute"}"
+                 data-ov-name="${esc(p.name)}" title="${esc(p.name)}">
+                 <span class="ov-seg__icon" aria-hidden="true">${TYPE_ICON[p.type] || "📍"}</span>
+                 <span class="ov-seg__name">${esc(p.name)}</span>
+               </button>`
+          )
+          .join("");
+
+        const km = day.drive?.km
+          ? `${mode.icon || "🚗"} ${nfNum.format(day.drive.km)} ק"מ`
+          : `${mode.icon || ""} ${esc(mode.label || "")}`.trim();
+
+        return `<article class="ov-day is-${dayStatus(day)}">
+          <button type="button" class="ov-day__head" data-ov-open="${day.n}"
+                  title="${esc(day.title || "")}">
+            <b>יום ${day.n}</b>
+            <span class="ov-day__when">
+              <i class="ov-day__dow">${esc(day.dow || "")}</i>
+              <i class="ov-day__date">${ovShortDate(day.date)}</i>
+            </span>
+            <span class="ov-day__profile">${esc(day.profile || day.title || "")}</span>
+          </button>
+          <div class="ov-bar" style="--ov-slots:${most}">
+            ${segs}${extra > 0 ? `<span class="ov-seg ov-seg--more">+${extra}</span>` : ""}
+          </div>
+          <div class="ov-day__foot">
+            <span>${km}</span>
+            ${span ? `<span class="ov-day__time">${esc(span)}</span>` : ""}
+          </div>
+        </article>`;
+      })
+      .join("");
+  }
+
   function renderJourney() {
     const list = $("#journeyList");
     if (!list) return;
 
     const days = visibleDays();
+    renderOverview(days);
     list.innerHTML = days.map(journeyCard).join("");
 
     $("#journeyRange").innerHTML = RANGES.map(
@@ -383,6 +473,25 @@
         journeyRange = range.dataset.range;
         try { localStorage.setItem(RANGE_KEY, journeyRange); } catch { /* לא קריטי */ }
         renderJourney();
+        return;
+      }
+
+      // עמודה ברצועה פותחת את כרטיס היום שמתחתיה
+      const col = e.target.closest("[data-ov-open]");
+      if (col) {
+        const card = $(`.jd[data-jd="${col.dataset.ovOpen}"]`);
+        if (!card) return;
+        card.classList.add("is-open");
+        $(".jd__head", card).setAttribute("aria-expanded", "true");
+        card.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      // השם המלא אינו נכנס לסגמנט, ובטלפון גם אין ריחוף שיציג אותו
+      const seg = e.target.closest("[data-ov-name]");
+      if (seg) {
+        $$("#ovTrack .ov-seg.is-on").forEach((el) => el.classList.remove("is-on"));
+        seg.classList.add("is-on");
+        $("#ovCaption").textContent = seg.dataset.ovName;
         return;
       }
 

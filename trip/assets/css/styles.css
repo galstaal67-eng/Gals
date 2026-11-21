@@ -1332,6 +1332,146 @@ table.data.cost-table td:first-child { min-width: 15rem; }
   .jd__body { padding: 0 12px 12px; }
 }
 
+.overview[hidden] { display: none; }
+
+.overview__track {
+  display: flex; gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.overview__empty { margin: 0; color: var(--txt-dim); font-size: .86rem; }
+
+.ov-day {
+  flex: 1 1 0; min-width: 40px;
+  display: flex; flex-direction: column; gap: 6px;
+  /* מה שנכנס לעמודה תלוי ברוחב **שלה**, לא ברוחב המסך: שלושה ימים
+     בטלפון הם עמודות רחבות שיש בהן מקום לשמות, וששה ימים במסך רחב
+     הם עמודות צרות שאין */
+  container-type: inline-size;
+}
+
+@container (max-width: 104px) {
+  /* סלקטור צאצא ולא מחלקה בודדת: כלל ה-display של הכותרת מוגדר מאוחר
+     יותר בקובץ, ובלי העלאת ספציפיות הוא היה גובר על זה */
+  .ov-day .ov-day__profile { display: none; }
+  .ov-seg { justify-content: center; padding: 0 3px; }
+  .ov-seg__name { display: none; }
+}
+
+.ov-day__head {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 5px 7px;
+  background: transparent;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  color: var(--txt); font: inherit; text-align: start;
+  cursor: pointer;
+}
+.ov-day__head:hover { border-color: var(--moss); }
+.ov-day__head b { font-size: .84rem; }
+.ov-day__head span { font-size: .72rem; color: var(--txt-mute); }
+.ov-day__when i { font-style: normal; }
+.ov-day__dow::after { content: " · "; }
+
+/* הגובה נגזר ממספר המשבצות של היום העמוס ביותר */
+.ov-bar {
+  height: calc(var(--ov-slots) * 30px);
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 3px;
+  background: var(--ink-800);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+[data-theme="light"] .ov-bar { background: #eef2f8; }
+
+.ov-seg {
+  flex: 0 0 auto; height: 27px;
+  display: flex; align-items: center; gap: 5px;
+  min-width: 0; padding: 0 6px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--ink-700);
+  color: var(--txt); font: inherit; font-size: .72rem;
+  text-align: start; cursor: pointer;
+}
+.ov-seg__icon { flex: 0 0 auto; font-size: .8rem; line-height: 1; }
+.ov-seg__name {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ov-seg.is-on { outline: 2px solid var(--txt); outline-offset: -2px; }
+
+.ov-seg--moss     { background: color-mix(in srgb, var(--moss) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--moss) 45%, var(--line)); }
+.ov-seg--heather  { background: color-mix(in srgb, var(--heather) 16%, var(--ink-700));  border-color: color-mix(in srgb, var(--heather) 45%, var(--line)); }
+.ov-seg--rose     { background: color-mix(in srgb, var(--rose) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--rose) 45%, var(--line)); }
+.ov-seg--gold     { background: color-mix(in srgb, var(--gold) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); }
+.ov-seg--sky      { background: color-mix(in srgb, var(--sky) 16%, var(--ink-700));      border-color: color-mix(in srgb, var(--sky) 45%, var(--line)); }
+.ov-seg--mute     { background: var(--ink-700); }
+
+.ov-seg--more {
+  justify-content: center;
+  color: var(--txt-mute); font-size: .7rem;
+  background: transparent; border-style: dashed; cursor: default;
+}
+
+.ov-day__foot {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
+  font-size: .71rem; color: var(--txt-mute);
+}
+/* טווח שעות הוא ביטוי LTR: בלי זה "04:15–19:00" מוצג הפוך בדף RTL */
+.ov-day__time { direction: ltr; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.overview__caption {
+  margin: 9px 0 0;
+  font-size: .78rem; color: var(--txt-dim);
+  min-height: 1.2em;
+}
+
+/* בטלפון השם אינו נכנס לעמודה צרה, ולכן נשארים האייקונים — השם המלא
+   מגיע בהקשה, בשורה שמתחת לרצועה */
+@media (max-width: 760px) {
+  /* כל ימי הטווח חייבים להיכנס למסך בלי גלילה לרוחב — זה כל מה שהרצועה
+     נועדה לתת, וגלילה הורסת אותה */
+  .overview__track { gap: 5px; }
+  /* העמודה נמדדת לפי התוכן הצר ביותר שלה, ולכן שורת הכותרת והתחתית
+     חייבות להיות ניתנות לקיצוץ — אחרת טווח השעות לבדו מרחיב את כולן */
+  .ov-day__head, .ov-day__foot { min-width: 0; }
+  .ov-day__head b,
+  .ov-day__head span,
+  .ov-day__foot span {
+    max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .ov-day__head { padding: 4px 3px; }
+  .ov-day__head span { font-size: .62rem; }
+  /* בעמודה של 56 פיקסלים "שלישי · 24.11" נחתך באמצע התאריך, והתאריך
+     הוא מה שבאמת צריך שם */
+  .ov-day__dow { display: none; }
+  .ov-day__foot { font-size: .62rem; flex-direction: column; gap: 1px; align-items: flex-start; }
+}
+
+/* ---------- הרצועה בתוך מבט העל ---------- */
+
+.overview { margin: 0 0 1.1rem; }
+
+/* הכותרת של היום — הפרופיל שלו, מעל הבר */
+.ov-day__profile {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 2px;
+  font-size: .74rem !important; font-weight: 600;
+  color: var(--txt-dim) !important; line-height: 1.3;
+}
+
+/* אותם מצבים של כרטיסי הימים שמתחת, כדי שהרצועה תספר אותו סיפור */
+.ov-day.is-past { opacity: .55; }
+.ov-day.is-past:hover { opacity: 1; }
+.ov-day.is-now .ov-bar {
+  border-color: var(--moss);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--moss) 30%, transparent);
+}
+.ov-day.is-now .ov-day__head b { color: var(--moss); }
+
+
 /* =====================================================================
    מסמכי הטיול — צירוף לעוזר, שאלות הבהרה, והתצוגה בכרטיס היום
 
