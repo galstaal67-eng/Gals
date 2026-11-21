@@ -111,6 +111,17 @@
 </div>
 
 <!-- ============================================ TRIPS OVERLAY ======== -->
+<!-- יום בודד, כשלוחצים עליו במבט על. לא ניווט ללשונית אחרת — חלון. -->
+<div class="overlay" id="dayOverlay" hidden>
+  <div class="overlay__sheet" role="dialog" aria-modal="true" aria-labelledby="dayOvTitle">
+    <div class="ov-head">
+      <h2 id="dayOvTitle">—</h2>
+      <button class="icon-btn" id="dayOvClose" aria-label="סגירה">✕</button>
+    </div>
+    <div class="day-sheet" id="dayOvBody"></div>
+  </div>
+</div>
+
 <div class="overlay" id="tripsOverlay" hidden>
   <div class="overlay__sheet" role="dialog" aria-modal="true" aria-labelledby="tripsTitle">
 
@@ -223,30 +234,11 @@
   </div>
 </header>
 
-<!-- ================================================== JOURNEY ========= -->
-<!-- החלק המוביל: מבנה הטיול, הזרימה שלו, ואיפה אנחנו בתוכו. הלשוניות
-     שמתחת הן הפירוט — זה המסך שנפתח ראשון. -->
-<section class="journey wrap" id="journey" aria-labelledby="journeyTitle">
-  <div class="journey__head">
-    <h2 id="journeyTitle">מבט על הטיול</h2>
-    <div class="journey__range" id="journeyRange" role="group" aria-label="טווח ימים"></div>
-  </div>
-  <p class="journey__note" id="journeyNote" hidden></p>
-
-  <!-- הרצועה: בר לכל יום, והנקודות שבו. התמונה של מבנה הטיול. -->
-  <div class="overview">
-    <div class="overview__track" id="ovTrack"></div>
-    <p class="overview__hint" id="ovHint">הקישו על נקודה כדי לראות אותה, ועל כותרת היום כדי לפתוח אותו.</p>
-    <div class="ov-pick" id="ovPick" hidden aria-live="polite"></div>
-  </div>
-
-  <div class="journey__list" id="journeyList"></div>
-</section>
-
 <!-- ===================================================== NAV ========== -->
 <nav class="nav" aria-label="ניווט ראשי">
   <div class="nav__inner" role="tablist">
-    <button class="tab" role="tab" id="tab-map"      aria-controls="view-map"      aria-selected="true">🗺️ מפה</button>
+    <button class="tab" role="tab" id="tab-journey" aria-controls="view-journey" aria-selected="true">🧭 מבט על</button>
+    <button class="tab" role="tab" id="tab-map"      aria-controls="view-map"      aria-selected="false">🗺️ מפה</button>
     <button class="tab" role="tab" id="tab-route"    aria-controls="view-route"    aria-selected="false">📅 מסלול יומי</button>
     <button class="tab" role="tab" id="tab-live"     aria-controls="view-live"     aria-selected="false">📡 עכשיו</button>
     <button class="tab" role="tab" id="tab-flights"  aria-controls="view-flights"  aria-selected="false">✈️ טיסות</button>
@@ -267,8 +259,24 @@
   <div class="live-strip" id="liveStrip" role="status" hidden></div>
 
 
+  <!-- ============================================= VIEW: JOURNEY ===== -->
+  <section class="view is-active journey" id="view-journey" role="tabpanel"
+           aria-labelledby="tab-journey">
+  <div class="journey__head">
+    <h2 id="journeyTitle">מבט על הטיול</h2>
+    <div class="journey__range" id="journeyRange" role="group" aria-label="טווח ימים"></div>
+  </div>
+
+  <!-- הרצועה: בר לכל יום, והנקודות שבו. התמונה של מבנה הטיול. -->
+  <div class="overview">
+    <div class="overview__track" id="ovTrack"></div>
+    <p class="overview__hint" id="ovHint">הקישו על נקודה כדי לראות אותה, ועל כותרת היום כדי לפתוח אותו.</p>
+    <div class="ov-pick" id="ovPick" hidden aria-live="polite"></div>
+  </div>
+  </section>
+
   <!-- ================================================= VIEW: MAP ===== -->
-  <section class="view is-active" id="view-map" role="tabpanel" aria-labelledby="tab-map">
+  <section class="view" id="view-map" role="tabpanel" aria-labelledby="tab-map">
     <div class="section-head">
       <h2>מפת המסלול</h2>
       <p>לחצו על יום כדי להתמקד בו, ועל החץ ⌄ שלידו כדי לפתוח את המסלול של אותו יום.

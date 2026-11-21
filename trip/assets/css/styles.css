@@ -754,7 +754,7 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 /* =========================================================== PRINT === */
 
 @media print {
-  .nav, .map-shell, .map-filter, .day__actions, .icon-btn, .btn, .fab, .live-strip, .day__docs, .doc-list, .journey__range, .jd__chev, .foot { display: none !important; }
+  .nav, .map-shell, .map-filter, .day__actions, .icon-btn, .btn, .fab, .live-strip, .day__docs, .doc-list, .journey__range, .foot { display: none !important; }
   body { background: #fff; color: #000; }
   .view { display: block !important; page-break-before: always; }
   .day__body { display: block !important; }
@@ -1220,130 +1220,46 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 .journey__range button.is-on { background: var(--moss); color: var(--ink-900); }
 [data-theme="light"] .journey__range button.is-on { color: #fff; }
 
-.journey__note {
-  margin: 0 0 .8rem;
-  font-size: .82rem; color: var(--txt-mute);
+/* ---------- חלון היום ---------- */
+
+.day-sheet { padding: 2px 18px 18px; }
+.day-sheet__title { margin: 0 0 10px; font-size: 1.05rem; line-height: 1.35; }
+.day-sheet__chips { margin-bottom: 11px; }
+.day-sheet__now {
+  margin: 0 0 12px; padding: 9px 12px;
+  background: rgba(76, 201, 164, .08);
+  border: 1px solid var(--moss); border-radius: var(--radius-sm);
+  font-size: .86rem;
 }
-.journey__note[hidden] { display: none; }
-.journey__note button {
-  background: none; border: 0; padding: 0;
-  color: var(--moss); font: inherit; font-size: .82rem;
-  text-decoration: underline; cursor: pointer;
-}
-
-.journey__list { display: grid; gap: 10px; }
-
-/* ---------- כרטיס יום ---------- */
-
-.jd {
-  background: var(--ink-850);
-  border: 1px solid var(--line);
-  border-inline-start: 3px solid var(--line-strong);
-  border-radius: var(--radius);
-  overflow: hidden;
-  transition: border-color .15s, opacity .15s;
-}
-[data-theme="light"] .jd { background: #fff; }
-
-.jd.is-past { opacity: .62; }
-.jd.is-past:hover { opacity: 1; }
-.jd.is-now {
-  border-inline-start-color: var(--moss);
-  border-color: color-mix(in srgb, var(--moss) 40%, var(--line));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--moss) 25%, transparent);
-}
-.jd.is-future { border-inline-start-color: var(--sky); }
-
-.jd__head {
-  width: 100%;
-  display: flex; align-items: flex-start; gap: 12px;
-  padding: 13px 15px;
-  background: transparent; border: 0;
-  color: var(--txt); font: inherit; text-align: start;
-  cursor: pointer;
-}
-
-.jd__rail {
-  flex: 0 0 auto; width: 46px;
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-  padding-top: 2px;
-}
-.jd__rail b { font-size: 1.35rem; font-weight: 800; line-height: 1; }
-.jd__rail i { font-style: normal; font-size: .7rem; color: var(--txt-mute); }
-.jd__rail small { font-size: .7rem; color: var(--txt-mute); font-variant-numeric: tabular-nums; }
-
-.jd__main { flex: 1; min-width: 0; }
-
-.jd__badge {
-  display: inline-block; margin-bottom: 4px;
-  padding: 2px 9px; border-radius: 999px;
-  background: var(--moss); color: var(--ink-900);
-  font-size: .68rem; font-weight: 800;
-}
-[data-theme="light"] .jd__badge { color: #fff; }
-.jd__badge--past {
-  background: transparent; color: var(--txt-mute);
-  border: 1px solid var(--line-strong); font-weight: 600;
-}
-
-.jd__title { margin: 0 0 3px; font-size: 1rem; line-height: 1.35; }
-.jd__facts { display: block; font-size: .8rem; color: var(--txt-dim); }
-.jd__time { direction: ltr; font-variant-numeric: tabular-nums; }
-
-.jd__chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
-.jd__chip {
-  padding: 2px 8px; border-radius: 999px;
-  background: var(--ink-800); border: 1px solid var(--line);
-  font-size: .72rem; color: var(--txt-dim);
-  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-[data-theme="light"] .jd__chip { background: #f2f5fa; }
-.jd__chip[hidden] { display: none; }
-/* טמפרטורה היא ביטוי LTR: בלי זה מעלות שליליות מוצגות כ-"4°-/2°" */
-.jd__chip[data-jwx] { direction: ltr; unicode-bidi: isolate; }
-
-.jd__chev {
-  flex: 0 0 auto; color: var(--txt-mute); font-size: 1.1rem;
-  transition: transform .18s;
-}
-.jd.is-open .jd__chev { transform: rotate(180deg); }
-
-.jd__now {
-  margin: 0; padding: 0 15px 11px 15px;
-  font-size: .82rem; color: var(--txt-dim);
-}
-.jd__now b { color: var(--moss); }
-
-/* הגוף נפתח בלחיצה; אותו גוף בדיוק של כרטיס היום בלשונית המסלול */
-.jd__body { display: none; padding: 0 15px 14px; }
-.jd.is-open .jd__body { display: block; }
-
-@media (prefers-reduced-motion: reduce) {
-  .jd, .jd__chev { transition: none; }
-}
+.day-sheet__now b { color: var(--moss); }
+.day-sheet .day__summary { margin-top: 0; }
 
 @media (max-width: 560px) {
   .journey__head { gap: 8px; }
   .journey__range { width: 100%; justify-content: space-between; }
   .journey__range button { flex: 1; padding: 6px 4px; font-size: .74rem; }
-  .jd__head { padding: 11px 12px; gap: 9px; }
-  .jd__rail { width: 38px; }
-  .jd__rail b { font-size: 1.15rem; }
-  .jd__body { padding: 0 12px 12px; }
+  .day-sheet { padding: 2px 13px 14px; }
 }
 
 .overview[hidden] { display: none; }
 
 .overview__track {
-  display: flex; gap: 8px;
+  /* --ov-cols נקבע מהטווח: כמה עמודות ממלאות את הרוחב. שאר הימים
+     קיימים תמיד ונמצאים במרחק גלילה הצידה. */
+  --ov-cols: 6;
+  --ov-gap: 8px;
+  display: flex; gap: var(--ov-gap);
   overflow-x: auto;
   padding-bottom: 4px;
   scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
 }
 .overview__empty { margin: 0; color: var(--txt-dim); font-size: .86rem; }
 
 .ov-day {
-  flex: 1 1 0; min-width: 40px;
+  flex: 0 0 calc((100% - (var(--ov-cols) - 1) * var(--ov-gap)) / var(--ov-cols));
+  scroll-snap-align: start;
   display: flex; flex-direction: column; gap: 6px;
   /* מה שנכנס לעמודה תלוי ברוחב **שלה**, לא ברוחב המסך: שלושה ימים
      בטלפון הם עמודות רחבות שיש בהן מקום לשמות, וששה ימים במסך רחב
@@ -1357,6 +1273,9 @@ table.data.cost-table td:first-child { min-width: 15rem; }
   .ov-day .ov-day__profile { display: none; }
   .ov-seg { justify-content: center; padding: 0 3px; }
   .ov-seg__name { display: none; }
+  .ov-chip i { display: none; }
+  .ov-day__chips { gap: 3px; }
+  .ov-chip { padding: 1px 5px; }
 }
 
 .ov-day__head {
@@ -1417,6 +1336,25 @@ table.data.cost-table td:first-child { min-width: 15rem; }
   display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
   font-size: .71rem; color: var(--txt-mute);
 }
+
+/* ארבעת הדברים שרוצים לראות על יום בלי לפתוח אותו */
+.ov-day__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.ov-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  max-width: 100%; padding: 1px 7px;
+  background: var(--ink-800); border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: .68rem; color: var(--txt-dim);
+}
+[data-theme="light"] .ov-chip { background: #f2f5fa; }
+.ov-chip[hidden] { display: none; }
+.ov-chip b { font-weight: 400; line-height: 1; }
+.ov-chip i {
+  font-style: normal; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* טמפרטורה היא ביטוי LTR: בלי זה מעלות שליליות מוצגות הפוך */
+.ov-chip[data-jwx] { direction: ltr; unicode-bidi: isolate; }
 /* טווח שעות הוא ביטוי LTR: בלי זה "04:15–19:00" מוצג הפוך בדף RTL */
 .ov-day__time { direction: ltr; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
