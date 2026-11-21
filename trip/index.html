@@ -237,8 +237,7 @@
 <!-- ===================================================== NAV ========== -->
 <nav class="nav" aria-label="ניווט ראשי">
   <div class="nav__inner" role="tablist">
-    <button class="tab" role="tab" id="tab-journey" aria-controls="view-journey" aria-selected="true">🧭 מבט על</button>
-    <button class="tab" role="tab" id="tab-map"      aria-controls="view-map"      aria-selected="false">🗺️ מפה</button>
+    <button class="tab" role="tab" id="tab-map"      aria-controls="view-map"      aria-selected="true">🗺️ מפה</button>
     <button class="tab" role="tab" id="tab-route"    aria-controls="view-route"    aria-selected="false">📅 מסלול יומי</button>
     <button class="tab" role="tab" id="tab-live"     aria-controls="view-live"     aria-selected="false">📡 עכשיו</button>
     <button class="tab" role="tab" id="tab-flights"  aria-controls="view-flights"  aria-selected="false">✈️ טיסות</button>
@@ -253,15 +252,8 @@
   </div>
 </nav>
 
-<main class="wrap">
-
-  <!-- התרעה פעילה מתוך לשונית "עכשיו", מוצגת בכל לשונית -->
-  <div class="live-strip" id="liveStrip" role="status" hidden></div>
-
-
-  <!-- ============================================= VIEW: JOURNEY ===== -->
-  <section class="view is-active journey" id="view-journey" role="tabpanel"
-           aria-labelledby="tab-journey">
+<!-- המסך הקבוע: מבנה הטיול. הלשוניות שמתחת הן הפירוט. -->
+<section class="journey wrap" id="journey" aria-labelledby="journeyTitle">
   <div class="journey__head">
     <h2 id="journeyTitle">מבט על הטיול</h2>
     <div class="journey__range" id="journeyRange" role="group" aria-label="טווח ימים"></div>
@@ -273,10 +265,19 @@
     <p class="overview__hint" id="ovHint">הקישו על נקודה כדי לראות אותה, ועל כותרת היום כדי לפתוח אותו.</p>
     <div class="ov-pick" id="ovPick" hidden aria-live="polite"></div>
   </div>
-  </section>
+</section>
+
+<div class="live-strip wrap" id="liveStrip" role="status" hidden></div>
+
+<main class="wrap">
+
+  <!-- התרעה פעילה מתוך לשונית "עכשיו", מוצגת בכל לשונית -->
+
+
+  <!-- ============================================= VIEW: JOURNEY ===== -->
 
   <!-- ================================================= VIEW: MAP ===== -->
-  <section class="view" id="view-map" role="tabpanel" aria-labelledby="tab-map">
+  <section class="view is-active" id="view-map" role="tabpanel" aria-labelledby="tab-map">
     <div class="section-head">
       <h2>מפת המסלול</h2>
       <p>לחצו על יום כדי להתמקד בו, ועל החץ ⌄ שלידו כדי לפתוח את המסלול של אותו יום.

@@ -1194,7 +1194,10 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 }
 .hero__facts b { color: var(--moss); font-weight: 800; }
 
-.journey { margin: 1.6rem auto 1.2rem; }
+.journey { margin: 1.4rem auto 1rem; }
+
+/* הסרגל דביק, ולכן קפיצה אל תוכן הלשונית צריכה להשאיר לו מקום */
+main { scroll-margin-top: 68px; }
 
 .journey__head {
   display: flex; align-items: center; justify-content: space-between;
@@ -1294,6 +1297,7 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 
 /* הגובה נגזר ממספר המשבצות של היום העמוס ביותר */
 .ov-bar {
+  --ov-seg-h: 27px;
   height: calc(var(--ov-slots) * 30px);
   display: flex; flex-direction: column; gap: 3px;
   padding: 3px;
@@ -1304,7 +1308,7 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 [data-theme="light"] .ov-bar { background: #eef2f8; }
 
 .ov-seg {
-  flex: 0 0 auto; height: 27px;
+  flex: 0 0 auto; height: var(--ov-seg-h);
   display: flex; align-items: center; gap: 5px;
   min-width: 0; padding: 0 6px;
   border: 1px solid var(--line); border-radius: 6px;
@@ -1325,6 +1329,47 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 .ov-seg--gold     { background: color-mix(in srgb, var(--gold) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); }
 .ov-seg--sky      { background: color-mix(in srgb, var(--sky) 16%, var(--ink-700));      border-color: color-mix(in srgb, var(--sky) 45%, var(--line)); }
 .ov-seg--mute     { background: var(--ink-700); }
+
+/* ---------- מקטע טיסה ---------- */
+
+/* שלוש משבצות: שתיים עבור הנקודות שהמקטע מחליף, ואחת כדי שלקו
+   המקווקו יהיה אורך שרואים אותו */
+.ov-fly {
+  position: relative;
+  flex: 0 0 auto;
+  height: calc(var(--ov-seg-h) * 3 + 6px);
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+}
+/* הקו המקווקו בין ההמראה לנחיתה */
+.ov-fly::before {
+  content: "";
+  position: absolute; top: 20px; bottom: 20px; left: calc(50% - 1px);
+  border-left: 2px dashed color-mix(in srgb, var(--rose) 65%, transparent);
+}
+
+.ov-fly__end {
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  width: 26px; height: 22px;
+  padding: 0; background: transparent; border: 0;
+  font-size: 1.05rem; line-height: 1;
+  cursor: pointer;
+}
+.ov-fly__end.is-on {
+  background: color-mix(in srgb, var(--rose) 22%, transparent);
+  border-radius: 6px;
+}
+
+/* משך הטיסה יושב על הקו, עם רקע שחותך אותו */
+.ov-fly__dur {
+  position: relative; z-index: 1;
+  padding: 0 4px;
+  background: var(--ink-800);
+  color: var(--rose);
+  font-size: .62rem; font-variant-numeric: tabular-nums; direction: ltr;
+}
+[data-theme="light"] .ov-fly__dur { background: #eef2f8; }
+.ov-fly__dur:empty { display: none; }
 
 .ov-seg--more {
   justify-content: center;
