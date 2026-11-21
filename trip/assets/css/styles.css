@@ -1230,6 +1230,40 @@ main { scroll-margin-top: 68px; }
 .journey__range button.is-on { background: var(--moss); color: var(--ink-900); }
 [data-theme="light"] .journey__range button.is-on { color: #fff; }
 
+/* ---------- עריכת תאריכים של טיול ---------- */
+
+.trip-edit {
+  margin: -4px 0 10px;
+  padding: 11px 13px;
+  background: var(--ink-800);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+.trip-edit[hidden] { display: none; }
+
+.trip-edit__row { display: flex; gap: 10px; flex-wrap: wrap; }
+.trip-edit__row label {
+  flex: 1 1 140px; min-width: 0;
+  font-size: .78rem; color: var(--txt-dim);
+}
+.trip-edit__row input {
+  display: block; width: 100%; margin-top: 4px;
+  padding: 7px 9px;
+  background: var(--ink-900); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm); color: var(--txt); font: inherit;
+  font-size: .86rem;
+}
+[data-theme="light"] .trip-edit__row input { background: #fff; }
+
+.trip-edit__note {
+  margin: 9px 0 0; font-size: .78rem; color: var(--txt-dim); line-height: 1.5;
+}
+.trip-edit__note.is-warn { color: var(--gold); }
+
+.trip-edit__actions {
+  display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;
+}
+
 /* ---------- חלון היום ---------- */
 
 .day-sheet { padding: 2px 18px 18px; }

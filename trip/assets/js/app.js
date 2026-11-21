@@ -2571,11 +2571,114 @@ ${[marks, line].filter(Boolean).join("\n")}
               <span class="trip-row__meta">${esc(meta)}</span>
             </button>
             ${t.id === activeId ? '<span class="trip-row__badge">פעיל</span>' : ""}
+            <button class="trip-row__del" data-edit-trip="${esc(t.id)}" type="button"
+                    title="תאריכים ומספר ימים" aria-label="עריכת תאריכים">📆</button>
             <button class="trip-row__del" data-del="${esc(t.id)}" type="button"
                     title="מחיקת הטיול" aria-label="מחיקת הטיול">🗑️</button>
-          </div>`;
+          </div>
+          <div class="trip-edit" data-editor-trip="${esc(t.id)}" hidden></div>`;
       })
       .join("") || '<p class="muted" style="padding:8px 4px">אין עדיין טיולים. צרו את הראשון.</p>';
+  }
+
+  /**
+   * עורך התאריכים של טיול.
+   *
+   * שני שדות בלבד — מתי מתחילים וכמה ימים — כי הם מה שבאמת משתנה, ושאר
+   * הדברים נגזרים מהם. ההשלכות מוצגות לפני האישור, כמו בכל שינוי אחר
+   * באפליקציה: כמה ימים נוספים, אילו ימים יורדים, ומה מתוכם כבר מתוכנן.
+   */
+  function openTripEditor(id) {
+    const doc = TripStore.list().find((t) => t.id === id);
+    const box = $(`[data-editor-trip="${CSS.escape(id)}"]`);
+    if (!doc || !box) return;
+
+    const open = box.hidden;
+    $$("#tripsList .trip-edit").forEach((el) => { el.hidden = true; });
+    if (!open) return;
+
+    const from = doc.days?.[0]?.date || "";
+    const count = (doc.days || []).length;
+
+    box.innerHTML = `
+      <div class="trip-edit__row">
+        <label>מתחילים ב־
+          <input type="date" data-te-from value="${esc(from)}" />
+        </label>
+        <label>מספר ימים
+          <input type="number" data-te-days value="${count}" min="1" max="60" />
+        </label>
+      </div>
+      <p class="trip-edit__note" data-te-note></p>
+      <div class="trip-edit__actions">
+        <button type="button" class="btn btn--sm" data-te-cancel>ביטול</button>
+        <button type="button" class="btn btn--sm btn--primary" data-te-save>עדכן את הטיול</button>
+      </div>`;
+    box.hidden = false;
+    previewTripEdit(id);
+  }
+
+  /** התיאור שמתחת לשדות, שמתעדכן עם כל הקלדה */
+  function previewTripEdit(id) {
+    const box = $(`[data-editor-trip="${CSS.escape(id)}"]`);
+    if (!box) return;
+    const from = $("[data-te-from]", box).value;
+    const count = Number($("[data-te-days]", box).value);
+    const note = $("[data-te-note]", box);
+    const save = $("[data-te-save]", box);
+
+    const plan = TripStore.planReschedule(id, from, count);
+    if (!plan) {
+      note.textContent = "צריך תאריך התחלה ומספר ימים.";
+      note.className = "trip-edit__note is-warn";
+      save.disabled = true;
+      return;
+    }
+
+    save.disabled = false;
+    const nDays = (k) => (k === 1 ? "יום אחד" : `${k} ימים`);
+    const head = `${fullDate(plan.from)} – ${fullDate(plan.to)} · ${nDays(plan.count)}`;
+    const rest = [];
+    if (plan.shifted) rest.push("כל הימים יזוזו יחד, עם התוכן שלהם.");
+    if (plan.grow > 0) {
+      rest.push(
+        `${nDays(plan.grow)} ייווצרו ריקים` +
+          (plan.keepLast ? " לפני יום החזרה." : " בסוף הטיול.")
+      );
+    }
+    if (plan.grow < 0) {
+      const lost = plan.losing.length;
+      rest.push(
+        `${nDays(-plan.grow)} יימחקו` +
+          (lost ? ` — ${lost === 1 ? "אחד מהם כבר מתוכנן" : `${lost} מהם כבר מתוכננים`}, והתוכן שלהם יאבד.` : ".")
+      );
+    }
+    note.innerHTML = `<b>${esc(head)}</b>` + (rest.length ? `<br>${esc(rest.join(" "))}` : "");
+    note.className = "trip-edit__note" + (plan.losing.length ? " is-warn" : "");
+  }
+
+  function saveTripEdit(id) {
+    const box = $(`[data-editor-trip="${CSS.escape(id)}"]`);
+    const from = $("[data-te-from]", box).value;
+    const count = Number($("[data-te-days]", box).value);
+    const plan = TripStore.planReschedule(id, from, count);
+    if (!plan) return;
+
+    if (plan.losing.length) {
+      const names = plan.losing
+        .map((d) => `יום ${d.n}${d.title ? ` — ${d.title}` : ""}`)
+        .join(", ");
+      if (!confirm(`${names}\n\nהתוכן של הימים האלה יימחק. להמשיך?`)) return;
+    }
+
+    const doc = TripStore.reschedule(id, from, count);
+    if (!doc) return;
+
+    if (doc.id === TRIP.id) {
+      TRIP = TripStore.active();
+      renderTrip();
+    }
+    renderTripList();
   }
 
   $("#tripsBtn").addEventListener("click", openTrips);
@@ -2585,7 +2688,22 @@ ${[marks, line].filter(Boolean).join("\n")}
     if (e.key === "Escape" && !overlay().hidden) closeTrips();
   });
 
+  $("#tripsList").addEventListener("input", (e) => {
+    const box = e.target.closest("[data-editor-trip]");
+    if (box) previewTripEdit(box.dataset.editorTrip);
+  });
+
   $("#tripsList").addEventListener("click", (e) => {
+    const edit = e.target.closest("[data-edit-trip]");
+    if (edit) { openTripEditor(edit.dataset.editTrip); return; }
+
+    const box = e.target.closest("[data-editor-trip]");
+    if (box) {
+      if (e.target.closest("[data-te-cancel]")) { box.hidden = true; return; }
+      if (e.target.closest("[data-te-save]")) { saveTripEdit(box.dataset.editorTrip); return; }
+      return;                                   // קליק בתוך העורך אינו מחליף טיול
+    }
+
     const go = e.target.closest("[data-trip]");
     if (go) { switchTrip(go.dataset.trip); return; }
 

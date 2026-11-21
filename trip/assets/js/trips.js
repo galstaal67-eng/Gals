@@ -256,6 +256,140 @@ const TripStore = (() => {
   }
 
   /* ------------------------------------------------------------------ */
+  /*  שינוי תאריכים ומספר ימים של טיול קיים                               */
+  /* ------------------------------------------------------------------ */
+
+  /** תאריך + n ימים, ב-UTC כדי שמעבר שעון לא יזיז יום */
+  function addDays(iso, n) {
+    const d = new Date(iso + "T12:00:00Z");
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+
+  /** האם היום האחרון הוא יום חזרה — מה שקובע איפה מוסיפים או מורידים */
+  function looksLikeReturn(day) {
+    if (!day) return false;
+    return day.mode === "flight" || day.pathMode === "flight" || /חזר/.test(day.title || "");
+  }
+
+  /** האם ביום הזה יש תוכן שאובד אם הוא נמחק */
+  function hasContent(day) {
+    return Boolean(
+      (day.plan || []).length ||
+      (day.tips || []).length ||
+      (day.summary || "").trim() ||
+      (day.title || "").trim() ||
+      (day.points || []).length > 1
+    );
+  }
+
+  /** יום ריק, מעוצב לפי יום קיים כדי שהאזור והלינה יישמרו */
+  function blankDay(doc, date, n) {
+    const days = doc.days || [];
+    // יום האמצע האחרון הוא המודל, ולא האחרון בפועל — האחרון הוא בדרך
+    // כלל יום חזרה, וכל יום חדש שהיה מועתק ממנו היה נולד כיום טיסה
+    const model = days[Math.max(days.length - 2, 0)] || {};
+    return {
+      n,
+      date,
+      dow: dowOf(date),
+      title: "",
+      region: model.region || "",
+      mode: "city",
+      summary: "",
+      drive: { km: 0, hours: 0, note: "" },
+      plan: [],
+      tips: [],
+      points: (model.points || []).slice(0, 1).map((pt) => ({ ...pt })),
+      path: [],
+      pathMode: "city",
+      ...(model.hotel ? { hotel: { ...model.hotel } } : {}),
+    };
+  }
+
+  /**
+   * מה ייקרה אם נשנה את הטיול לתאריך התחלה ולמספר ימים נתונים.
+   * מחזיר תיאור בלבד — לא נוגע בשום דבר. זה מה שמאפשר להציג את
+   * ההשלכות **לפני** שמאשרים, כמו בכל שאר השינויים באפליקציה.
+   */
+  function planReschedule(doc, from, count) {
+    const days = doc.days || [];
+    const keepLast = looksLikeReturn(days[days.length - 1]);
+    const grow = count - days.length;
+
+    let dropped = [];
+    if (grow < 0) {
+      // מורידים מהסוף, אבל יום החזרה נשאר אחרון
+      dropped = keepLast
+        ? days.slice(count - 1, days.length - 1)
+        : days.slice(count);
+    }
+
+    return {
+      from,
+      to: addDays(from, count - 1),
+      count,
+      grow,
+      keepLast,
+      dropped,
+      losing: dropped.filter(hasContent),
+      shifted: (days[0]?.date || from) !== from,
+    };
+  }
+
+  /**
+   * מחיל את השינוי. הימים הקיימים שומרים על התוכן שלהם ומקבלים תאריכים
+   * חדשים; ימים חדשים נולדים ריקים לפני יום החזרה, וימים שיורדים נמחקים
+   * מהאמצע ולא מהקצה — כך שיום החזרה נשאר יום חזרה.
+   */
+  function applyReschedule(doc, from, count) {
+    const plan = planReschedule(doc, from, count);
+    const days = doc.days || [];
+    const oldFrom = days[0]?.date || from;
+
+    let kept;
+    if (plan.grow > 0) {
+      const head = plan.keepLast ? days.slice(0, -1) : days;
+      const tail = plan.keepLast ? days.slice(-1) : [];
+      kept = [...head, ...Array.from({ length: plan.grow }, () => null), ...tail];
+    } else if (plan.grow < 0) {
+      kept = plan.keepLast
+        ? [...days.slice(0, count - 1), days[days.length - 1]]
+        : days.slice(0, count);
+    } else {
+      kept = days.slice();
+    }
+
+    doc.days = kept.map((day, i) => {
+      const date = addDays(from, i);
+      return day
+        ? { ...day, n: i + 1, date, dow: dowOf(date) }
+        : blankDay(doc, date, i + 1);
+    });
+
+    // הטיסות נעות עם הקצוות שלהן, אם הן ישבו עליהם
+    const f = doc.flights;
+    if (f?.out?.date === oldFrom) {
+      f.out.date = plan.from;
+      f.out.dow = dowOf(plan.from);
+    }
+    const oldTo = days[days.length - 1]?.date;
+    if (f?.back?.date === oldTo) {
+      f.back.date = plan.to;
+      f.back.dow = dowOf(plan.to);
+    }
+
+    doc.meta = doc.meta || {};
+    doc.meta.startDate = `${plan.from}T00:00:00+02:00`;
+    doc.meta.endDate = `${plan.to}T23:59:59+02:00`;
+    // כותרת המשנה פותחת לא פעם ב-"6 ימים"; אחרי שינוי אורך היא משקרת
+    if (typeof doc.meta.subtitle === "string") {
+      doc.meta.subtitle = doc.meta.subtitle.replace(/^\d+\s+ימים/, `${count} ימים`);
+    }
+    return doc;
+  }
+
+  /* ------------------------------------------------------------------ */
   /*  ה-API הציבורי                                                      */
   /* ------------------------------------------------------------------ */
 
@@ -340,6 +474,23 @@ const TripStore = (() => {
       saveLocal();
       pushRemote(doc);
       return doc;
+    },
+
+    /** מה ישתנה אם נזיז את הטיול — בלי לשנות דבר */
+    planReschedule(id, from, count) {
+      const doc = state.docs[id];
+      if (!doc || !/^\d{4}-\d{2}-\d{2}$/.test(from)) return null;
+      const n = Math.max(1, Math.min(Number(count) || 0, 60));
+      return planReschedule(doc, from, n);
+    },
+
+    /** מזיז את הטיול ושומר. מחזיר את המסמך המעודכן. */
+    reschedule(id, from, count) {
+      const doc = state.docs[id];
+      if (!doc || !/^\d{4}-\d{2}-\d{2}$/.test(from)) return null;
+      const n = Math.max(1, Math.min(Number(count) || 0, 60));
+      applyReschedule(doc, from, n);
+      return this.save(doc);
     },
 
     // נחשפים לבדיקות ולשימוש חוזר מתוך האפליקציה
