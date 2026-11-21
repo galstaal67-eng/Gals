@@ -176,6 +176,135 @@
     hike: "🥾", food: "🍽️", town: "🏘️", car: "🚗", pass: "⛰️",
   };
 
+  /* =====================================================================
+     מבט על — בר לכל יום, והנקודות שבתכנון שלו
+
+     האריחים שלמעלה אומרים כמה ימים וכמה ק"מ. הם לא אומרים **מה יש בכל
+     יום**, ובשביל זה צריך לפתוח את המסלול יום-יום. התצוגה הזו נותנת את
+     זה בשורה אחת: עמודה לכל יום, ובתוכה הנקודות לפי סדר הביקור.
+
+     לכל העמודות אותו גובה, לפי היום העמוס ביותר, ולכן גובה המילוי מעיד
+     על עומס היום — יום עמוס ממלא את הבר, ויום פנוי משאיר אותו חצי ריק.
+     זו כל הנקודה: להשוות ימים במבט אחד, בלי לקרוא.
+     ===================================================================== */
+
+  /** צבע לכל סוג נקודה. אותם טוקנים ששאר האפליקציה משתמשת בהם. */
+  const OV_TONE = {
+    airport: "rose", station: "rose",
+    hotel: "heather",
+    sight: "moss", town: "moss",
+    food: "gold",
+    hike: "sky", pass: "sky", car: "sky",
+  };
+
+  /** מעל זה העמודה נהיית בלתי קריאה, והשאר נספר ב-"ועוד" */
+  const OV_MAX = 8;
+
+  const ovShortDate = (iso) =>
+    iso ? `${+iso.slice(8, 10)}.${+iso.slice(5, 7)}` : "";
+
+  function renderOverview() {
+    const track = $("#ovTrack");
+    if (!track) return;
+    const days = TRIP.days || [];
+
+    const counts = days.map((d) => (d.points || []).filter((p) => p && p.name).length);
+    const most = Math.min(Math.max(...counts, 1), OV_MAX);
+
+    if (!counts.some(Boolean)) {
+      track.innerHTML =
+        '<p class="overview__empty">לטיול הזה עדיין אין נקודות על המפה. ' +
+        'הוסיפו אותן בעריכת היום או דרך העוזר, והן יופיעו כאן.</p>';
+      return;
+    }
+
+    track.innerHTML = days
+      .map((day) => {
+        const pts = (day.points || []).filter((p) => p && p.name);
+        const shown = pts.slice(0, OV_MAX);
+        const extra = pts.length - shown.length;
+        const mode = TRIP.modes[day.mode] || {};
+
+        // טווח השעות של היום, מהשורה הראשונה בתכנון ועד האחרונה
+        const times = (day.plan || [])
+          .map((p) => String(p.time || "").trim())
+          .filter((t) => /^\d/.test(t));
+        const span = times.length > 1 ? `${times[0]}–${times[times.length - 1]}` : times[0] || "";
+
+        const segs = shown
+          .map(
+            (p) => `<button type="button" class="ov-seg ov-seg--${OV_TONE[p.type] || "mute"}"
+                 data-ov-name="${esc(p.name)}" title="${esc(p.name)}">
+                 <span class="ov-seg__icon" aria-hidden="true">${TYPE_ICON[p.type] || "📍"}</span>
+                 <span class="ov-seg__name">${esc(p.name)}</span>
+               </button>`
+          )
+          .join("");
+
+        const km = day.drive?.km
+          ? `${mode.icon || "🚗"} ${nfNum.format(day.drive.km)} ק"מ`
+          : `${mode.icon || ""} ${esc(mode.label || "")}`.trim();
+
+        return `<article class="ov-day">
+          <button type="button" class="ov-day__head" data-ov-open="${day.n}"
+                  title="${esc(day.title || "")}">
+            <b>יום ${day.n}</b>
+            <span class="ov-day__when">
+              <i class="ov-day__dow">${esc(day.dow || "")}</i>
+              <i class="ov-day__date">${ovShortDate(day.date)}</i>
+            </span>
+          </button>
+          <div class="ov-bar" style="--ov-slots:${most}">
+            ${segs}${extra > 0 ? `<span class="ov-seg ov-seg--more">+${extra}</span>` : ""}
+          </div>
+          <div class="ov-day__foot">
+            <span>${km}</span>
+            ${span ? `<span class="ov-day__time">${esc(span)}</span>` : ""}
+          </div>
+        </article>`;
+      })
+      .join("");
+  }
+
+  /* ---------- המתג בין שתי התצוגות ---------- */
+
+  const HERO_VIEW_KEY = "hero:view";
+
+  function setHeroView(view) {
+    const bars = view === "bars";
+    $("#heroStats").hidden = bars;
+    $("#heroBars").hidden = !bars;
+    [["#heroViewStats", !bars], ["#heroViewBars", bars]].forEach(([sel, on]) => {
+      $(sel).classList.toggle("is-on", on);
+      $(sel).setAttribute("aria-pressed", String(on));
+    });
+    try { localStorage.setItem(HERO_VIEW_KEY, view); } catch { /* לא קריטי */ }
+  }
+
+  function bindHeroView() {
+    $("#heroViewStats").addEventListener("click", () => setHeroView("stats"));
+    $("#heroViewBars").addEventListener("click", () => setHeroView("bars"));
+
+    $("#ovTrack").addEventListener("click", (e) => {
+      const open = e.target.closest("[data-ov-open]");
+      if (open) {
+        selectTab($("#tab-route"));
+        openDayCard(Number(open.dataset.ovOpen));
+        return;
+      }
+      // השם המלא אינו נכנס לסגמנט, ובטלפון גם אין ריחוף שיציג אותו
+      const seg = e.target.closest("[data-ov-name]");
+      if (!seg) return;
+      $$("#ovTrack .ov-seg.is-on").forEach((el) => el.classList.remove("is-on"));
+      seg.classList.add("is-on");
+      $("#ovCaption").textContent = seg.dataset.ovName;
+    });
+
+    let stored = null;
+    try { stored = localStorage.getItem(HERO_VIEW_KEY); } catch { /* לא קריטי */ }
+    setHeroView(stored === "bars" ? "bars" : "stats");
+  }
+
   function initMap() {
     if (typeof L === "undefined") {
       $("#map").style.display = "none";
@@ -1876,6 +2005,8 @@ ${folders}
       [TRIP.days.filter((d) => d.mode === "drive").length, "ימי נסיעה"],
       [nfNum.format(m.totalDrivingKm || driveKm), 'ק"מ (מוערך)'],
     ];
+    renderOverview();
+
     $$("#heroStats .stat").forEach((el, i) => {
       if (i === 0) return;                       // האריח הראשון הוא הספירה לאחור
       const s = stats[i - 1];
@@ -2358,6 +2489,7 @@ ${folders}
     state = load();
 
     applyTheme();
+    bindHeroView();
     setInterval(tickCountdown, 60_000);
 
     // לפני renderTrip: הרינדור הראשון כבר קורא ל-FlightsView.render

@@ -754,7 +754,7 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 /* =========================================================== PRINT === */
 
 @media print {
-  .nav, .map-shell, .map-filter, .day__actions, .icon-btn, .btn, .fab, .live-strip, .day__docs, .doc-list, .foot { display: none !important; }
+  .nav, .map-shell, .map-filter, .day__actions, .icon-btn, .btn, .fab, .live-strip, .day__docs, .doc-list, .hero__tabs, .foot { display: none !important; }
   body { background: #fff; color: #000; }
   .view { display: block !important; page-break-before: always; }
   .day__body { display: block !important; }
@@ -1179,6 +1179,143 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 .ai-new { color: var(--moss); }
 .ai-list { margin: 4px 0 0; padding-inline-start: 18px; font-size: .82rem; color: var(--txt-dim); }
 .ai-list li { margin: 2px 0; }
+
+/* =====================================================================
+   מבט על — בר לכל יום בראש הדף
+
+   לכל העמודות אותו גובה, לפי היום העמוס ביותר. ככה גובה המילוי עצמו
+   הוא הנתון: יום עמוס ממלא את הבר, יום פנוי משאיר אותו חצי ריק, ואפשר
+   להשוות ימים במבט אחד בלי לקרוא מילה.
+   ===================================================================== */
+
+.hero__tabs {
+  display: inline-flex; gap: 4px;
+  margin: 0 0 14px;
+  padding: 4px;
+  background: var(--ink-800);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+[data-theme="light"] .hero__tabs { background: rgba(255, 255, 255, .7); }
+
+.hero__tgl {
+  padding: 6px 14px;
+  border: 0; border-radius: 999px;
+  background: transparent; color: var(--txt-dim);
+  font: inherit; font-size: .82rem; font-weight: 600;
+  cursor: pointer;
+}
+.hero__tgl:hover { color: var(--txt); }
+.hero__tgl.is-on { background: var(--moss); color: var(--ink-900); }
+[data-theme="light"] .hero__tgl.is-on { color: #fff; }
+
+.overview[hidden] { display: none; }
+
+.overview__track {
+  display: flex; gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.overview__empty { margin: 0; color: var(--txt-dim); font-size: .86rem; }
+
+.ov-day {
+  flex: 1 1 0; min-width: 108px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+.ov-day__head {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 5px 7px;
+  background: transparent;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  color: var(--txt); font: inherit; text-align: start;
+  cursor: pointer;
+}
+.ov-day__head:hover { border-color: var(--moss); }
+.ov-day__head b { font-size: .84rem; }
+.ov-day__head span { font-size: .72rem; color: var(--txt-mute); }
+.ov-day__when i { font-style: normal; }
+.ov-day__dow::after { content: " · "; }
+
+/* הגובה נגזר ממספר המשבצות של היום העמוס ביותר */
+.ov-bar {
+  height: calc(var(--ov-slots) * 30px);
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 3px;
+  background: var(--ink-800);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+[data-theme="light"] .ov-bar { background: #eef2f8; }
+
+.ov-seg {
+  flex: 0 0 auto; height: 27px;
+  display: flex; align-items: center; gap: 5px;
+  min-width: 0; padding: 0 6px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--ink-700);
+  color: var(--txt); font: inherit; font-size: .72rem;
+  text-align: start; cursor: pointer;
+}
+.ov-seg__icon { flex: 0 0 auto; font-size: .8rem; line-height: 1; }
+.ov-seg__name {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ov-seg.is-on { outline: 2px solid var(--txt); outline-offset: -2px; }
+
+.ov-seg--moss     { background: color-mix(in srgb, var(--moss) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--moss) 45%, var(--line)); }
+.ov-seg--heather  { background: color-mix(in srgb, var(--heather) 16%, var(--ink-700));  border-color: color-mix(in srgb, var(--heather) 45%, var(--line)); }
+.ov-seg--rose     { background: color-mix(in srgb, var(--rose) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--rose) 45%, var(--line)); }
+.ov-seg--gold     { background: color-mix(in srgb, var(--gold) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); }
+.ov-seg--sky      { background: color-mix(in srgb, var(--sky) 16%, var(--ink-700));      border-color: color-mix(in srgb, var(--sky) 45%, var(--line)); }
+.ov-seg--mute     { background: var(--ink-700); }
+
+.ov-seg--more {
+  justify-content: center;
+  color: var(--txt-mute); font-size: .7rem;
+  background: transparent; border-style: dashed; cursor: default;
+}
+
+.ov-day__foot {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
+  font-size: .71rem; color: var(--txt-mute);
+}
+/* טווח שעות הוא ביטוי LTR: בלי זה "04:15–19:00" מוצג הפוך בדף RTL */
+.ov-day__time { direction: ltr; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.overview__caption {
+  margin: 9px 0 0;
+  font-size: .78rem; color: var(--txt-dim);
+  min-height: 1.2em;
+}
+
+/* בטלפון השם אינו נכנס לעמודה צרה, ולכן נשארים האייקונים — השם המלא
+   מגיע בהקשה, בשורה שמתחת לרצועה */
+@media (max-width: 760px) {
+  /* שש עמודות חייבות להיכנס למסך טלפון בלי גלילה — זה כל מה שהתצוגה
+     הזו נועדה לתת, וגלילה לרוחב הורסת את ה"מבט על" */
+  .overview__track { gap: 5px; }
+  /* העמודה נמדדת לפי התוכן הצר ביותר שלה, ולכן שורת הכותרת והתחתית
+     חייבות להיות ניתנות לקיצוץ — אחרת טווח השעות לבדו מרחיב את כולן */
+  .ov-day { min-width: 40px; }
+  .ov-day__head, .ov-day__foot { min-width: 0; }
+  .ov-day__head b,
+  .ov-day__head span,
+  .ov-day__foot span {
+    max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .ov-seg { justify-content: center; padding: 0 3px; }
+  .ov-seg__name { display: none; }
+  .ov-day__head { padding: 4px 3px; }
+  .ov-day__head span { font-size: .62rem; }
+  /* בעמודה של 56 פיקסלים "שלישי · 24.11" נחתך באמצע התאריך, והתאריך
+     הוא מה שבאמת צריך שם */
+  .ov-day__dow { display: none; }
+  .ov-day__foot { font-size: .62rem; flex-direction: column; gap: 1px; align-items: flex-start; }
+}
 
 /* =====================================================================
    מסמכי הטיול — צירוף לעוזר, שאלות הבהרה, והתצוגה בכרטיס היום

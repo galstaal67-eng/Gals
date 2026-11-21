@@ -219,12 +219,23 @@
       לשדרת רוסתאוולי — הכול ללא רכב שכור.
     </p>
 
+    <!-- שתי תצוגות לאותו ראש דף: מספרים, או בר לכל יום עם הנקודות שבו -->
+    <div class="hero__tabs" role="group" aria-label="תצוגת ראש הדף">
+      <button type="button" class="hero__tgl is-on" id="heroViewStats" aria-pressed="true">🔢 מספרים</button>
+      <button type="button" class="hero__tgl" id="heroViewBars" aria-pressed="false">📊 מבט על</button>
+    </div>
+
     <div class="hero__stats" id="heroStats">
       <div class="stat"><div class="stat__val countdown" id="countdown">—</div><div class="stat__lbl">עד היציאה</div></div>
       <div class="stat"><div class="stat__val">6</div><div class="stat__lbl">ימים</div></div>
       <div class="stat"><div class="stat__val">5</div><div class="stat__lbl">לילות · מלון אחד</div></div>
       <div class="stat"><div class="stat__val">2</div><div class="stat__lbl">נסיעות יום</div></div>
       <div class="stat"><div class="stat__val">590</div><div class="stat__lbl">ק"מ בנסיעות (מוערך)</div></div>
+    </div>
+
+    <div class="overview" id="heroBars" hidden>
+      <div class="overview__track" id="ovTrack"></div>
+      <p class="overview__caption" id="ovCaption">הקישו על נקודה כדי לראות את שמה המלא, ועל כותרת היום כדי לפתוח אותו.</p>
     </div>
   </div>
 </header>
