@@ -141,23 +141,39 @@
   /*  ספירה לאחור                                                         */
   /* ==================================================================== */
 
-  function tickCountdown() {
-    const el = $("#countdown");
+  /**
+   * מצב הטיול ביחס להיום.
+   * אותו חישוב מזין את המשפט שבראש הדף ואת האריח בלשונית המידע.
+   */
+  function tripClock() {
     const start = new Date(TRIP.meta.startDate).getTime();
     const end = new Date(TRIP.meta.endDate).getTime();
     const now = Date.now();
 
     if (now < start) {
       const days = Math.ceil((start - now) / 86400000);
-      el.textContent = days === 1 ? "מחר!" : days + " ימים";
-    } else if (now <= end) {
-      const dayNum = Math.floor((now - start) / 86400000) + 1;
-      el.textContent = "יום " + dayNum;
-      el.nextElementSibling.textContent = "בטיול עכשיו";
-    } else {
-      el.textContent = "הסתיים";
-      el.nextElementSibling.textContent = "טיול שהיה";
+      return {
+        tile: days === 1 ? "מחר!" : days + " ימים",
+        label: "עד היציאה",
+        lead: days === 1 ? "יוצאים מחר" : `עוד ${days} ימים ליציאה`,
+      };
     }
+    if (now <= end) {
+      const n = Math.floor((now - start) / 86400000) + 1;
+      return { tile: "יום " + n, label: "בטיול עכשיו", lead: `יום ${n} בטיול` };
+    }
+    return { tile: "הסתיים", label: "טיול שהיה", lead: "הטיול הסתיים" };
+  }
+
+  function tickCountdown() {
+    const c = tripClock();
+    const tile = $("#countdown");
+    if (tile) {
+      tile.textContent = c.tile;
+      if (tile.nextElementSibling) tile.nextElementSibling.textContent = c.label;
+    }
+    const lead = $("#heroLead");
+    if (lead) lead.textContent = c.lead;
   }
 
   /* ==================================================================== */
@@ -177,132 +193,223 @@
   };
 
   /* =====================================================================
-     מבט על — בר לכל יום, והנקודות שבתכנון שלו
+     מבט על הטיול — החלק המוביל של המסך
 
-     האריחים שלמעלה אומרים כמה ימים וכמה ק"מ. הם לא אומרים **מה יש בכל
-     יום**, ובשביל זה צריך לפתוח את המסלול יום-יום. התצוגה הזו נותנת את
-     זה בשורה אחת: עמודה לכל יום, ובתוכה הנקודות לפי סדר הביקור.
+     מי שפותח את האפליקציה צריך לראות קודם כל **את הטיול**: מה המבנה שלו,
+     איך הוא זורם, מה עושים בכל יום ואיפה אנחנו בתוכו. המספרים (כמה ימים,
+     כמה ק"מ) הם מידע על הטיול, לא הטיול עצמו — הם ירדו למשפט אחד בראש
+     הדף ולאריחים בלשונית המידע.
 
-     לכל העמודות אותו גובה, לפי היום העמוס ביותר, ולכן גובה המילוי מעיד
-     על עומס היום — יום עמוס ממלא את הבר, ויום פנוי משאיר אותו חצי ריק.
-     זו כל הנקודה: להשוות ימים במבט אחד, בלי לקרוא.
+     הטווח נבחר כמו בלוח שנה — כל הטיול, השבוע, שלושה ימים או היום — וכל
+     יום נפתח במקום לתכנון היומי המלא שלו.
      ===================================================================== */
 
-  /** צבע לכל סוג נקודה. אותם טוקנים ששאר האפליקציה משתמשת בהם. */
-  const OV_TONE = {
-    airport: "rose", station: "rose",
-    hotel: "heather",
-    sight: "moss", town: "moss",
-    food: "gold",
-    hike: "sky", pass: "sky", car: "sky",
-  };
+  const RANGES = [
+    { key: "all", label: "כל הטיול" },
+    { key: "week", label: "השבוע", days: 7 },
+    { key: "next3", label: "3 ימים", days: 3 },
+    { key: "today", label: "היום", days: 1 },
+  ];
+  const RANGE_KEY = "journey:range";
+  let journeyRange = "all";
 
-  /** מעל זה העמודה נהיית בלתי קריאה, והשאר נספר ב-"ועוד" */
-  const OV_MAX = 8;
+  const todayISO = () => new Date().toISOString().slice(0, 10);
 
-  const ovShortDate = (iso) =>
-    iso ? `${+iso.slice(8, 10)}.${+iso.slice(5, 7)}` : "";
+  /** היום שממנו סופרים טווח: היום הנוכחי אם הטיול רץ, אחרת קצה הטיול */
+  function anchorIndex() {
+    const t = todayISO();
+    const i = TRIP.days.findIndex((d) => d.date === t);
+    if (i >= 0) return i;
+    return TRIP.days[0] && t < TRIP.days[0].date ? 0 : Math.max(TRIP.days.length - 1, 0);
+  }
 
-  function renderOverview() {
-    const track = $("#ovTrack");
-    if (!track) return;
-    const days = TRIP.days || [];
+  /** בתוך הטיול רוצים לראות את הימים הקרובים; לפניו ואחריו — את כולו */
+  function defaultRange() {
+    return TRIP.days.some((d) => d.date === todayISO()) ? "next3" : "all";
+  }
 
-    const counts = days.map((d) => (d.points || []).filter((p) => p && p.name).length);
-    const most = Math.min(Math.max(...counts, 1), OV_MAX);
+  function visibleDays() {
+    const r = RANGES.find((x) => x.key === journeyRange) || RANGES[0];
+    if (!r.days) return TRIP.days;
+    const from = anchorIndex();
+    return TRIP.days.slice(from, from + r.days);
+  }
 
-    if (!counts.some(Boolean)) {
-      track.innerHTML =
-        '<p class="overview__empty">לטיול הזה עדיין אין נקודות על המפה. ' +
-        'הוסיפו אותן בעריכת היום או דרך העוזר, והן יופיעו כאן.</p>';
-      return;
+  function dayStatus(day) {
+    const t = todayISO();
+    if (day.date < t) return "past";
+    if (day.date === t) return "now";
+    return "future";
+  }
+
+  /**
+   * איפה אנחנו בתוך היום, לפי השעון.
+   * השעות מרופדות באפס ("09:00"), ולכן השוואת מחרוזות נכונה כאן.
+   */
+  function dayProgress(day) {
+    const rows = (day.plan || []).filter((p) => /^\d{1,2}:\d{2}/.test(String(p.time || "")));
+    if (!rows.length) return null;
+    const now = new Date();
+    const hhmm =
+      String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+    const done = rows.filter((p) => p.time <= hhmm).length;
+    return { done, total: rows.length, next: rows.find((p) => p.time > hhmm) || null };
+  }
+
+  /** סך ההוצאות שנרשמו בתאריך הזה, בשקלים */
+  function dayMoney(day) {
+    const rows = (state.expenses || []).filter((e) => e.date === day.date);
+    if (!rows.length) return "";
+    return `💸 ${ils2(rows.reduce((sum, e) => sum + toILS(e), 0))}`;
+  }
+
+  function journeyCard(day) {
+    const status = dayStatus(day);
+    const mode = TRIP.modes[day.mode] || {};
+    const prog = status === "now" ? dayProgress(day) : null;
+
+    const times = (day.plan || [])
+      .map((p) => String(p.time || "").trim())
+      .filter((t) => /^\d/.test(t));
+    const span = times.length > 1 ? `${times[0]}–${times[times.length - 1]}` : times[0] || "";
+
+    const facts = [
+      `${mode.icon || ""} ${esc(mode.label || "")}`.trim(),
+      day.drive?.km ? `${nfNum.format(day.drive.km)} ק"מ` : "",
+      span ? `<span class="jd__time">${esc(span)}</span>` : "",
+    ].filter(Boolean).join(" · ");
+
+    const badge =
+      status === "now"
+        ? `<span class="jd__badge">היום${
+            prog ? ` · ${prog.done} מתוך ${prog.total}` : ""
+          }</span>`
+        : status === "past"
+        ? '<span class="jd__badge jd__badge--past">הסתיים</span>'
+        : "";
+
+    const nowLine =
+      prog && prog.next
+        ? `<p class="jd__now">הבא בתור — <b>${esc(prog.next.time)}</b> ${esc(prog.next.text)}</p>`
+        : prog
+        ? '<p class="jd__now">התוכנית של היום הושלמה.</p>'
+        : "";
+
+    const money = dayMoney(day);
+
+    return `<article class="jd is-${status}" data-jd="${day.n}">
+      <button class="jd__head" aria-expanded="false">
+        <span class="jd__rail">
+          <b>${day.n}</b>
+          <i>${esc(day.dow || "")}</i>
+          <small>${esc(day.date.slice(8))}.${esc(day.date.slice(5, 7))}</small>
+        </span>
+        <span class="jd__main">
+          ${badge}
+          <h3 class="jd__title">${esc(day.profile || day.title || "")}</h3>
+          <span class="jd__facts">${facts}</span>
+          <span class="jd__chips">
+            <span class="jd__chip" data-jwx="${day.n}" hidden></span>
+            ${day.hotel?.name ? `<span class="jd__chip">🛏️ ${esc(day.hotel.name)}</span>` : ""}
+            <span class="jd__chip" data-jdocs="${day.n}" hidden></span>
+            <span class="jd__chip" data-jmoney="${day.n}" ${money ? "" : "hidden"}>${money}</span>
+          </span>
+        </span>
+        <span class="jd__chev" aria-hidden="true">⌄</span>
+      </button>
+      ${nowLine}
+      <div class="jd__body">${dayBody(day, { full: false })}</div>
+    </article>`;
+  }
+
+  function renderJourney() {
+    const list = $("#journeyList");
+    if (!list) return;
+
+    const days = visibleDays();
+    list.innerHTML = days.map(journeyCard).join("");
+
+    $("#journeyRange").innerHTML = RANGES.map(
+      (r) =>
+        `<button type="button" data-range="${r.key}" class="${
+          r.key === journeyRange ? "is-on" : ""
+        }" aria-pressed="${r.key === journeyRange}">${esc(r.label)}</button>`
+    ).join("");
+
+    const note = $("#journeyNote");
+    const hidden = TRIP.days.length - days.length;
+    note.hidden = !hidden;
+    if (hidden) {
+      note.innerHTML = `מוצגים ${days.length} מתוך ${TRIP.days.length} ימים.
+        <button type="button" data-range="all">הצג את כל הטיול</button>`;
     }
 
-    track.innerHTML = days
-      .map((day) => {
-        const pts = (day.points || []).filter((p) => p && p.name);
-        const shown = pts.slice(0, OV_MAX);
-        const extra = pts.length - shown.length;
-        const mode = TRIP.modes[day.mode] || {};
-
-        // טווח השעות של היום, מהשורה הראשונה בתכנון ועד האחרונה
-        const times = (day.plan || [])
-          .map((p) => String(p.time || "").trim())
-          .filter((t) => /^\d/.test(t));
-        const span = times.length > 1 ? `${times[0]}–${times[times.length - 1]}` : times[0] || "";
-
-        const segs = shown
-          .map(
-            (p) => `<button type="button" class="ov-seg ov-seg--${OV_TONE[p.type] || "mute"}"
-                 data-ov-name="${esc(p.name)}" title="${esc(p.name)}">
-                 <span class="ov-seg__icon" aria-hidden="true">${TYPE_ICON[p.type] || "📍"}</span>
-                 <span class="ov-seg__name">${esc(p.name)}</span>
-               </button>`
-          )
-          .join("");
-
-        const km = day.drive?.km
-          ? `${mode.icon || "🚗"} ${nfNum.format(day.drive.km)} ק"מ`
-          : `${mode.icon || ""} ${esc(mode.label || "")}`.trim();
-
-        return `<article class="ov-day">
-          <button type="button" class="ov-day__head" data-ov-open="${day.n}"
-                  title="${esc(day.title || "")}">
-            <b>יום ${day.n}</b>
-            <span class="ov-day__when">
-              <i class="ov-day__dow">${esc(day.dow || "")}</i>
-              <i class="ov-day__date">${ovShortDate(day.date)}</i>
-            </span>
-          </button>
-          <div class="ov-bar" style="--ov-slots:${most}">
-            ${segs}${extra > 0 ? `<span class="ov-seg ov-seg--more">+${extra}</span>` : ""}
-          </div>
-          <div class="ov-day__foot">
-            <span>${km}</span>
-            ${span ? `<span class="ov-day__time">${esc(span)}</span>` : ""}
-          </div>
-        </article>`;
-      })
-      .join("");
+    paintJourneyChips();
   }
 
-  /* ---------- המתג בין שתי התצוגות ---------- */
-
-  const HERO_VIEW_KEY = "hero:view";
-
-  function setHeroView(view) {
-    const bars = view === "bars";
-    $("#heroStats").hidden = bars;
-    $("#heroBars").hidden = !bars;
-    [["#heroViewStats", !bars], ["#heroViewBars", bars]].forEach(([sel, on]) => {
-      $(sel).classList.toggle("is-on", on);
-      $(sel).setAttribute("aria-pressed", String(on));
+  /** הצ'יפים שמגיעים ממקורות אסינכרוניים או משתנים תוך כדי */
+  function paintJourneyChips() {
+    (TRIP.days || []).forEach((day) => {
+      const money = $(`[data-jmoney="${day.n}"]`);
+      if (money) {
+        const text = dayMoney(day);
+        money.textContent = text;
+        money.hidden = !text;
+      }
     });
-    try { localStorage.setItem(HERO_VIEW_KEY, view); } catch { /* לא קריטי */ }
+    if (typeof LiveView !== "undefined") paintJourneyWeather();
   }
 
-  function bindHeroView() {
-    $("#heroViewStats").addEventListener("click", () => setHeroView("stats"));
-    $("#heroViewBars").addEventListener("click", () => setHeroView("bars"));
+  function paintJourneyWeather() {
+    const wx = LiveView.weatherFor ? LiveView.weatherFor() : null;
+    if (!wx) return;
+    wx.forEach((d) => {
+      const el = $(`[data-jwx="${d.n}"]`);
+      if (!el) return;
+      const temps =
+        d.tMax === null && d.tMin === null
+          ? ""
+          : `${Math.round(d.tMax ?? 0)}°/${Math.round(d.tMin ?? 0)}°`;
+      el.textContent = `${d.icon} ${temps}`.trim();
+      el.title = `${d.text} ב${d.place}`;
+      el.hidden = !temps;
+    });
+  }
 
-    $("#ovTrack").addEventListener("click", (e) => {
-      const open = e.target.closest("[data-ov-open]");
-      if (open) {
-        selectTab($("#tab-route"));
-        openDayCard(Number(open.dataset.ovOpen));
+  function bindJourney() {
+    $("#journey").addEventListener("click", (e) => {
+      const range = e.target.closest("[data-range]");
+      if (range) {
+        journeyRange = range.dataset.range;
+        try { localStorage.setItem(RANGE_KEY, journeyRange); } catch { /* לא קריטי */ }
+        renderJourney();
         return;
       }
-      // השם המלא אינו נכנס לסגמנט, ובטלפון גם אין ריחוף שיציג אותו
-      const seg = e.target.closest("[data-ov-name]");
-      if (!seg) return;
-      $$("#ovTrack .ov-seg.is-on").forEach((el) => el.classList.remove("is-on"));
-      seg.classList.add("is-on");
-      $("#ovCaption").textContent = seg.dataset.ovName;
+
+      // המפה והעריכה חיים בלשוניות שלהן — כאן רק קופצים אליהן
+      const focus = e.target.closest("[data-focus]");
+      if (focus) {
+        selectTab($("#tab-map"));
+        focusDay(focus.dataset.focus);
+        return;
+      }
+      const route = e.target.closest("[data-open-route]");
+      if (route) {
+        selectTab($("#tab-route"));
+        openDayCard(Number(route.dataset.openRoute));
+        return;
+      }
+
+      const head = e.target.closest(".jd__head");
+      if (!head) return;
+      const card = head.closest(".jd");
+      const open = card.classList.toggle("is-open");
+      head.setAttribute("aria-expanded", String(open));
     });
 
     let stored = null;
-    try { stored = localStorage.getItem(HERO_VIEW_KEY); } catch { /* לא קריטי */ }
-    setHeroView(stored === "bars" ? "bars" : "stats");
+    try { stored = localStorage.getItem(RANGE_KEY); } catch { /* לא קריטי */ }
+    journeyRange = RANGES.some((r) => r.key === stored) ? stored : defaultRange();
   }
 
   function initMap() {
@@ -812,31 +919,54 @@ ${folders}
     if (href) window.open(href, "_blank", "noopener");
   });
 
+  /**
+   * גוף היום — הסיכום, לוח הזמנים, הפאנלים והמסמכים.
+   *
+   * אותו גוף משרת גם את כרטיס היום בלשונית המסלול וגם את הפתיחה של יום
+   * במבט העל. full = גרסת המסלול, עם עריכה; בלעדיו זו תצוגה בלבד עם
+   * קישור לעריכה במקום שבו היא באמת חיה.
+   */
+  function dayBody(day, { full }) {
+    const plan = (day.plan || [])
+      .map(
+        (p) =>
+          `<li>${p.time ? `<time>${esc(p.time)}</time>` : "<time>·</time>"} ${esc(p.text)}</li>`
+      )
+      .join("");
+
+    const tips = day.tips?.length
+      ? `<div class="panel">
+           <h4>💡 טיפים ליום הזה</h4>
+           <ul>${day.tips.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+         </div>`
+      : "";
+
+    const dirLink = gmapsLink(day);
+
+    return `
+      <p class="day__summary">${esc(day.summary || "")}</p>
+      <ul class="timeline">${plan}</ul>
+      <div class="panels">
+        ${hotelPanel(day)}
+        ${tips}
+        ${day.drive?.note ? `<div class="panel"><h4>🚗 נהיגה</h4><ul><li>${esc(day.drive.note)}</li></ul></div>` : ""}
+      </div>
+      <!-- המסמכים נקראים מ-IndexedDB ולכן נכנסים לכאן אחרי הרינדור -->
+      <div class="day__docs" data-docs="${day.n}" hidden></div>
+      <div class="day__actions">
+        <button class="btn btn--sm" data-focus="${day.n}">🗺️ הצג את היום על המפה</button>
+        ${dirLink ? `<a class="btn btn--sm" target="_blank" rel="noopener" href="${dirLink}">🧭 ניווט ב-Google Maps</a>` : ""}
+        ${full
+          ? `<button class="btn btn--sm" data-edit="${day.n}">✏️ ערוך את היום</button>`
+          : `<button class="btn btn--sm" data-open-route="${day.n}">✏️ ערוך במסלול היומי</button>`}
+      </div>
+      ${full ? `<div class="day-edit" data-editor="${day.n}" hidden></div>` : ""}`;
+  }
+
   function renderDays() {
     $("#dayList").innerHTML = TRIP.days
       .map((day) => {
         const mode = TRIP.modes[day.mode] || TRIP.modes.drive;
-
-        const plan = day.plan
-          .map(
-            (p) =>
-              `<li>${p.time ? `<time>${esc(p.time)}</time>` : `<time>·</time>`} ${esc(p.text)}</li>`
-          )
-          .join("");
-
-        const tips = day.tips?.length
-          ? `<div class="panel">
-               <h4>💡 טיפים ליום הזה</h4>
-               <ul>${day.tips.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
-             </div>`
-          : "";
-
-        const hotel = day.hotel
-          ? hotelPanel(day)
-          : hotelPanel(day);
-
-        const dirLink = gmapsLink(day);
-
         return `
         <article class="day" data-day="${day.n}">
           <button class="day__head" aria-expanded="false">
@@ -853,23 +983,7 @@ ${folders}
             <span class="day__chev">⌄</span>
           </button>
 
-          <div class="day__body">
-            <p class="day__summary">${esc(day.summary)}</p>
-            <ul class="timeline">${plan}</ul>
-            <div class="panels">
-              ${hotel}
-              ${tips}
-              ${day.drive?.note ? `<div class="panel"><h4>🚗 נהיגה</h4><ul><li>${esc(day.drive.note)}</li></ul></div>` : ""}
-            </div>
-            <!-- המסמכים נקראים מ-IndexedDB ולכן נכנסים לכאן אחרי הרינדור -->
-            <div class="day__docs" data-docs="${day.n}" hidden></div>
-            <div class="day__actions">
-              <button class="btn btn--sm" data-focus="${day.n}">🗺️ הצג במפה</button>
-              ${dirLink ? `<a class="btn btn--sm" target="_blank" rel="noopener" href="${dirLink}">🧭 ניווט ב-Google Maps</a>` : ""}
-              <button class="btn btn--sm" data-edit="${day.n}">✏️ ערוך את היום</button>
-            </div>
-            <div class="day-edit" data-editor="${day.n}" hidden></div>
-          </div>
+          <div class="day__body">${dayBody(day, { full: true })}</div>
         </article>`;
       })
       .join("");
@@ -928,6 +1042,14 @@ ${folders}
            <ul class="doc-items">${mine.map((d) => docItem(d, { showDay: false })).join("")}</ul>`
         : "";
       box.hidden = !mine.length;
+    });
+
+    // ואותם מסמכים כצ'יפ על היום במבט העל
+    $$("[data-jdocs]").forEach((chip) => {
+      const n = Number(chip.dataset.jdocs);
+      const mine = docs.filter((d) => Number(d.dayN) === n);
+      chip.textContent = mine.length === 1 ? `📎 ${mine[0].title}` : `📎 ${mine.length} מסמכים`;
+      chip.hidden = !mine.length;
     });
   }
 
@@ -1834,6 +1956,9 @@ ${folders}
 
     /* --- תקציב --- */
     renderBudget(t.total);
+
+    // ההוצאות מופיעות גם כצ'יפ על היום במבט העל
+    paintJourneyChips();
   }
 
   function renderBudget(total) {
@@ -2005,16 +2130,25 @@ ${folders}
       [TRIP.days.filter((d) => d.mode === "drive").length, "ימי נסיעה"],
       [nfNum.format(m.totalDrivingKm || driveKm), 'ק"מ (מוערך)'],
     ];
-    renderOverview();
 
-    $$("#heroStats .stat").forEach((el, i) => {
-      if (i === 0) return;                       // האריח הראשון הוא הספירה לאחור
-      const s = stats[i - 1];
-      if (!s) { el.hidden = true; return; }
-      el.hidden = false;
-      $(".stat__val", el).textContent = s[0];
-      $(".stat__lbl", el).textContent = s[1];
-    });
+    // המספרים הם מידע **על** הטיול ולא הטיול עצמו: משפט אחד בראש הדף,
+    // והאריחים המלאים בלשונית המידע
+    $("#heroNumbers").textContent =
+      " · " + stats.map(([v, l]) => `${v} ${l}`).join(" · ");
+
+    $("#tripStats").innerHTML =
+      `<div class="stat"><div class="stat__val countdown" id="countdown">—</div>
+         <div class="stat__lbl">עד היציאה</div></div>` +
+      stats
+        .map(
+          ([v, l]) =>
+            `<div class="stat"><div class="stat__val">${esc(String(v))}</div>
+               <div class="stat__lbl">${esc(l)}</div></div>`
+        )
+        .join("");
+
+    renderJourney();
+    tickCountdown();                 // האריח נבנה זה עתה וצריך את הערך שלו
   }
 
   /** רינדור מחדש של כל מה שתלוי בטיול. נקרא גם באתחול וגם במעבר טיול. */
@@ -2489,7 +2623,7 @@ ${folders}
     state = load();
 
     applyTheme();
-    bindHeroView();
+    bindJourney();
     setInterval(tickCountdown, 60_000);
 
     // לפני renderTrip: הרינדור הראשון כבר קורא ל-FlightsView.render
@@ -2535,6 +2669,9 @@ ${folders}
         TRIP = TripStore.save(TRIP);
         renderTrip();
       },
+
+      /** הנתונים החיצוניים חזרו — הצ'יפים של מזג האוויר יכולים להתמלא */
+      onLive: () => paintJourneyWeather(),
 
       /** עדכון שערים מהשער החי, בלחיצה מפורשת ולא מאחורי הגב */
       applyRates: (rates) => {

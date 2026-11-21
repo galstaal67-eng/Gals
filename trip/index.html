@@ -219,26 +219,21 @@
       לשדרת רוסתאוולי — הכול ללא רכב שכור.
     </p>
 
-    <!-- שתי תצוגות לאותו ראש דף: מספרים, או בר לכל יום עם הנקודות שבו -->
-    <div class="hero__tabs" role="group" aria-label="תצוגת ראש הדף">
-      <button type="button" class="hero__tgl is-on" id="heroViewStats" aria-pressed="true">🔢 מספרים</button>
-      <button type="button" class="hero__tgl" id="heroViewBars" aria-pressed="false">📊 מבט על</button>
-    </div>
-
-    <div class="hero__stats" id="heroStats">
-      <div class="stat"><div class="stat__val countdown" id="countdown">—</div><div class="stat__lbl">עד היציאה</div></div>
-      <div class="stat"><div class="stat__val">6</div><div class="stat__lbl">ימים</div></div>
-      <div class="stat"><div class="stat__val">5</div><div class="stat__lbl">לילות · מלון אחד</div></div>
-      <div class="stat"><div class="stat__val">2</div><div class="stat__lbl">נסיעות יום</div></div>
-      <div class="stat"><div class="stat__val">590</div><div class="stat__lbl">ק"מ בנסיעות (מוערך)</div></div>
-    </div>
-
-    <div class="overview" id="heroBars" hidden>
-      <div class="overview__track" id="ovTrack"></div>
-      <p class="overview__caption" id="ovCaption">הקישו על נקודה כדי לראות את שמה המלא, ועל כותרת היום כדי לפתוח אותו.</p>
-    </div>
+    <p class="hero__facts"><b id="heroLead">—</b><span id="heroNumbers"></span></p>
   </div>
 </header>
+
+<!-- ================================================== JOURNEY ========= -->
+<!-- החלק המוביל: מבנה הטיול, הזרימה שלו, ואיפה אנחנו בתוכו. הלשוניות
+     שמתחת הן הפירוט — זה המסך שנפתח ראשון. -->
+<section class="journey wrap" id="journey" aria-labelledby="journeyTitle">
+  <div class="journey__head">
+    <h2 id="journeyTitle">מבט על הטיול</h2>
+    <div class="journey__range" id="journeyRange" role="group" aria-label="טווח ימים"></div>
+  </div>
+  <p class="journey__note" id="journeyNote" hidden></p>
+  <div class="journey__list" id="journeyList"></div>
+</section>
 
 <!-- ===================================================== NAV ========== -->
 <nav class="nav" aria-label="ניווט ראשי">
@@ -547,6 +542,12 @@
   <!-- ================================================ VIEW: INFO ===== -->
   <section class="view" id="view-info" role="tabpanel" aria-labelledby="tab-info">
     <div class="section-head">
+      <h2>על הטיול</h2>
+      <p>המספרים של הטיול — אורך, לילות, נסיעה ומרחק.</p>
+    </div>
+    <div class="hero__stats" id="tripStats"></div>
+
+    <div class="section-head mt-3">
       <h2>מידע שימושי</h2>
       <p>נהיגה, מזג אוויר, כסף, הזמנות מראש — כל מה שכדאי לדעת לפני היציאה.</p>
     </div>

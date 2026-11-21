@@ -754,7 +754,7 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 /* =========================================================== PRINT === */
 
 @media print {
-  .nav, .map-shell, .map-filter, .day__actions, .icon-btn, .btn, .fab, .live-strip, .day__docs, .doc-list, .hero__tabs, .foot { display: none !important; }
+  .nav, .map-shell, .map-filter, .day__actions, .icon-btn, .btn, .fab, .live-strip, .day__docs, .doc-list, .journey__range, .jd__chev, .foot { display: none !important; }
   body { background: #fff; color: #000; }
   .view { display: block !important; page-break-before: always; }
   .day__body { display: block !important; }
@@ -1181,140 +1181,155 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 .ai-list li { margin: 2px 0; }
 
 /* =====================================================================
-   מבט על — בר לכל יום בראש הדף
+   מבט על הטיול — החלק המוביל
 
-   לכל העמודות אותו גובה, לפי היום העמוס ביותר. ככה גובה המילוי עצמו
-   הוא הנתון: יום עמוס ממלא את הבר, יום פנוי משאיר אותו חצי ריק, ואפשר
-   להשוות ימים במבט אחד בלי לקרוא מילה.
+   זה המסך שנפתח ראשון, ולכן הוא בנוי לקריאה ולא לצפיפות: יום מתחת ליום,
+   כל אחד עם הכותרת שלו, מה שקורה בו ואיפה אנחנו ביחס אליו. יום שעבר
+   נסוג, היום הנוכחי בולט, והשאר ממתינים.
    ===================================================================== */
 
-.hero__tabs {
-  display: inline-flex; gap: 4px;
-  margin: 0 0 14px;
-  padding: 4px;
-  background: var(--ink-800);
-  border: 1px solid var(--line);
+.hero__facts {
+  margin: 10px 0 0;
+  font-size: .92rem; color: var(--txt-dim);
+}
+.hero__facts b { color: var(--moss); font-weight: 800; }
+
+.journey { margin: 1.6rem auto 1.2rem; }
+
+.journey__head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: .9rem;
+}
+.journey__head h2 { margin: 0; font-size: 1.15rem; }
+
+.journey__range {
+  display: inline-flex; gap: 3px;
+  padding: 3px;
+  background: var(--ink-800); border: 1px solid var(--line);
   border-radius: 999px;
 }
-[data-theme="light"] .hero__tabs { background: rgba(255, 255, 255, .7); }
-
-.hero__tgl {
-  padding: 6px 14px;
+[data-theme="light"] .journey__range { background: #eef2f8; }
+.journey__range button {
+  padding: 6px 13px;
   border: 0; border-radius: 999px;
   background: transparent; color: var(--txt-dim);
-  font: inherit; font-size: .82rem; font-weight: 600;
-  cursor: pointer;
+  font: inherit; font-size: .8rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
 }
-.hero__tgl:hover { color: var(--txt); }
-.hero__tgl.is-on { background: var(--moss); color: var(--ink-900); }
-[data-theme="light"] .hero__tgl.is-on { color: #fff; }
+.journey__range button:hover { color: var(--txt); }
+.journey__range button.is-on { background: var(--moss); color: var(--ink-900); }
+[data-theme="light"] .journey__range button.is-on { color: #fff; }
 
-.overview[hidden] { display: none; }
-
-.overview__track {
-  display: flex; gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: thin;
+.journey__note {
+  margin: 0 0 .8rem;
+  font-size: .82rem; color: var(--txt-mute);
 }
-.overview__empty { margin: 0; color: var(--txt-dim); font-size: .86rem; }
-
-.ov-day {
-  flex: 1 1 0; min-width: 108px;
-  display: flex; flex-direction: column; gap: 6px;
+.journey__note[hidden] { display: none; }
+.journey__note button {
+  background: none; border: 0; padding: 0;
+  color: var(--moss); font: inherit; font-size: .82rem;
+  text-decoration: underline; cursor: pointer;
 }
 
-.ov-day__head {
-  display: flex; flex-direction: column; gap: 1px;
-  padding: 5px 7px;
-  background: transparent;
-  border: 1px solid transparent; border-radius: var(--radius-sm);
+.journey__list { display: grid; gap: 10px; }
+
+/* ---------- כרטיס יום ---------- */
+
+.jd {
+  background: var(--ink-850);
+  border: 1px solid var(--line);
+  border-inline-start: 3px solid var(--line-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color .15s, opacity .15s;
+}
+[data-theme="light"] .jd { background: #fff; }
+
+.jd.is-past { opacity: .62; }
+.jd.is-past:hover { opacity: 1; }
+.jd.is-now {
+  border-inline-start-color: var(--moss);
+  border-color: color-mix(in srgb, var(--moss) 40%, var(--line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--moss) 25%, transparent);
+}
+.jd.is-future { border-inline-start-color: var(--sky); }
+
+.jd__head {
+  width: 100%;
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 13px 15px;
+  background: transparent; border: 0;
   color: var(--txt); font: inherit; text-align: start;
   cursor: pointer;
 }
-.ov-day__head:hover { border-color: var(--moss); }
-.ov-day__head b { font-size: .84rem; }
-.ov-day__head span { font-size: .72rem; color: var(--txt-mute); }
-.ov-day__when i { font-style: normal; }
-.ov-day__dow::after { content: " · "; }
 
-/* הגובה נגזר ממספר המשבצות של היום העמוס ביותר */
-.ov-bar {
-  height: calc(var(--ov-slots) * 30px);
-  display: flex; flex-direction: column; gap: 3px;
-  padding: 3px;
-  background: var(--ink-800);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+.jd__rail {
+  flex: 0 0 auto; width: 46px;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding-top: 2px;
 }
-[data-theme="light"] .ov-bar { background: #eef2f8; }
+.jd__rail b { font-size: 1.35rem; font-weight: 800; line-height: 1; }
+.jd__rail i { font-style: normal; font-size: .7rem; color: var(--txt-mute); }
+.jd__rail small { font-size: .7rem; color: var(--txt-mute); font-variant-numeric: tabular-nums; }
 
-.ov-seg {
-  flex: 0 0 auto; height: 27px;
-  display: flex; align-items: center; gap: 5px;
-  min-width: 0; padding: 0 6px;
-  border: 1px solid var(--line); border-radius: 6px;
-  background: var(--ink-700);
-  color: var(--txt); font: inherit; font-size: .72rem;
-  text-align: start; cursor: pointer;
+.jd__main { flex: 1; min-width: 0; }
+
+.jd__badge {
+  display: inline-block; margin-bottom: 4px;
+  padding: 2px 9px; border-radius: 999px;
+  background: var(--moss); color: var(--ink-900);
+  font-size: .68rem; font-weight: 800;
 }
-.ov-seg__icon { flex: 0 0 auto; font-size: .8rem; line-height: 1; }
-.ov-seg__name {
-  flex: 1; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.ov-seg.is-on { outline: 2px solid var(--txt); outline-offset: -2px; }
-
-.ov-seg--moss     { background: color-mix(in srgb, var(--moss) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--moss) 45%, var(--line)); }
-.ov-seg--heather  { background: color-mix(in srgb, var(--heather) 16%, var(--ink-700));  border-color: color-mix(in srgb, var(--heather) 45%, var(--line)); }
-.ov-seg--rose     { background: color-mix(in srgb, var(--rose) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--rose) 45%, var(--line)); }
-.ov-seg--gold     { background: color-mix(in srgb, var(--gold) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); }
-.ov-seg--sky      { background: color-mix(in srgb, var(--sky) 16%, var(--ink-700));      border-color: color-mix(in srgb, var(--sky) 45%, var(--line)); }
-.ov-seg--mute     { background: var(--ink-700); }
-
-.ov-seg--more {
-  justify-content: center;
-  color: var(--txt-mute); font-size: .7rem;
-  background: transparent; border-style: dashed; cursor: default;
+[data-theme="light"] .jd__badge { color: #fff; }
+.jd__badge--past {
+  background: transparent; color: var(--txt-mute);
+  border: 1px solid var(--line-strong); font-weight: 600;
 }
 
-.ov-day__foot {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
-  font-size: .71rem; color: var(--txt-mute);
-}
-/* טווח שעות הוא ביטוי LTR: בלי זה "04:15–19:00" מוצג הפוך בדף RTL */
-.ov-day__time { direction: ltr; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.jd__title { margin: 0 0 3px; font-size: 1rem; line-height: 1.35; }
+.jd__facts { display: block; font-size: .8rem; color: var(--txt-dim); }
+.jd__time { direction: ltr; font-variant-numeric: tabular-nums; }
 
-.overview__caption {
-  margin: 9px 0 0;
-  font-size: .78rem; color: var(--txt-dim);
-  min-height: 1.2em;
+.jd__chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.jd__chip {
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--ink-800); border: 1px solid var(--line);
+  font-size: .72rem; color: var(--txt-dim);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+[data-theme="light"] .jd__chip { background: #f2f5fa; }
+.jd__chip[hidden] { display: none; }
+/* טמפרטורה היא ביטוי LTR: בלי זה מעלות שליליות מוצגות כ-"4°-/2°" */
+.jd__chip[data-jwx] { direction: ltr; unicode-bidi: isolate; }
+
+.jd__chev {
+  flex: 0 0 auto; color: var(--txt-mute); font-size: 1.1rem;
+  transition: transform .18s;
+}
+.jd.is-open .jd__chev { transform: rotate(180deg); }
+
+.jd__now {
+  margin: 0; padding: 0 15px 11px 15px;
+  font-size: .82rem; color: var(--txt-dim);
+}
+.jd__now b { color: var(--moss); }
+
+/* הגוף נפתח בלחיצה; אותו גוף בדיוק של כרטיס היום בלשונית המסלול */
+.jd__body { display: none; padding: 0 15px 14px; }
+.jd.is-open .jd__body { display: block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .jd, .jd__chev { transition: none; }
 }
 
-/* בטלפון השם אינו נכנס לעמודה צרה, ולכן נשארים האייקונים — השם המלא
-   מגיע בהקשה, בשורה שמתחת לרצועה */
-@media (max-width: 760px) {
-  /* שש עמודות חייבות להיכנס למסך טלפון בלי גלילה — זה כל מה שהתצוגה
-     הזו נועדה לתת, וגלילה לרוחב הורסת את ה"מבט על" */
-  .overview__track { gap: 5px; }
-  /* העמודה נמדדת לפי התוכן הצר ביותר שלה, ולכן שורת הכותרת והתחתית
-     חייבות להיות ניתנות לקיצוץ — אחרת טווח השעות לבדו מרחיב את כולן */
-  .ov-day { min-width: 40px; }
-  .ov-day__head, .ov-day__foot { min-width: 0; }
-  .ov-day__head b,
-  .ov-day__head span,
-  .ov-day__foot span {
-    max-width: 100%;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .ov-seg { justify-content: center; padding: 0 3px; }
-  .ov-seg__name { display: none; }
-  .ov-day__head { padding: 4px 3px; }
-  .ov-day__head span { font-size: .62rem; }
-  /* בעמודה של 56 פיקסלים "שלישי · 24.11" נחתך באמצע התאריך, והתאריך
-     הוא מה שבאמת צריך שם */
-  .ov-day__dow { display: none; }
-  .ov-day__foot { font-size: .62rem; flex-direction: column; gap: 1px; align-items: flex-start; }
+@media (max-width: 560px) {
+  .journey__head { gap: 8px; }
+  .journey__range { width: 100%; justify-content: space-between; }
+  .journey__range button { flex: 1; padding: 6px 4px; font-size: .74rem; }
+  .jd__head { padding: 11px 12px; gap: 9px; }
+  .jd__rail { width: 38px; }
+  .jd__rail b { font-size: 1.15rem; }
+  .jd__body { padding: 0 12px 12px; }
 }
 
 /* =====================================================================

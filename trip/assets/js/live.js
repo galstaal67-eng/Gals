@@ -508,6 +508,8 @@ const LiveView = (() => {
       span.textContent = `${d.icon} ${Math.round(d.tMax ?? 0)}° / ${Math.round(d.tMin ?? 0)}°`;
       meta.appendChild(span);
     }
+    // מבט העל מציג את אותה תחזית כצ'יפ על היום, והוא מרונדר בנפרד
+    host?.onLive?.();
   }
 
   /* ------------------------------------------------------------------ */
@@ -536,6 +538,8 @@ const LiveView = (() => {
     load,
     render,
     decorateDays,
+    /** התחזית לכל יום, למי שמצייר אותה בעצמו. null כל עוד לא נטענה. */
+    weatherFor: () => data?.days || null,
     /** נקרא כשעוברים טיול — הנתונים של הטיול הקודם אינם רלוונטיים */
     reset: clear,
   };
