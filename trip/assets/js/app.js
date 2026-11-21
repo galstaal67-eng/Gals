@@ -197,49 +197,167 @@
     hike: "sky", pass: "sky", car: "sky",
   };
 
-  /** מעל זה העמודה נהיית בלתי קריאה, והשאר נספר ב-"ועוד" */
-  const OV_MAX = 8;
+  /**
+   * שלושת חלקי היום. הקו הדק ביניהם הוא מה שהופך את הבר לציר זמן ולא
+   * לרשימה: כשהוא באותו גובה בכל העמודות, אפשר לראות בשורה אחת שיום
+   * אחד עמוס בבוקר והשני רק בערב.
+   */
+  const OV_BANDS = [
+    { label: "בוקר", until: 12 },
+    { label: 'צהריים ואחה"צ', until: 18 },
+    { label: "ערב", until: 24 },
+  ];
+
+  /** מעל זה החלק נהיה בלתי קריא, והשאר נספר ב-"ועוד" */
+  const OV_BAND_MAX = 5;
 
   const ovShortDate = (iso) =>
     iso ? `${+iso.slice(8, 10)}.${+iso.slice(5, 7)}` : "";
+
+  const ovNorm = (v) =>
+    String(v || "")
+      .toLowerCase()
+      .replace(/["'`״׳()]/g, " ")
+      .replace(/[-–—_,.:;!?]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  /**
+   * לאיזו נקודה על המפה השורה בתכנון מתייחסת.
+   *
+   * השורה כתובה כמשפט ("10:00 המוזיאון הלאומי.") והנקודה נושאת שם מלא
+   * ("המוזיאון הלאומי של גאורגיה"), ולכן השוואה מדויקת לא תתפוס כלום.
+   * חפיפת מילים כן. בלי התאמה מספקת מחזירים null והנקודה תהיה ניטרלית —
+   * צבע שגוי כאן אינו נורא, אבל גם אין סיבה לנחש אותו.
+   */
+  function ovMatch(text, points) {
+    const words = new Set(ovNorm(text).split(" ").filter((w) => w.length >= 3));
+    if (!words.size) return null;
+
+    let best = null;
+    let score = 0;
+    for (const p of points) {
+      let hit = 0;
+      let long = false;
+      for (const w of ovNorm(p.name).split(" ")) {
+        if (w.length >= 3 && words.has(w)) {
+          hit++;
+          if (w.length >= 5) long = true;
+        }
+      }
+      const s = hit + (long ? 1 : 0);
+      if (s > score) { score = s; best = p; }
+    }
+    return score >= 2 ? best : null;
+  }
+
+  /**
+   * התווית של שורה שאין לה נקודה על המפה.
+   *
+   * שורה בתכנון היא משפט שלם ולפעמים פסקה ("נחיתה ב-TBS (שעון מקומי,
+   * שעתיים לפני ישראל). ישראלים נכנסים בלי ויזה..."). בתצוגת מבט על
+   * צריך את הפסוקית הראשונה בלבד — השאר שייך לכרטיס היום.
+   */
+  function ovShort(text) {
+    const cut = String(text || "").split(/[.·—\n(]/)[0].trim();
+    const out = cut || String(text || "").trim();
+    return out.length > 30 ? out.slice(0, 29).trim() + "…" : out;
+  }
+
+  /** החלק של היום שאליו השעה שייכת, או -1 כשאין שעה קריאה */
+  function ovBand(time) {
+    const h = Number(String(time || "").slice(0, 2));
+    if (!Number.isFinite(h)) return -1;
+    for (let i = 0; i < OV_BANDS.length; i++) if (h < OV_BANDS[i].until) return i;
+    return OV_BANDS.length - 1;
+  }
+
+  /** שורות התכנון של יום, מחולקות לשלושת חלקי היום */
+  function ovDayBands(day) {
+    const points = (day.points || []).filter((p) => p && p.name);
+    const bands = OV_BANDS.map(() => []);
+    let last = 0;
+
+    (day.plan || []).forEach((row) => {
+      const time = String(row.time || "").trim();
+      const text = String(row.text || "").trim();
+      if (!text && !time) return;
+      // שורה בלי שעה שייכת לחלק של השורה שלפניה — זה מה שהיא בפועל
+      const band = ovBand(time);
+      if (band >= 0) last = band;
+      const point = ovMatch(text, points);
+      bands[last].push({
+        time,
+        text,
+        name: point ? point.name : ovShort(text),
+        tone: point ? OV_TONE[point.type] || "mute" : "mute",
+        icon: point ? TYPE_ICON[point.type] || "" : "",
+      });
+    });
+
+    return bands;
+  }
 
   function renderOverview() {
     const track = $("#ovTrack");
     if (!track) return;
     const days = TRIP.days || [];
 
-    const counts = days.map((d) => (d.points || []).filter((p) => p && p.name).length);
-    const most = Math.min(Math.max(...counts, 1), OV_MAX);
-
-    if (!counts.some(Boolean)) {
+    const perDay = days.map(ovDayBands);
+    if (!perDay.some((bands) => bands.some((b) => b.length))) {
       track.innerHTML =
-        '<p class="overview__empty">לטיול הזה עדיין אין נקודות על המפה. ' +
-        'הוסיפו אותן בעריכת היום או דרך העוזר, והן יופיעו כאן.</p>';
+        '<p class="overview__empty">לימי הטיול הזה עדיין אין לוח זמנים. ' +
+        'הוסיפו שעות בעריכת היום או דרך העוזר, והן יופיעו כאן.</p>';
       return;
     }
 
-    track.innerHTML = days
-      .map((day) => {
-        const pts = (day.points || []).filter((p) => p && p.name);
-        const shown = pts.slice(0, OV_MAX);
-        const extra = pts.length - shown.length;
+    // מספר השורות בכל חלק נקבע לפי היום העמוס ביותר באותו חלק, ולכן
+    // הקווים המפרידים יוצאים באותו גובה בכל העמודות. בלי זה אי אפשר
+    // להשוות ביניהן, וזו כל מטרת התצוגה.
+    const slots = OV_BANDS.map((_, i) =>
+      Math.min(Math.max(1, ...perDay.map((bands) => bands[i].length)), OV_BAND_MAX)
+    );
+
+    // display: contents — התוויות נכנסות לאותן שורות של הרשת שבהן יושבים
+    // הכותרת, הבר והתחתית, ולכן הן מיושרות לחלקי היום בלי שום חישוב
+    const legend = `<div class="ov-legend" aria-hidden="true">
+      <span></span>
+      <div class="ov-legend__bands">${OV_BANDS.map(
+        (b, i) => `<span style="--ov-rows:${slots[i]}">${esc(b.label)}</span>`
+      ).join("")}</div>
+      <span></span>
+    </div>`;
+
+    const columns = days
+      .map((day, di) => {
+        const bands = perDay[di];
         const mode = TRIP.modes[day.mode] || {};
 
-        // טווח השעות של היום, מהשורה הראשונה בתכנון ועד האחרונה
+        const bars = bands
+          .map((rows, i) => {
+            const shown = rows.slice(0, slots[i]);
+            const extra = rows.length - shown.length;
+            const items = shown
+              .map(
+                (r) => `<button type="button" class="ov-row ov-row--${r.tone}"
+                     data-ov-name="${esc((r.time ? r.time + " · " : "") + r.text)}"
+                     title="${esc((r.time ? r.time + " · " : "") + r.text)}">
+                     <span class="ov-dot" aria-hidden="true"></span>
+                     <span class="ov-row__time">${esc(r.time)}</span>
+                     <span class="ov-row__text">${esc(r.name)}</span>
+                   </button>`
+              )
+              .join("");
+            return `<div class="ov-band" style="--ov-rows:${slots[i]}">${items}${
+              extra > 0 ? `<span class="ov-row ov-row--more">+${extra}</span>` : ""
+            }</div>`;
+          })
+          .join("");
+
         const times = (day.plan || [])
           .map((p) => String(p.time || "").trim())
           .filter((t) => /^\d/.test(t));
         const span = times.length > 1 ? `${times[0]}–${times[times.length - 1]}` : times[0] || "";
-
-        const segs = shown
-          .map(
-            (p) => `<button type="button" class="ov-seg ov-seg--${OV_TONE[p.type] || "mute"}"
-                 data-ov-name="${esc(p.name)}" title="${esc(p.name)}">
-                 <span class="ov-seg__icon" aria-hidden="true">${TYPE_ICON[p.type] || "📍"}</span>
-                 <span class="ov-seg__name">${esc(p.name)}</span>
-               </button>`
-          )
-          .join("");
 
         const km = day.drive?.km
           ? `${mode.icon || "🚗"} ${nfNum.format(day.drive.km)} ק"מ`
@@ -254,9 +372,7 @@
               <i class="ov-day__date">${ovShortDate(day.date)}</i>
             </span>
           </button>
-          <div class="ov-bar" style="--ov-slots:${most}">
-            ${segs}${extra > 0 ? `<span class="ov-seg ov-seg--more">+${extra}</span>` : ""}
-          </div>
+          <div class="ov-bar">${bars}</div>
           <div class="ov-day__foot">
             <span>${km}</span>
             ${span ? `<span class="ov-day__time">${esc(span)}</span>` : ""}
@@ -264,6 +380,8 @@
         </article>`;
       })
       .join("");
+
+    track.innerHTML = legend + columns;
   }
 
   /* ---------- המתג בין שתי התצוגות ---------- */

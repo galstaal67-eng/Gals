@@ -1211,18 +1211,25 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 
 .overview[hidden] { display: none; }
 
+/* רשת ולא flex: שלוש שורות קבועות — כותרת, בר, תחתית — וכל עמודה
+   נופלת לאותן שורות. ככה עמודת התוויות מיושרת לחלקי היום בלי חישוב,
+   וגם הכותרות והתחתיות של כל הימים יושבות על אותו קו. */
 .overview__track {
-  display: flex; gap: 8px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: auto;              /* עמודת התוויות */
+  grid-auto-columns: minmax(0, 1fr);        /* ויום אחרי יום */
+  grid-template-rows: auto auto auto;
+  column-gap: 8px;
+  row-gap: 6px;
   overflow-x: auto;
   padding-bottom: 4px;
   scrollbar-width: thin;
 }
 .overview__empty { margin: 0; color: var(--txt-dim); font-size: .86rem; }
 
-.ov-day {
-  flex: 1 1 0; min-width: 108px;
-  display: flex; flex-direction: column; gap: 6px;
-}
+.ov-day { display: contents; }
+.ov-legend { display: contents; }
 
 .ov-day__head {
   display: flex; flex-direction: column; gap: 1px;
@@ -1238,10 +1245,13 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 .ov-day__when i { font-style: normal; }
 .ov-day__dow::after { content: " · "; }
 
-/* הגובה נגזר ממספר המשבצות של היום העמוס ביותר */
+/* ---------- הבר: שלושה חלקי יום, קו דק ביניהם ---------- */
+
+/* גובה שורה אחת. הכול נגזר ממנו, גם הבר וגם תוויות חלקי היום. */
+.overview { --ov-row-h: 21px; }
+
 .ov-bar {
-  height: calc(var(--ov-slots) * 30px);
-  display: flex; flex-direction: column; gap: 3px;
+  display: flex; flex-direction: column;
   padding: 3px;
   background: var(--ink-800);
   border: 1px solid var(--line);
@@ -1249,33 +1259,68 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 }
 [data-theme="light"] .ov-bar { background: #eef2f8; }
 
-.ov-seg {
-  flex: 0 0 auto; height: 27px;
-  display: flex; align-items: center; gap: 5px;
-  min-width: 0; padding: 0 6px;
-  border: 1px solid var(--line); border-radius: 6px;
-  background: var(--ink-700);
-  color: var(--txt); font: inherit; font-size: .72rem;
+.ov-band {
+  height: calc(var(--ov-rows) * var(--ov-row-h));
+  display: flex; flex-direction: column; justify-content: flex-start;
+  padding: 2px 0;
+}
+/* הקו המפריד. הוא באותו גובה בכל העמודות, ולכן אפשר לקרוא לרוחב. */
+.ov-band + .ov-band { border-top: 1px solid var(--line-strong); }
+
+.ov-row {
+  flex: 0 0 auto; height: var(--ov-row-h);
+  display: flex; align-items: center; gap: 6px;
+  min-width: 0; padding: 0 5px;
+  background: transparent; border: 0; border-radius: 5px;
+  color: var(--txt-dim); font: inherit; font-size: .71rem;
   text-align: start; cursor: pointer;
 }
-.ov-seg__icon { flex: 0 0 auto; font-size: .8rem; line-height: 1; }
-.ov-seg__name {
+.ov-row:hover { background: var(--ink-700); color: var(--txt); }
+[data-theme="light"] .ov-row:hover { background: #e2e9f3; }
+.ov-row.is-on { background: var(--ink-700); color: var(--txt); }
+
+/* הנקודה היא הסימון עצמו — לא קובייה, ולא כרטיס */
+.ov-dot {
+  flex: 0 0 auto;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--txt-mute);
+}
+.ov-row--moss    .ov-dot { background: var(--moss); }
+.ov-row--heather .ov-dot { background: var(--heather); }
+.ov-row--rose    .ov-dot { background: var(--rose); }
+.ov-row--gold    .ov-dot { background: var(--gold); }
+.ov-row--sky     .ov-dot { background: var(--sky); }
+
+.ov-row__time {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums; direction: ltr;
+  color: var(--txt-mute); font-size: .68rem;
+}
+.ov-row__text {
   flex: 1; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ov-seg.is-on { outline: 2px solid var(--txt); outline-offset: -2px; }
 
-.ov-seg--moss     { background: color-mix(in srgb, var(--moss) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--moss) 45%, var(--line)); }
-.ov-seg--heather  { background: color-mix(in srgb, var(--heather) 16%, var(--ink-700));  border-color: color-mix(in srgb, var(--heather) 45%, var(--line)); }
-.ov-seg--rose     { background: color-mix(in srgb, var(--rose) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--rose) 45%, var(--line)); }
-.ov-seg--gold     { background: color-mix(in srgb, var(--gold) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); }
-.ov-seg--sky      { background: color-mix(in srgb, var(--sky) 16%, var(--ink-700));      border-color: color-mix(in srgb, var(--sky) 45%, var(--line)); }
-.ov-seg--mute     { background: var(--ink-700); }
-
-.ov-seg--more {
+.ov-row--more {
   justify-content: center;
-  color: var(--txt-mute); font-size: .7rem;
-  background: transparent; border-style: dashed; cursor: default;
+  color: var(--txt-mute); font-size: .66rem; cursor: default;
+}
+.ov-row--more:hover { background: transparent; }
+
+/* תוויות חלקי היום. אותו ריפוד ואותו גבול שקוף כמו הבר, כדי שהשורות
+   ייפלו בדיוק על אותם גבהים */
+.ov-legend__bands {
+  display: flex; flex-direction: column;
+  padding: 3px 0;
+  border: 1px solid transparent;
+  font-size: .68rem; color: var(--txt-mute);
+}
+.ov-legend__bands span {
+  height: calc(var(--ov-rows) * var(--ov-row-h));
+  display: flex; align-items: center;
+  padding: 2px 0;
+  padding-inline-end: 8px;
+  white-space: nowrap;
 }
 
 .ov-day__foot {
@@ -1296,10 +1341,15 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 @media (max-width: 760px) {
   /* שש עמודות חייבות להיכנס למסך טלפון בלי גלילה — זה כל מה שהתצוגה
      הזו נועדה לתת, וגלילה לרוחב הורסת את ה"מבט על" */
-  .overview__track { gap: 5px; }
-  /* העמודה נמדדת לפי התוכן הצר ביותר שלה, ולכן שורת הכותרת והתחתית
-     חייבות להיות ניתנות לקיצוץ — אחרת טווח השעות לבדו מרחיב את כולן */
-  .ov-day { min-width: 40px; }
+  .overview { --ov-row-h: 17px; }
+  .overview__track { column-gap: 5px; grid-template-columns: 0; }
+  /* התוויות יורדות — בטלפון אין להן מקום, והסדר (בוקר למעלה, ערב
+     למטה) מובן גם בלעדיהן. העמודה עצמה **נשארת** ברוחב אפס: בלעדיה
+     היום הראשון היה נופל לעמודה המפורשת ונחתך */
+  /* visibility ולא display: display: none מוציא את האלמנט מהרשת,
+     והמילוי לפי עמודות היה מזיז כל פריט אחריו שורה אחת — הכותרות
+     נחתו מתחת לתחתיות */
+  .ov-legend__bands { visibility: hidden; }
   .ov-day__head, .ov-day__foot { min-width: 0; }
   .ov-day__head b,
   .ov-day__head span,
@@ -1307,8 +1357,8 @@ table.data.cost-table td:first-child { min-width: 15rem; }
     max-width: 100%;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .ov-seg { justify-content: center; padding: 0 3px; }
-  .ov-seg__name { display: none; }
+  .ov-row { justify-content: center; gap: 0; padding: 0 2px; }
+  .ov-row__time, .ov-row__text { display: none; }
   .ov-day__head { padding: 4px 3px; }
   .ov-day__head span { font-size: .62rem; }
   /* בעמודה של 56 פיקסלים "שלישי · 24.11" נחתך באמצע התאריך, והתאריך
