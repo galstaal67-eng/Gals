@@ -561,6 +561,7 @@
       ${
         d.ovLat && d.ovLng
           ? `<a class="btn btn--sm" target="_blank" rel="noopener"
+               title="${esc(d.ovName)} — נפתח באפליקציית המפות, ובמחשב ב-Google Maps"
                href="${esc(placeMapsLink(d.ovLat, d.ovLng))}">🗺️ פתח במפות</a>`
           : `<button type="button" class="btn btn--sm" data-focus="${esc(d.ovDay)}">🗺️ על המפה</button>`
       }`;
