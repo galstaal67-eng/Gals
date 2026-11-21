@@ -5,6 +5,11 @@
    ערכת שינויים תחומה, האפליקציה מציירת ממנה "לפני ← אחרי", והמשתמש מאשר.
    אחרי ההחלה נשמר עותק של המסמך ופס הביטול מאפשר לחזור בלחיצה אחת.
 
+   אפשר גם לצרף מסמך — כרטיס טיסה, כרטיס להופעה, אישור לינה או סתם מידע.
+   הקובץ נשלח לקריאה חד-פעמית ונשמר במכשיר (TripDocs), והפרטים שנקראו ממנו
+   נכנסים לטיול באותו מסלול של הצעה ואישור. כשחסר מידע כדי לקבוע משהו
+   העוזר **שואל** לפני ההצעה, במקום לנחש.
+
    הקובץ חשוף כ-TripAI ומקבל מהאפליקציה את מה שהוא צריך (getTrip/onApply),
    כדי שלא יהיה תלוי במשתנים הפנימיים של app.js.
    ========================================================================= */
@@ -25,10 +30,26 @@ const TripAI = (() => {
     "תעביר את הטיול ליום גשום — מה משתנה",
   ];
 
-  let host = null;          // { getTrip, onApply, esc }
+  const LEGS = { out: "הלוך", back: "חזור" };
+  const FLIGHT_FIELDS = [
+    ["flightNo", "מספר טיסה"], ["date", "תאריך"], ["dep", "המראה"], ["arr", "נחיתה"],
+    ["from", "מוצא"], ["to", "יעד"], ["terminal", "טרמינל"], ["duration", "משך"],
+  ];
+  /** מעל זה ה-API חוסם את הבקשה, ועדיף לומר את זה לפני ההעלאה */
+  const MAX_TOTAL_BYTES = 14 * 1024 * 1024;
+  const MAX_FILES = 3;
+  /** אחרי שלושה סבבים שאלה רודפת שאלה היא לופ, לא דיאלוג */
+  const MAX_ROUNDS = 3;
+
+  let host = null;          // { getTrip, onApply, onDocs, onDocsRemove, esc }
   let proposal = null;      // ערכת השינויים שחוזרת מהשרת
   let undoDoc = null;       // עותק המסמך שלפני ההחלה
   let undoTimer = null;
+  let attached = [];        // הקבצים שצורפו לבקשה הנוכחית
+  let asked = [];           // השאלות של הסבב האחרון
+  let answers = [];         // התשובות שנאספו — נשלחות שוב בכל סבב
+  let rounds = 0;           // כמה פעמים כבר נשאלנו על אותה בקשה
+  let savedDocs = [];       // מזהי המסמכים שנשמרו בהחלה האחרונה, לביטול
 
   /* ------------------------------------------------------------------ */
   /*  עזרים                                                              */
@@ -42,7 +63,7 @@ const TripAI = (() => {
   const clone = (o) => JSON.parse(JSON.stringify(o));
 
   function step(which) {
-    ["aiAsk", "aiBusy", "aiReview"].forEach((id) => {
+    ["aiAsk", "aiBusy", "aiQuestions", "aiReview"].forEach((id) => {
       $("#" + id).hidden = id !== which;
     });
   }
@@ -51,6 +72,63 @@ const TripAI = (() => {
     const el = $("#aiErr");
     el.textContent = msg;
     el.hidden = !msg;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  המסמכים המצורפים                                                   */
+  /* ------------------------------------------------------------------ */
+
+  const kb = (n) => (n > 1048576 ? (n / 1048576).toFixed(1) + "MB" : Math.round(n / 1024) + "KB");
+
+  function renderFiles() {
+    const box = $("#aiFileList");
+    box.innerHTML = attached
+      .map(
+        (f, i) => `<li class="ai-file">
+          <span class="ai-file__name">${esc(f.name)}</span>
+          <span class="muted sm">${esc(kb(f.size))}</span>
+          <button type="button" class="trip-row__del" data-unattach="${i}"
+                  aria-label="הסרת הקובץ">🗑️</button>
+        </li>`
+      )
+      .join("");
+    box.hidden = !attached.length;
+  }
+
+  /**
+   * קבצים שנבחרו מצטרפים לבקשה הנוכחית. הם אינם נשמרים כאן —
+   * השמירה במכשיר קורית רק באישור ההצעה, יחד עם הכותרת והיום
+   * שהעוזר שייך להם.
+   */
+  function addFiles(list) {
+    const picked = Array.from(list || []);
+    if (!picked.length) return;
+
+    for (const file of picked) {
+      if (attached.length >= MAX_FILES) {
+        return showErr(`אפשר לצרף עד ${MAX_FILES} מסמכים בבקשה אחת.`);
+      }
+      const total = attached.reduce((n, f) => n + f.size, 0) + file.size;
+      if (total > MAX_TOTAL_BYTES) {
+        return showErr("המסמכים כבדים מדי יחד. צרפו אותם בבקשות נפרדות.");
+      }
+      attached.push(file);
+    }
+    showErr("");
+    renderFiles();
+  }
+
+  /** המסמכים כ-base64, בסדר שבו הם צורפו */
+  async function encodeFiles() {
+    const out = [];
+    for (const file of attached) {
+      out.push({
+        name: file.name,
+        mediaType: file.type || "application/octet-stream",
+        data: await TripDocs.toBase64(file),
+      });
+    }
+    return out;
   }
 
   /* ------------------------------------------------------------------ */
@@ -163,6 +241,125 @@ const TripAI = (() => {
       .join("");
   }
 
+  /**
+   * מה שייכנס לפרטי הטיסה מתוך כרטיס שצורף.
+   *
+   * שדה ריק בכרטיס אינו מחיקה אלא "לא מופיע כאן", ולכן הוא מתורגם ל-null
+   * ולא מוצג כשינוי. טרמינל שנמחק בטעות גרוע מטרמינל שלא התעדכן.
+   */
+  function renderFlights(trip, legs) {
+    if (!legs.length) return "";
+    return legs
+      .map((l) => {
+        const cur = (trip.flights && trip.flights[l.leg]) || {};
+        const rows = FLIGHT_FIELDS
+          .map(([k, label]) => fieldRow(label, cur[k], l[k] ? l[k] : null))
+          .concat(
+            (l.seats || []).length
+              ? fieldRow(
+                  "מושבים",
+                  (cur.seats || []).map((x) => `${x.who} ${x.seat}`).join(", "),
+                  l.seats.map((x) => `${x.who} ${x.seat}`).join(", ")
+                )
+              : ""
+          )
+          .filter(Boolean)
+          .join("");
+        if (!rows) return "";
+        return `<article class="ai-day">
+          <h4>✈️ טיסת ${esc(LEGS[l.leg] || l.leg)}</h4>${rows}</article>`;
+      })
+      .filter(Boolean)
+      .join("");
+  }
+
+  /**
+   * המסמכים שיישמרו, עם הכותרת והיום שהעוזר שייך להם.
+   *
+   * כל קובץ שצורף מופיע כאן גם אם המודל לא סיווג אותו: המשתמש העלה אותו
+   * כדי שיהיה לו, והשמטה שקטה הייתה הפתעה רעה באמצע הטיול.
+   */
+  function docPlan(set) {
+    const metas = set.docs || [];
+    return attached.map((file, i) => {
+      const meta = metas.find((m) => Number(m.index) === i + 1) || {};
+      return {
+        file,
+        title: String(meta.title || "").trim() || file.name,
+        kind: meta.kind || "other",
+        dayN: TripDocs.dayOf(meta.dayN, (host.getTrip().days || []).length),
+        leg: meta.leg === "out" || meta.leg === "back" ? meta.leg : null,
+        who: String(meta.who || "").trim(),
+        note: String(meta.note || "").trim(),
+        classified: !!meta.title,
+      };
+    });
+  }
+
+  function renderDocs(plan) {
+    if (!plan.length) return "";
+    const rows = plan
+      .map(
+        (d) => `<p class="ai-field">📎 <b>${esc(d.title)}</b>
+          <span class="muted sm">${esc(TripDocs.label(d.kind))}${
+            d.dayN ? ` · יום ${d.dayN}` : ""
+          }${d.leg ? ` · ${esc(LEGS[d.leg])}` : ""}${d.who ? ` · ${esc(d.who)}` : ""}</span>
+          ${d.note ? `<br><span class="ai-field--list">${esc(d.note)}</span>` : ""}
+          ${d.classified ? "" : '<br><span class="ai-field--warn">⚠️ לא זוהה סוג — יישמר כמסמך כללי</span>'}
+        </p>`
+      )
+      .join("");
+    return `<article class="ai-day">
+      <h4>📎 מסמכים שיישמרו</h4>${rows}
+      <p class="ai-field ai-field--list">נשמרים במכשיר הזה בלבד, ונפתחים גם בלי רשת.</p>
+    </article>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  שאלות הבהרה                                                        */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * השאלות מוצגות לפני ההצעה, לא במקומה: התשובות חוזרות לשרת והמודל
+   * מציע שוב, עם המסמך שכבר נקרא.
+   *
+   * לכל שאלה יש תמיד מסלול יציאה — "לא יודע" — כי שאלה שאין לה תשובה
+   * הייתה הופכת את הדיאלוג למסך שאי אפשר להתקדם ממנו.
+   */
+  function renderQuestions(list) {
+    asked = list;
+    $("#aiQIntro").textContent =
+      list.length > 1 ? "כדי לא לנחש, צריך לדעת:" : "דבר אחד חסר לי:";
+    $("#aiQList").innerHTML = list
+      .map((q, i) => {
+        const opts = Array.isArray(q.options) ? q.options.filter(Boolean) : [];
+        const body = opts.length
+          ? opts
+              .concat("לא יודע")
+              .map(
+                (o, j) => `<label class="wiz__opt">
+                  <input type="radio" name="aiq${i}" value="${esc(o)}" ${j === 0 ? "checked" : ""} />
+                  <span>${esc(o)}</span></label>`
+              )
+              .join("") +
+            `<input type="text" class="ai-q-free" placeholder="או תשובה אחרת" />`
+          : `<input type="text" class="ai-q-free" placeholder="התשובה שלי — או 'לא יודע'" />`;
+        return `<fieldset class="ai-q" data-q="${i}">
+          <legend>${esc(q.text)}</legend>${body}</fieldset>`;
+      })
+      .join("");
+  }
+
+  /** תשובה חופשית גוברת על הבחירה: היא מה שהמשתמש הקליד בפועל */
+  function collectAnswers() {
+    return asked.map((q, i) => {
+      const box = $(`.ai-q[data-q="${i}"]`);
+      const typed = $(".ai-q-free", box)?.value.trim() || "";
+      const picked = $('input[type="radio"]:checked', box);
+      return { question: q.text, answer: typed || (picked ? picked.value : "") };
+    });
+  }
+
   /* ------------------------------------------------------------------ */
   /*  החלה                                                               */
   /* ------------------------------------------------------------------ */
@@ -230,6 +427,36 @@ const TripAI = (() => {
       }
     });
 
+    // פרטי טיסה מכרטיס שצורף. שדה ריק הוא "לא מופיע בכרטיס" ולא מחיקה,
+    // ולכן רק ערך שיש בו תוכן נכתב. זה גם מאפשר להעלות כרטיס עלייה
+    // למטוס שיש בו רק מושב וטרמינל בלי לאבד את מספר הטיסה.
+    (set.flights || []).forEach((l) => {
+      if (l.leg !== "out" && l.leg !== "back") return;
+      trip.flights = trip.flights || {};
+      const leg = trip.flights[l.leg] || (trip.flights[l.leg] = {});
+      FLIGHT_FIELDS.forEach(([k]) => {
+        const v = String(l[k] ?? "").trim();
+        if (v) leg[k] = v;
+      });
+      const seats = (l.seats || [])
+        .map((x) => ({ who: String(x.who || "").trim(), seat: String(x.seat || "").trim() }))
+        .filter((x) => x.seat);
+      if (seats.length) {
+        // מיזוג לפי נוסע, לא החלפה. כרטיס עלייה למטוס הוא של אדם אחד,
+        // והחלפת הרשימה הייתה מוחקת את המושב של מי שלא העלה כרטיס.
+        const key = (v) => String(v || "").trim().toLowerCase();
+        const merged = (leg.seats || []).slice();
+        seats.forEach((s) => {
+          const i = merged.findIndex((x) => key(x.who) && key(x.who) === key(s.who));
+          if (i >= 0) merged[i] = s;
+          else merged.push(s);
+        });
+        leg.seats = merged;
+      }
+      // יום בשבוע נגזר מהתאריך, בדיוק כמו בקריאת כרטיס מלשונית הטיסות
+      if (leg.date && typeof TripStore !== "undefined") leg.dow = TripStore.dowOf(leg.date);
+    });
+
     if (set.metaSubtitle) trip.meta.subtitle = set.metaSubtitle;
 
     // סך הק"מ הוא נגזרת — מחשבים מחדש במקום לתת למודל לעדכן אותו
@@ -256,6 +483,9 @@ const TripAI = (() => {
         if (!undoDoc) return;
         host.onApply(undoDoc, { undo: true });
         undoDoc = null;
+        // ביטול שמשאיר את המסמך מצורף ליום הוא ביטול חלקי: הכרטיס היה
+        // ממשיך להופיע בכרטיס היום אחרי שהשינוי עצמו כבר בוטל
+        if (savedDocs.length) { host.onDocsRemove(savedDocs); savedDocs = []; }
         undoBar(false);
       });
     }
@@ -272,15 +502,21 @@ const TripAI = (() => {
 
   async function send() {
     const instruction = $("#aiPrompt").value.trim();
-    if (!instruction) return showErr("כתבו מה לשנות.");
+    // מסמך לבדו הוא בקשה שלמה: מעלים כרטיס, וזה כל מה שצריך לומר
+    if (!instruction && !attached.length) return showErr("כתבו מה לשנות, או צרפו מסמך.");
     showErr("");
 
     const trip = host.getTrip();
     step("aiBusy");
+    $("#aiBusyNote").textContent = attached.length
+      ? "קורא את המסמך…"
+      : "זה לוקח בדרך כלל כמה שניות.";
 
     // יום־שלושה־ימים: הבקשות הארוכות לוקחות יותר, ושווה לומר את זה
     const slow = setTimeout(() => {
-      $("#aiBusyNote").textContent = "בקשה מורכבת — עוד כמה שניות.";
+      $("#aiBusyNote").textContent = attached.length
+        ? "מסמך סרוק לוקח יותר — עוד כמה שניות."
+        : "בקשה מורכבת — עוד כמה שניות.";
     }, 7000);
 
     try {
@@ -291,6 +527,9 @@ const TripAI = (() => {
           instruction,
           doc: trip,
           context: host.getContext(),
+          docs: await encodeFiles(),
+          answers,
+          round: rounds,
           code: localStorage.getItem(CODE_KEY) || $("#aiCode").value || "",
         }),
       });
@@ -314,6 +553,18 @@ const TripAI = (() => {
       const code = $("#aiCode").value.trim();
       if (code) { try { localStorage.setItem(CODE_KEY, code); } catch { /* לא קריטי */ } }
 
+      // סבב שאלות: התשובות יחזרו לשרת ונקבל הצעה. המסמך נשאר מצורף,
+      // ולכן הוא נקרא שוב עם התשובות ולא נשלח לחינם.
+      if (data.kind === "question" && (data.questions || []).length && rounds < MAX_ROUNDS) {
+        rounds++;
+        $("#aiQSummary").textContent = data.summary || "";
+        $("#aiQSummary").hidden = !data.summary;
+        $("#aiQErr").hidden = true;
+        renderQuestions(data.questions);
+        step("aiQuestions");
+        return;
+      }
+
       proposal = data;
       $("#aiSummary").textContent = data.summary || "";
       $("#aiWarning").textContent = data.warning || "";
@@ -321,16 +572,24 @@ const TripAI = (() => {
 
       const expenses = data.expenses || [];
       const isExpense = data.kind === "expense" && expenses.length;
+      const plan = docPlan(data);
+      const dayChanges = data.dayChanges || [];
+      const flights = data.flights || [];
       $("#aiDiff").innerHTML = isExpense
-        ? renderExpenses(expenses)
-        : renderDiff(trip, data.dayChanges || []);
-      // הכפתור אומר מה הוא עושה: רישום הוצאה אינו "שינוי במסלול"
+        ? renderExpenses(expenses) + renderDocs(plan)
+        : renderFlights(trip, flights) +
+          (dayChanges.length ? renderDiff(trip, dayChanges) : "") +
+          renderDocs(plan);
+      // הכפתור אומר מה הוא עושה: רישום הוצאה אינו "שינוי במסלול",
+      // ומסמך שרק נשמר אינו שינוי בכלל
       $("#aiApply").textContent = isExpense
         ? expenses.length > 1 ? `רשום ${expenses.length} הוצאות` : "רשום את ההוצאה"
-        : "החל את השינוי";
-      // אין מה להחיל כשהבקשה לא הובנה
+        : dayChanges.length || flights.length
+        ? "החל את השינוי"
+        : plan.length > 1 ? "שמור את המסמכים" : "שמור את המסמך";
+      // אין מה להחיל כשהבקשה לא הובנה ושום מסמך לא צורף
       $("#aiApply").hidden = data.kind === "unclear" ||
-        (!isExpense && !(data.dayChanges || []).length);
+        !(isExpense || dayChanges.length || flights.length || plan.length);
       $("#aiUsage").textContent = data.usage
         ? `${data.usage.input.toLocaleString("he-IL")} טוקנים נכנסים · ` +
           `${data.usage.output.toLocaleString("he-IL")} יוצאים`
@@ -430,6 +689,14 @@ const TripAI = (() => {
   function open() {
     showErr("");
     proposal = null;
+    // כל פתיחה היא בקשה חדשה: קבצים, שאלות ותשובות של הבקשה הקודמת
+    // אינם רלוונטיים לה, ושליחה שלהם שוב הייתה מבלבלת את המודל
+    attached = [];
+    asked = [];
+    answers = [];
+    rounds = 0;
+    renderFiles();
+    $("#aiFiles").value = "";
     $("#aiPrompt").value = "";
     $("#aiBusyNote").textContent = "זה לוקח בדרך כלל כמה שניות.";
     $("#aiApply").hidden = false;
@@ -443,6 +710,8 @@ const TripAI = (() => {
 
   function close() {
     stopDictation();
+    attached = [];
+    renderFiles();
     $("#aiOverlay").hidden = true;
   }
 
@@ -467,6 +736,31 @@ const TripAI = (() => {
         $("#aiMic").addEventListener("click", toggleDictation);
       }
 
+      $("#aiFiles").addEventListener("change", (e) => {
+        addFiles(e.target.files);
+        e.target.value = "";          // אותו קובץ שוב צריך להפיק אירוע
+      });
+      $("#aiFileList").addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-unattach]");
+        if (!btn) return;
+        attached.splice(Number(btn.dataset.unattach), 1);
+        renderFiles();
+      });
+
+      $("#aiQCancel").addEventListener("click", close);
+      $("#aiQSend").addEventListener("click", () => {
+        const collected = collectAnswers();
+        if (collected.some((a) => !a.answer)) {
+          $("#aiQErr").textContent = "צריך לענות על כל השאלות. אם אין תשובה — \"לא יודע\".";
+          $("#aiQErr").hidden = false;
+          return;
+        }
+        $("#aiQErr").hidden = true;
+        // התשובות מצטברות: בסבב שני המודל רואה גם את מה שענינו בראשון
+        answers = answers.concat(collected);
+        send();
+      });
+
     $("#aiBtn").addEventListener("click", open);
       $("#aiClose").addEventListener("click", close);
       $("#aiCancel").addEventListener("click", close);
@@ -490,9 +784,12 @@ const TripAI = (() => {
         if (!proposal) return;
         const p = proposal;
         proposal = null;
+        // התוכנית נבנית לפני הסגירה: close() מנקה את הקבצים המצורפים
+        const plan = docPlan(p);
 
         if (p.kind === "expense" && (p.expenses || []).length) {
           close();
+          savedDocs = await host.onDocs(plan);
           const n = await host.onExpenses(p.expenses);
           // אין undoDoc כאן: הוצאה נמחקת מהטבלה שלה, לא בשחזור המסמך
           undoBar(true, n === 1 ? "הוצאה נרשמה" : `${n} הוצאות נרשמו`, false);
@@ -501,6 +798,7 @@ const TripAI = (() => {
 
         const trip = host.getTrip();
         undoDoc = clone(trip);
+        savedDocs = await host.onDocs(plan);
         host.onApply(applyChangeSet(clone(trip), p), { undo: false });
         undoBar(true, p.summary || "השינוי הוחל", true);
         close();

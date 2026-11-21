@@ -514,7 +514,10 @@ input:focus, select:focus, textarea:focus {
   outline: none; border-color: var(--moss);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--moss) 22%, transparent);
 }
-input[type="checkbox"] { width: auto; accent-color: var(--moss); }
+/* תיבת סימון וכפתור רדיו אינם שדה טקסט: בלי זה הם נמתחים לרוחב
+   השורה, והטקסט שלצידם נדחס לעמודה צרה ונשבר באמצע */
+input[type="checkbox"],
+input[type="radio"] { width: auto; accent-color: var(--moss); }
 
 .table-scroll { overflow-x: auto; border-radius: var(--radius-sm); }
 
@@ -751,7 +754,7 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 /* =========================================================== PRINT === */
 
 @media print {
-  .nav, .map-shell, .map-filter, .day__actions, .icon-btn, .btn, .fab, .live-strip, .foot { display: none !important; }
+  .nav, .map-shell, .map-filter, .day__actions, .icon-btn, .btn, .fab, .live-strip, .day__docs, .doc-list, .foot { display: none !important; }
   body { background: #fff; color: #000; }
   .view { display: block !important; page-break-before: always; }
   .day__body { display: block !important; }
@@ -1176,6 +1179,86 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 .ai-new { color: var(--moss); }
 .ai-list { margin: 4px 0 0; padding-inline-start: 18px; font-size: .82rem; color: var(--txt-dim); }
 .ai-list li { margin: 2px 0; }
+
+/* =====================================================================
+   מסמכי הטיול — צירוף לעוזר, שאלות הבהרה, והתצוגה בכרטיס היום
+
+   המסמכים נראים אותו דבר בשלושת המקומות שבהם הם מופיעים (העוזר, כרטיס
+   היום, לשונית המידע), כדי שלא יצטרכו ללמוד אותם מחדש בכל מקום.
+   ===================================================================== */
+
+.ai-attach {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  margin-top: 12px;
+}
+.ai-attach label { cursor: pointer; margin: 0; }
+/* ההסבר יורד שורה תמיד: לצד הכפתור הוא נשבר לשלוש שורות קצרות */
+.ai-attach span { flex: 1 1 100%; }
+
+.ai-files { list-style: none; margin: 9px 0 0; padding: 0; display: grid; gap: 6px; }
+.ai-files[hidden] { display: none; }
+.ai-file {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 10px;
+  background: var(--ink-800);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: .84rem;
+}
+[data-theme="light"] .ai-file { background: #f6f8fc; }
+.ai-file__name {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---------- שאלות הבהרה ---------- */
+
+.ai-questions { display: grid; gap: 12px; margin-top: 10px; }
+.ai-q {
+  margin: 0; padding: 11px 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--ink-800);
+}
+[data-theme="light"] .ai-q { background: #f6f8fc; }
+.ai-q legend {
+  padding: 0 4px;
+  font-size: .88rem; font-weight: 600; color: var(--txt);
+}
+.ai-q .wiz__opt { margin-top: 6px; }
+.ai-q-free {
+  display: block; width: 100%; margin-top: 8px; padding: 8px 10px;
+  background: var(--ink-900); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm); color: var(--txt); font: inherit;
+  font-size: .86rem;
+}
+[data-theme="light"] .ai-q-free { background: #fff; }
+
+/* ---------- רשימת המסמכים ---------- */
+
+.doc-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.doc-item {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 8px 11px;
+  background: var(--ink-800);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: .85rem;
+}
+[data-theme="light"] .doc-item { background: #f6f8fc; }
+.doc-item__kind {
+  font-size: .7rem; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid var(--heather); color: var(--heather); white-space: nowrap;
+}
+.doc-item__name { flex: 1; min-width: 130px; color: var(--txt); }
+.doc-item__name:hover { text-decoration: underline; }
+/* order: ההערה יורדת שורה, והפח נשאר בשורה הראשונה במקום להידחף
+   אחריה לשורה שלישית ריקה */
+.doc-item__note { order: 2; flex: 1 1 100%; font-size: .78rem; color: var(--txt-mute); }
+
+.day__docs { margin: 12px 0 0; }
+.day__docs[hidden] { display: none; }
+.day__docs-head { margin: 0 0 7px; font-size: .84rem; }
 
 /* פס הביטול שנשאר אחרי החלה */
 /* =====================================================================

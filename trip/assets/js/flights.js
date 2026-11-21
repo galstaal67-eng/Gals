@@ -1,100 +1,18 @@
 /* =========================================================================
    לשונית הטיסות — פרטי הטיסות והמסמכים שלהן.
 
-   החלטת אחסון, והיא לא פשרה: **המסמכים נשמרים במכשיר ולא בשרת.**
+   המסמכים נשמרים במכשיר ולא בשרת, והנימוק המלא יושב ב-docs.js. כרטיס
+   עלייה למטוס שייך לנוסע אחד; אין היגיון לסנכרן את זה של גל לטלפון של
+   נועה, ובשדה התעופה חשוב שהכרטיס ייפתח גם בלי רשת.
 
-   כרטיס עלייה למטוס הוא מסמך אישי ששייך לנוסע אחד; אין שום היגיון
-   לסנכרן את זה של גל לטלפון של נועה. פרטי הטיסה — מספר, שעה, טרמינל,
-   מושבים — כן משותפים, ולכן הם יושבים במסמך הטיול שמסתנכרן.
-   התוצאה: כל אחד מעלה את הכרטיס שלו למכשיר שלו, ושניהם רואים את אותם פרטים.
+   פרטי הטיסה — מספר, שעה, טרמינל, מושבים — כן יושבים במסמך הטיול
+   שמסתנכרן, ולכן שניהם רואים את אותם פרטים.
 
-   יתרון נוסף, והוא מה שחשוב בשדה: IndexedDB עובד **אופליין לגמרי**.
-   ה-Wi-Fi בשדה התעופה לא יחליט אם אפשר להציג את הכרטיס.
+   המאגר עצמו משותף עם שאר מסמכי הטיול (TripDocs): אותו טיול, אותו
+   מקום, והסינון לפי רגל הטיסה נעשה כאן.
    ========================================================================= */
 
-const FlightDocs = (() => {
-  const DB = "trip-docs";
-  const STORE = "docs";
-  const MAX_BYTES = 8 * 1024 * 1024;   // תקרה שפויה לכרטיס; מעבר לזה כנראה צילום מסך ענק
-
-  let dbp = null;
-
-  function open() {
-    if (dbp) return dbp;
-    dbp = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB, 1);
-      req.onupgradeneeded = () => {
-        const db = req.result;
-        if (!db.objectStoreNames.contains(STORE)) {
-          const os = db.createObjectStore(STORE, { keyPath: "id" });
-          os.createIndex("trip", "tripId");
-        }
-      };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-    return dbp;
-  }
-
-  async function tx(mode, fn) {
-    const db = await open();
-    return new Promise((resolve, reject) => {
-      const t = db.transaction(STORE, mode);
-      const out = fn(t.objectStore(STORE));
-      t.oncomplete = () => resolve(out?.result ?? out);
-      t.onerror = () => reject(t.error);
-    });
-  }
-
-  return {
-    available: () => typeof indexedDB !== "undefined",
-
-    /** כל המסמכים של טיול, ממוינים לפי זמן העלאה */
-    async list(tripId) {
-      const all = await tx("readonly", (os) => os.getAll());
-      return (all || [])
-        .filter((d) => d.tripId === tripId)
-        .sort((a, b) => (a.addedAt || "").localeCompare(b.addedAt || ""));
-    },
-
-    async add(tripId, { leg, kind, who, file }) {
-      if (file.size > MAX_BYTES) {
-        throw new Error(`הקובץ גדול מדי (${Math.round(file.size / 1048576)}MB). עד 8MB.`);
-      }
-      const doc = {
-        id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random())),
-        tripId, leg, kind, who,
-        name: file.name,
-        type: file.type || "application/octet-stream",
-        size: file.size,
-        addedAt: new Date().toISOString(),
-        blob: file,                       // IndexedDB שומר Blob כמו שהוא
-      };
-      await tx("readwrite", (os) => os.put(doc));
-      return doc;
-    },
-
-    async remove(id) {
-      await tx("readwrite", (os) => os.delete(id));
-    },
-
-    async get(id) {
-      return tx("readonly", (os) => os.get(id));
-    },
-
-    /** base64 נקי בלי התחילית — מה שה-API של Claude מצפה לו */
-    async toBase64(file) {
-      const buf = await file.arrayBuffer();
-      let bin = "";
-      const bytes = new Uint8Array(buf);
-      const CHUNK = 0x8000;             // קריאה ישירה על מערך גדול שוברת את המחסנית
-      for (let i = 0; i < bytes.length; i += CHUNK) {
-        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
-      }
-      return btoa(bin);
-    },
-  };
-})();
+const FlightDocs = TripDocs;
 
 /* =========================================================================
    הרינדור של הלשונית
@@ -109,7 +27,6 @@ const FlightsView = (() => {
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
     );
 
-  const KIND = { ticket: "כרטיס טיסה", boarding: "כרטיס עלייה למטוס", other: "מסמך" };
   const LEG = { out: "הלוך", back: "חזור" };
 
   let host = null;        // { getTrip, saveTrip }
@@ -166,7 +83,7 @@ const FlightsView = (() => {
       ? mine.map((d) => {
           const url = urls.get(d.id);
           return `<li class="fl-doc">
-            <span class="fl-doc__kind">${esc(KIND[d.kind] || d.kind)}</span>
+            <span class="fl-doc__kind">${esc(TripDocs.label(d.kind))}</span>
             <a href="${url}" target="_blank" rel="noopener" class="fl-doc__name">
               ${esc(d.who ? d.who + " · " : "")}${esc(d.name)}</a>
             <span class="muted sm">${esc(kb(d.size))}</span>

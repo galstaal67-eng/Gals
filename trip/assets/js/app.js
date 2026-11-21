@@ -732,6 +732,8 @@ ${folders}
               ${tips}
               ${day.drive?.note ? `<div class="panel"><h4>🚗 נהיגה</h4><ul><li>${esc(day.drive.note)}</li></ul></div>` : ""}
             </div>
+            <!-- המסמכים נקראים מ-IndexedDB ולכן נכנסים לכאן אחרי הרינדור -->
+            <div class="day__docs" data-docs="${day.n}" hidden></div>
             <div class="day__actions">
               <button class="btn btn--sm" data-focus="${day.n}">🗺️ הצג במפה</button>
               ${dirLink ? `<a class="btn btn--sm" target="_blank" rel="noopener" href="${dirLink}">🧭 ניווט ב-Google Maps</a>` : ""}
@@ -744,6 +746,60 @@ ${folders}
       .join("");
 
     bindDayList();
+  }
+
+  /* =====================================================================
+     מסמכי הטיול
+
+     הם יושבים ב-IndexedDB ולא במסמך הטיול, ולכן הרינדור שלהם אסינכרוני
+     ונפרד: כרטיס היום נבנה סינכרונית, והמסמכים נכנסים אליו כשהם חוזרים.
+     ===================================================================== */
+
+  // objectURL חי עד שמשחררים אותו; המפה הזו מאפשרת לשחרר בכל רינדור
+  const docUrls = new Map();
+
+  function docItem(doc, { showDay }) {
+    const url = docUrls.get(doc.id);
+    const day = showDay && doc.dayN ? `<span class="muted sm">יום ${doc.dayN}</span>` : "";
+    return `<li class="doc-item">
+      <span class="doc-item__kind">${esc(TripDocs.label(doc.kind))}</span>
+      <a class="doc-item__name" href="${url}" target="_blank" rel="noopener"
+         download="${esc(doc.name)}">${esc(doc.title)}</a>
+      ${day}
+      ${doc.note ? `<span class="doc-item__note">${esc(doc.note)}</span>` : ""}
+      <button class="trip-row__del" data-doc-del="${esc(doc.id)}"
+              aria-label="מחיקת המסמך">🗑️</button>
+    </li>`;
+  }
+
+  async function renderTripDocs() {
+    const list = $("#docList");
+    if (!TripDocs.available()) {
+      list.innerHTML = '<p class="muted sm">הדפדפן הזה אינו תומך באחסון מסמכים מקומי.</p>';
+      return;
+    }
+
+    const docs = await TripDocs.list(TRIP.id);
+
+    docUrls.forEach((u) => URL.revokeObjectURL(u));
+    docUrls.clear();
+    docs.forEach((d) => docUrls.set(d.id, URL.createObjectURL(d.blob)));
+
+    list.innerHTML = docs.length
+      ? `<ul class="doc-items">${docs.map((d) => docItem(d, { showDay: true })).join("")}</ul>`
+      : `<p class="muted sm">עדיין לא הועלו מסמכים. אפשר לצרף כרטיס או אישור
+           לעוזר (✨), והוא יקרא אותו ויכניס את הפרטים למסלול.</p>`;
+
+    // אותם מסמכים, בכרטיס היום שהם שייכים לו — זה מה שהופך אותם לשימושיים
+    // בטיול עצמו ולא רק ברשימה
+    $$("[data-docs]").forEach((box) => {
+      const mine = docs.filter((d) => Number(d.dayN) === Number(box.dataset.docs));
+      box.innerHTML = mine.length
+        ? `<h4 class="day__docs-head">📎 מסמכים ליום הזה</h4>
+           <ul class="doc-items">${mine.map((d) => docItem(d, { showDay: false })).join("")}</ul>`
+        : "";
+      box.hidden = !mine.length;
+    });
   }
 
   /** פותחת כרטיס יום מסוים בלשונית המסלול וגוללת אליו. */
@@ -764,6 +820,17 @@ ${folders}
   function bindDayList() {
     if (dayListBound) return;
     dayListBound = true;
+
+    // המסמכים מופיעים גם בכרטיס היום וגם ברשימה שבלשונית המידע, ולכן
+    // המחיקה נתפסת על המסמך כולו ולא על אחד משני המקומות
+    document.addEventListener("click", async (e) => {
+      const btn = e.target.closest("[data-doc-del]");
+      if (!btn || e.target.closest("#flightsView")) return;   // ללשונית הטיסות מאזין משלה
+      if (!confirm("למחוק את המסמך מהמכשיר הזה?")) return;
+      await TripDocs.remove(btn.dataset.docDel);
+      await renderTripDocs();
+      FlightsView.render();          // אותו מסמך עשוי להופיע גם בלשונית הטיסות
+    });
 
     $("#dayList").addEventListener("click", (e) => {
       if (e.target.closest(".day-edit")) return;        // לעורך יש מאזין משלו
@@ -1836,6 +1903,7 @@ ${folders}
     renderInfo();
     renderPacking();
     FlightsView.render();        // אסינכרוני — קורא מסמכים מ-IndexedDB
+    renderTripDocs();            // אסינכרוני מאותה סיבה
 
     fillSelects();
     renderPeople();
@@ -2369,6 +2437,43 @@ ${folders}
         TRIP = TripStore.save(Object.assign(TRIP, doc));
         renderTrip();
         if (!undo) selectTab($("#tab-route"));
+      },
+
+      /**
+       * שמירת המסמכים שצורפו לבקשה, עם הכותרת, הסוג והיום שהעוזר שייך להם.
+       *
+       * השמירה היא במכשיר בלבד ולכן היא נפרדת מהחלת השינוי: גם אם המסמך
+       * לא הוליד שום שינוי במסלול, הוא נשמר — המשתמש העלה אותו כדי שיהיה
+       * לו בטיול. המזהים חוזרים כדי שביטול יוכל להסיר אותם.
+       */
+      onDocs: async (plan) => {
+        if (!(plan || []).length || !TripDocs.available()) return [];
+        const ids = [];
+        for (const d of plan) {
+          try {
+            const saved = await TripDocs.add(TRIP.id, {
+              file: d.file,
+              title: d.title,
+              kind: d.kind,
+              dayN: d.dayN,
+              note: d.note,
+              leg: d.leg,
+              who: d.who,
+            });
+            ids.push(saved.id);
+          } catch (err) {
+            alert(err.message || "שמירת המסמך נכשלה.");
+          }
+        }
+        await renderTripDocs();
+        FlightsView.render();        // כרטיס טיסה מופיע גם בלשונית הטיסות
+        return ids;
+      },
+
+      onDocsRemove: async (ids) => {
+        await TripDocs.removeMany(ids);
+        await renderTripDocs();
+        FlightsView.render();
       },
 
       /** רישום הוצאות דרך אותו צינור שהטופס הידני משתמש בו */

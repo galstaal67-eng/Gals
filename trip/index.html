@@ -34,18 +34,29 @@
     <!-- ---------- שלב 1: הבקשה ---------- -->
     <section class="ai-step" id="aiAsk">
       <p class="muted sm" style="padding:0 18px">
-        כתבו או הכתיבו — שינוי במסלול או הוצאה לרישום.
-        העוזר מציע, ואתם מאשרים לפני שנשמר.
+        כתבו, הכתיבו או צרפו מסמך — שינוי במסלול, הוצאה לרישום, או כרטיס
+        שייכנס לטיול. העוזר מציע, ואתם מאשרים לפני שנשמר.
       </p>
       <div style="padding:10px 18px 0">
         <div class="ai-input">
           <textarea id="aiPrompt" rows="3"
-            placeholder="למשל: תשנה את יום 3 להישאר בעיר וללא נסיעה&#10;או: שילמתי 45 לארי על קפה"></textarea>
+            placeholder="למשל: תשנה את יום 3 להישאר בעיר וללא נסיעה&#10;או: שילמתי 45 לארי על קפה&#10;או: צרפו כרטיס ולא צריך לכתוב כלום"></textarea>
           <button type="button" class="ai-mic" id="aiMic" hidden
                   title="הכתבה" aria-label="הכתבה בקול">🎤</button>
         </div>
         <p class="ai-mic-note muted sm" id="aiMicNote" hidden></p>
         <div class="ai-chips" id="aiChips"></div>
+
+        <!-- המסמכים נשמרים במכשיר ונשלחים לקריאה חד-פעמית בלבד -->
+        <div class="ai-attach">
+          <label class="btn btn--sm">📎 צרף מסמך
+            <input type="file" id="aiFiles" hidden multiple
+                   accept="application/pdf,image/*,text/plain,text/markdown,text/csv,.txt,.md,.csv" />
+          </label>
+          <span class="muted sm">כרטיס טיסה, כרטיס להופעה, אישור לינה או כל מידע — PDF, תמונה או טקסט.</span>
+        </div>
+        <ul class="ai-files" id="aiFileList"></ul>
+
         <label class="ai-code" id="aiCodeWrap" hidden>קוד גישה
           <input type="password" id="aiCode" autocomplete="off" />
         </label>
@@ -63,6 +74,22 @@
         <span class="ai-spin" aria-hidden="true"></span>
         <p>חושב על השינוי…</p>
         <p class="muted sm" id="aiBusyNote">זה לוקח בדרך כלל כמה שניות.</p>
+      </div>
+    </section>
+
+    <!-- ---------- שלב 2.5: שאלות הבהרה ----------
+         העוזר שואל רק כשהתשובה משנה את מה שייכנס לטיול. שעת הופעה
+         שנוחשה נראית בדיוק כמו שעה שנקראה מהכרטיס. -->
+    <section class="ai-step" id="aiQuestions" hidden>
+      <div style="padding:14px 18px 0">
+        <p id="aiQSummary" class="ai-summary"></p>
+        <p class="muted sm" id="aiQIntro">כדי לא לנחש, צריך לדעת:</p>
+        <div class="ai-questions" id="aiQList"></div>
+      </div>
+      <p class="wiz__err" id="aiQErr" hidden></p>
+      <div class="ov-foot">
+        <button type="button" class="btn" id="aiQCancel">ביטול</button>
+        <button type="button" class="btn btn--primary" id="aiQSend">המשך</button>
       </div>
     </section>
 
@@ -515,6 +542,12 @@
     <div class="info-grid" id="infoGrid"></div>
 
     <div class="section-head mt-3">
+      <h2>מסמכי הטיול</h2>
+      <p>כרטיסים, אישורים וכל מה שהעליתם. נשמרים במכשיר הזה בלבד, ונפתחים גם בלי רשת.</p>
+    </div>
+    <div class="doc-list" id="docList"></div>
+
+    <div class="section-head mt-3">
       <h2>רשימת ציוד</h2>
       <p>סמנו פריטים תוך כדי אריזה — הסימון נשמר בדפדפן.</p>
     </div>
@@ -541,6 +574,7 @@
 <script src="assets/js/data.js"></script>
 <script src="assets/js/trips.js"></script>
 <script src="assets/js/ai.js"></script>
+<script src="assets/js/docs.js"></script>
 <script src="assets/js/flights.js"></script>
 <script src="assets/js/live.js"></script>
 <script src="assets/js/app.js"></script>
