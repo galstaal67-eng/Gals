@@ -4,11 +4,12 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { fail, resolveApiKey, streamJson, StreamError } from "../lib/shared.mts";
 import { resolvePlaces } from "../lib/places.mts";
+import { readFlight, type DocBlock, type FlightInfo } from "../lib/flight-read.mts";
 
 /**
  * POST /api/ai — בקשה חופשית בעברית, מוקלדת, מוכתבת או מסמך מצורף.
  *
- * שלושה סוגי קלט, והמודל מחליט ביניהם:
+ * שלושה סוגי קלט:
  *   • שינוי במסלול  — "תשנה את יום 3 להישאר בעיר וללא נסיעה"
  *   • רישום הוצאה   — "שילמתי 45 לארי על קפה"
  *   • מסמך          — כרטיס טיסה, כרטיס להופעה, אישור לינה, או סתם מידע
@@ -24,6 +25,16 @@ import { resolvePlaces } from "../lib/places.mts";
  * לנחש. שעת הופעה שנוחשה נראית בדיוק כמו שעת הופעה שנקראה מהכרטיס, ואין
  * דרך לגלות את הטעות עד שמגיעים לאולם בזמן הלא נכון.
  *
+ * ── שתי סכמות ולא אחת ──
+ *
+ * structured outputs מהדר את הסכמה לדקדוק, ולדקדוק יש תקרת גודל. סכמה
+ * אחת שהכילה ימים, הוצאות, שאלות, סיווג מסמכים ופרטי טיסה חצתה אותה,
+ * והשירות דחה **כל** בקשה ב-400 — גם בקשת טקסט שלא נגעה במסמכים.
+ *
+ * לכן: מסלול טקסט ומסלול מסמך, כל אחד עם סכמה תחומה משלו, ופרטי הטיסה
+ * בקריאה שלישית קטנה (lib/flight-read.mts) שרצה רק כשצורף כרטיס טיסה.
+ * הפיצול גם מוזיל: כל בקשה משלמת רק על מה שהיא באמת צריכה.
+ *
  * המסמכים עצמם אינם נשמרים בשרת. הם חיים במכשיר (IndexedDB) ונשלחים לכאן
  * לקריאה החד-פעמית הזו בלבד. ראה assets/js/docs.js.
  *
@@ -31,7 +42,20 @@ import { resolvePlaces } from "../lib/places.mts";
  */
 
 /* ------------------------------------------------------------------ */
-/*  סכמת התשובה                                                        */
+/*  חלקים משותפים לשתי הסכמות                                          */
+/* ------------------------------------------------------------------ */
+
+/** שאלה אחת שהמודל מבקש שיענו עליה לפני שהוא קובע משהו */
+const Question = z.object({
+  text: z.string().describe("השאלה בעברית, משפט אחד, קונקרטית"),
+  options: z.array(z.string()).nullable()
+    .describe("אפשרויות לבחירה כשהן ידועות וסופרות. null = תשובה חופשית"),
+});
+
+const PlanRow = z.object({ time: z.string(), text: z.string() });
+
+/* ------------------------------------------------------------------ */
+/*  מסלול הטקסט                                                        */
 /* ------------------------------------------------------------------ */
 
 /**
@@ -49,7 +73,7 @@ const DayChange = z.object({
   driveNote: z.string().nullable().describe("הערת הנסיעה. \"\" מוחק אותה"),
   hotelName: z.string().nullable().describe("שם הלינה. \"\" מסמן שאין לינה ביום הזה"),
   hotelArea: z.string().nullable().describe("אזור הלינה"),
-  plan: z.array(z.object({ time: z.string(), text: z.string() })).nullable()
+  plan: z.array(PlanRow).nullable()
     .describe("לוח הזמנים המלא של היום, מחליף את הקיים. null = לא משתנה"),
   tips: z.array(z.string()).nullable()
     .describe("הטיפים של היום, מחליפים את הקיימים. null = לא משתנים"),
@@ -70,82 +94,121 @@ const Expense = z.object({
   note: z.string().describe("תיאור קצר של ההוצאה. מחרוזת ריקה אם אין"),
 });
 
-/** עדכון פרטי טיסה מתוך כרטיס. "" = השדה אינו מופיע בכרטיס. */
-const FlightLeg = z.object({
-  leg: z.enum(["out", "back"]).describe("הלוך או חזור, לפי כיוון הטיסה בכרטיס"),
-  flightNo: z.string().describe('מספר הטיסה כפי שמודפס, למשל "LY5117". "" אם אינו מופיע'),
-  date: z.string().describe('תאריך הטיסה, YYYY-MM-DD. "" אם אינו מופיע'),
-  dep: z.string().describe('שעת המראה מקומית, HH:MM. "" אם אינה מופיעה'),
-  arr: z.string().describe('שעת נחיתה מקומית, HH:MM. "" אם אינה מופיעה'),
-  from: z.string().describe('שדה המוצא עם קוד IATA, למשל "תל אביב (TLV)". "" אם אינו מופיע'),
-  to: z.string().describe('שדה היעד עם קוד IATA. "" אם אינו מופיע'),
-  terminal: z.string().describe('טרמינל בשדה המוצא של הטיסה הזו בלבד. "" אם אינו מופיע'),
-  duration: z.string().describe('משך הטיסה, H:MM. "" אם אינו מופיע'),
-  seats: z.array(z.object({ who: z.string(), seat: z.string() }))
-    .describe("מושבים ששם הנוסע מופיע לצידם. ריק אם אין"),
-});
-
-/** הסיווג של מסמך שצורף, כדי שהוא יישמר עם כותרת ויקושר ליום הנכון */
-const DocMeta = z.object({
-  index: z.number().int().describe("מספר המסמך כפי שנשלח אליך, מתחיל ב-1"),
-  title: z.string().describe('כותרת קצרה בעברית, למשל "כרטיס להופעה — Nikala". לא שם הקובץ'),
-  kind: z.enum([
-    "boarding", "ticket", "event", "attraction", "lodging",
-    "transport", "rental", "insurance", "info", "other",
-  ]).describe(
-    "boarding = כרטיס עלייה למטוס · ticket = כרטיס טיסה · event = הופעה/מופע · " +
-    "attraction = כרטיס לאתר או מוזיאון · lodging = אישור לינה · transport = רכבת/אוטובוס/הסעה · " +
-    "rental = השכרת רכב · insurance = ביטוח · info = מידע כללי · other = אחר"
-  ),
-  dayN: z.number().int().nullable()
-    .describe("היום במסלול שהמסמך שייך לו, לפי התאריך שבו. null אם אינו שייך ליום מסוים"),
-  leg: z.enum(["out", "back"]).nullable()
-    .describe("רק למסמך טיסה: לאיזו רגל הוא שייך. null לכל מסמך אחר"),
-  who: z.string().describe('שם הנוסע שהמסמך שלו, אם מופיע. "" אם לא'),
-  note: z.string().describe('מה שחשוב לדעת על המסמך — קוד הזמנה, שעת כניסה. "" אם אין'),
-});
-
-/** שאלה אחת שהמודל מבקש שיענו עליה לפני שהוא קובע משהו */
-const Question = z.object({
-  id: z.string().describe('מזהה קצר באנגלית, למשל "which_day"'),
-  text: z.string().describe("השאלה בעברית, משפט אחד, קונקרטית"),
-  options: z.array(z.string()).nullable()
-    .describe("אפשרויות לבחירה כשהן ידועות וסופרות. null = תשובה חופשית"),
-});
-
-const Result = z.object({
-  kind: z.enum(["trip_edit", "expense", "question", "unclear"])
-    .describe(
-      "trip_edit = שינוי במסלול או הכנסת מסמך · expense = רישום הוצאה · " +
-      "question = חסר מידע ואני שואל · unclear = לא הובן"
-    ),
+/**
+ * זו בדיוק הסכמה שרצה בייצור לפני שהמסמכים נוספו, לתו האחרון.
+ *
+ * אין בה שאלות הבהרה בכוונה. השאלות נולדו בשביל מסמכים — "לאיזה יום
+ * שייך הכרטיס" — ושם הן נשארות. בקשת טקסט שאינה ברורה מקבלת
+ * kind = "unclear" עם הסבר מה חסר, כפי שתמיד היה.
+ *
+ * הריסון הזה אינו אסתטי: אחרי שהדקדוק חרג וכל העוזר נפל, מסלול הטקסט
+ * חוזר למידה שהוכיחה את עצמה באוויר במשך שבועות, בלי שוליים לנחש בהם.
+ */
+const TextResult = z.object({
+  kind: z.enum(["trip_edit", "expense", "unclear"])
+    .describe("trip_edit = שינוי במסלול · expense = רישום הוצאה · unclear = לא הובן"),
   summary: z.string().describe("משפט או שניים בעברית: מה נעשה בפועל"),
   warning: z.string().nullable()
     .describe("השלכה שהמשתמש צריך לדעת עליה. null אם אין"),
-  questions: z.array(Question)
-    .describe("השאלות שלי. ריק בכל סוג שאינו question. עד שלוש שאלות"),
-  dayChanges: z.array(DayChange).describe("רק ימים שבאמת משתנים. ריק אם אין שינוי במסלול"),
-  flights: z.array(FlightLeg).describe("עדכוני פרטי טיסה מכרטיס שצורף. ריק אם אין"),
-  docs: z.array(DocMeta).describe("סיווג לכל מסמך שצורף. ריק אם לא צורפו מסמכים"),
+  dayChanges: z.array(DayChange).describe("רק ימים שבאמת משתנים. ריק אם זו אינה בקשת שינוי מסלול"),
   metaSubtitle: z.string().nullable()
     .describe("כותרת המשנה של הטיול, אם השינוי מצדיק עדכון. אחרת null"),
   expenses: z.array(Expense).describe("ההוצאות לרישום. ריק אם זו אינה בקשת הוצאה"),
 });
 
 /* ------------------------------------------------------------------ */
-/*  הפרומפט                                                            */
+/*  מסלול המסמך                                                        */
 /* ------------------------------------------------------------------ */
 
-const SYSTEM = `אתה העוזר של אפליקציית תכנון טיולים בעברית.
+/**
+ * מסמך משנה ביום דברים אחרים מבקשה חופשית: הוא מוסיף שורה ללוח הזמנים,
+ * מקום על המפה, הערה, או לינה. הוא כמעט לעולם לא משנה ק"מ נסיעה או את
+ * אופן ההתקדמות — ולכן השדות האלה אינם כאן. סכמה קטנה יותר היא גם
+ * דקדוק קטן יותר, וזו הסיבה שהעוזר כולו נפל.
+ */
+const DocDayChange = z.object({
+  n: z.number().int().describe("מספר היום שהמסמך נוגע לו, כפי שהוא במסלול"),
+  plan: z.array(PlanRow).nullable()
+    .describe("לוח הזמנים המלא של היום אחרי השילוב, מחליף את הקיים. null = לא משתנה"),
+  tips: z.array(z.string()).nullable()
+    .describe("הטיפים של היום אחרי השילוב, מחליפים את הקיימים. null = לא משתנים"),
+  places: z.array(z.string()).nullable()
+    .describe("נקודות המפה של היום, בשמות בלבד ולפי הסדר. null = המפה לא משתנה"),
+  hotelName: z.string().nullable().describe("שם הלינה, מאישור לינה. null = לא משתנה"),
+  hotelArea: z.string().nullable().describe("אזור הלינה. null = לא משתנה"),
+});
 
-המשתמש כותב בקשה, מכתיב אותה, מצרף מסמך, או עושה גם וגם. החלט לאיזה סוג
-הקלט שייך:
+/** הסיווג של מסמך שצורף, כדי שהוא יישמר עם כותרת ויקושר ליום הנכון */
+const DocMeta = z.object({
+  index: z.number().int().describe("מספר המסמך כפי שנשלח אליך, מתחיל ב-1"),
+  title: z.string().describe('כותרת קצרה בעברית, למשל "כרטיס להופעה — Nikala". לא שם הקובץ'),
+  kind: z.enum(["flight", "event", "lodging", "transport", "info", "other"])
+    .describe(
+      "flight = כרטיס טיסה או עלייה למטוס · event = כרטיס להופעה, מופע או אתר · " +
+      "lodging = אישור לינה · transport = רכבת, אוטובוס, הסעה או רכב · " +
+      "info = מידע כללי · other = אחר"
+    ),
+  dayN: z.number().int().nullable()
+    .describe("היום במסלול שהמסמך שייך לו, לפי התאריך שבו. null אם אינו שייך ליום מסוים"),
+  leg: z.enum(["out", "back"]).nullable()
+    .describe("רק ל-kind = flight: לאיזו רגל הכרטיס שייך. null לכל סוג אחר"),
+  note: z.string().describe('מה שחשוב לדעת — מספר הזמנה, שעת כניסה, מחיר. "" אם אין'),
+});
+
+const DocResult = z.object({
+  kind: z.enum(["trip_edit", "question", "unclear"])
+    .describe("trip_edit = המסמך נקרא ונכנס · question = חסר מידע ואני שואל · unclear = לא נקרא"),
+  summary: z.string().describe("משפט או שניים בעברית: מה קראתי ומה נכנס"),
+  warning: z.string().nullable()
+    .describe("מה שצריך לדעת — תאריך מחוץ לטווח, התנגשות בלוח הזמנים. null אם אין"),
+  questions: z.array(Question)
+    .describe("השאלות שלי. ריק בכל סוג שאינו question. עד שלוש שאלות"),
+  docs: z.array(DocMeta).describe("שורה לכל מסמך שצורף, לפי המספר שנשלח אליו"),
+  dayChanges: z.array(DocDayChange).describe("רק ימים שהמסמך באמת משנה. ריק אם אין"),
+});
+
+/* ------------------------------------------------------------------ */
+/*  הפרומפטים                                                          */
+/* ------------------------------------------------------------------ */
+
+/** הכללים שמשותפים לשני המסלולים — נכתבים פעם אחת ומוזרקים לשניהם */
+const RULES = `כללים:
+- כתוב הכול בעברית, באותו טון של המסמך: ענייני, ללא שיווק וללא סימני קריאה.
+- שנה רק מה שהבקשה מחייבת. כל שדה שלא צריך להשתנות — החזר בו null.
+- ערוך רק ימים שבאמת משתנים. אל תחזיר יום שלא נגעת בו.
+- לוח זמנים: שעות אמיתיות ורצף הגיוני. התחשב בזמני פתיחה, בזמני נסיעה
+  ובשעות האור של העונה והיעד.
+- ב-places החזר שמות בלבד. הקואורדינטות נפתרות בשרת, ולכן שם מדויק של מקום
+  אמיתי הוא קריטי. העדף שמות שכבר מופיעים ב-mapPoints של הטיול — הם נפתרים
+  מתוך המסמך עצמו. שם שלא יימצא יושמט מהמפה ותוצג על כך הודעה.
+- אל תמציא מחירים, מספרי הזמנה, שמות מלונות או שעות טיסה.`;
+
+const ASKING = `--- אם חסר מידע (kind = "question") ---
+
+שאל כשהתשובה משנה את מה שייכנס לטיול, ואין לך דרך לדעת אותה:
+- שעה או תאריך שבלעדיהם אין איפה להכניס את מה שהתבקש.
+- מידע שמתאים לשני ימים במסלול, ואין מה שמכריע ביניהם.
+- בקשה שאפשר לבצע בשתי דרכים שונות מאוד.
+
+כללי השאלות:
+- עד שלוש שאלות, ורק על מה שבאמת חוסם. שאלה שאתה יכול לענות עליה בעצמך
+  מהמסלול או מהמסמך אינה שאלה.
+- כל שאלה קונקרטית ועומדת בעצמה, בעברית, בלי מונחים טכניים.
+- כשהתשובות האפשריות ידועות וסופרות (יום 2 או יום 5, גל או נועה) — החזר
+  אותן ב-options. אחרת options = null.
+- בסבב של שאלות החזר את כל שאר המערכים ריקים. ב-summary כתוב בשורה אחת
+  מה כבר הבנת, כדי שהמשתמש יראה שלא התחלת מאפס.
+- **אל תשאל שאלה שהמשתמש אינו יכול לדעת את תשובתה.** אם המידע אינו קיים
+  בשום מקום, בצע את מה שאפשר וציין את החסר ב-warning.`;
+
+const SYSTEM_TEXT = `אתה העוזר של אפליקציית תכנון טיולים בעברית.
+
+המשתמש כותב או מכתיב בקשה חופשית. החלט לאיזה סוג היא שייכת:
 
 • **expense** — רישום הוצאה. סימנים: סכום ומטבע, פועל של תשלום ("שילמתי",
-  "קניתי", "עלה לי"), שם של דבר שקונים, או קבלה שצורפה. גם כמה הוצאות במשפט אחד.
-• **trip_edit** — שינוי במסלול, או הכנסת מסמך שצורף אל תוך הטיול.
-• **question** — חסר לך מידע מהותי כדי לקבוע משהו, ואתה שואל.
-• **unclear** — לא ברור לאיזה סוג זה שייך, ושאלה לא תעזור.
+  "קניתי", "עלה לי"), שם של דבר שקונים. גם כמה הוצאות במשפט אחד.
+• **trip_edit** — שינוי במסלול: יום, לוח זמנים, לינה, נסיעה.
+• **unclear** — לא ברור לאיזה סוג זה שייך, או חסר מידע מהותי.
 
 --- אם זו הוצאה (kind = "expense") ---
 
@@ -167,76 +230,57 @@ const SYSTEM = `אתה העוזר של אפליקציית תכנון טיולי�
 
 - dayChanges מכיל רק את הימים שמשתנים. expenses ריק.
 
-כללים:
-- כתוב הכול בעברית, באותו טון של המסמך: ענייני, ללא שיווק וללא סימני קריאה.
-- שנה רק מה שהבקשה מחייבת. כל שדה שלא צריך להשתנות — החזר בו null.
-- ערוך רק ימים שבאמת משתנים. אל תחזיר יום שלא נגעת בו.
+${RULES}
 - כשיום הופך ליום עירוני ללא נסיעה: mode = "city", driveKm = 0, driveHours = 0,
   ו-driveNote ריק. אל תשכח להתאים גם את הכותרת, התיאור ולוח הזמנים.
 - **המפה חייבת להתאים ליום.** אם היום כבר לא עובר במקומות שהיו בו — למשל
   יום נסיעה שהפך ליום עירוני — החזר ב-places את רשימת המקומות החדשה,
   לפי סדר הביקור. אם המפה של היום אינה משתנה, החזר null.
-- ב-places החזר שמות בלבד. הקואורדינטות נפתרות בשרת, ולכן שם מדויק של מקום
-  אמיתי הוא קריטי. העדף שמות שכבר מופיעים ב-mapPoints של הטיול — הם נפתרים
-  מתוך המסמך עצמו. שם שלא יימצא יושמט מהמפה ותוצג על כך הודעה.
-- לוח זמנים: שעות אמיתיות ורצף הגיוני. התחשב בזמני פתיחה, בזמני נסיעה
-  ובשעות האור של העונה והיעד.
-- אל תמציא מחירים, מספרי הזמנה, שמות מלונות או שעות טיסה שלא הופיעו במסמך.
-  אם הבקשה דורשת מידע כזה — אמור זאת ב-warning במקום להמציא.
 - אם לשינוי יש השלכה שהמשתמש עלול לפספס — לינה שהוזמנה ביעד שהוסר, יום
   שנשאר בלי מלון, נסיעה שהתארכה מאוד — כתוב אותה ב-warning.
 
---- אם צורפו מסמכים ---
+--- אם זה לא ברור (kind = "unclear") ---
+
+החזר dayChanges ו-expenses ריקים, והסבר ב-summary **מה בדיוק חסר** כדי
+שאפשר יהיה לנסח מחדש: לא "לא הבנתי" אלא "לא ברור לאיזה יום להוסיף".`;
+
+const SYSTEM_DOC = `אתה העוזר של אפליקציית תכנון טיולים בעברית, וצורפו אליך מסמכים.
 
 מסמך הוא עובדה, לא הצעה. מה שמודפס בו גובר על כל הנחה שלך.
 
 1. **סווג כל מסמך** ב-docs, שורה לכל מסמך שצורף, לפי המספר שנשלח אליו.
    title היא כותרת קצרה בעברית שתוצג למשתמש, לא שם הקובץ. אם במסמך יש
    תאריך — קשר אותו ליום המתאים במסלול ב-dayN.
-2. **כרטיס טיסה או כרטיס עלייה למטוס** — החזר את הפרטים ב-flights, רגל אחת
-   לכל כיוון. קבע את הרגל לפי כיוון הטיסה מול היעד של הטיול: טיסה מהארץ
-   אל היעד היא "out", וממנו חזרה היא "back". טרמינל: רק של שדה המוצא של
-   אותה טיסה. כרטיס מכיל לעיתים גם טרמינל של רגל אחרת — אל תתבלבל ביניהם.
+2. **כרטיס טיסה או כרטיס עלייה למטוס** — kind = "flight", וקבע את leg לפי
+   כיוון הטיסה מול היעד של הטיול: מהארץ אל היעד היא "out", וממנו חזרה היא
+   "back". **אל תמלא כאן את פרטי הטיסה**; הם נקראים בקריאה נפרדת.
 3. **כרטיס להופעה, למופע או לאתר** — הכנס אותו ללוח הזמנים של היום שבתאריך
-   שבכרטיס, בשעה שמודפסת בו, עם שם האולם או האתר. אם האולם אינו על המפה של
-   אותו יום, הוסף אותו ב-places. אם בכרטיס יש שעת כניסה או הוראה מחייבת
-   ("להגיע 45 דקות לפני"), הוסף אותה כטיפ ליום.
+   שבכרטיס, בשעה שמודפסת בו, עם שם האולם או האתר. החזר את לוח הזמנים
+   **המלא** של אותו יום אחרי השילוב, כולל מה שכבר היה בו. אם האולם אינו על
+   המפה של אותו יום, הוסף אותו ב-places יחד עם שאר נקודות היום. אם בכרטיס
+   יש שעת כניסה או הוראה מחייבת ("להגיע 45 דקות לפני"), הוסף אותה כטיפ.
 4. **אישור לינה** — עדכן hotelName ו-hotelArea בימים שהאישור מכסה.
 5. **מידע כללי** בלי תאריך — סווג אותו כ-info, ואם יש בו משהו מעשי ליום
    מסוים הוסף אותו כטיפ. אל תמציא לו מקום ביומן.
-6. **שמות נוסעים**: בכרטיס הם מודפסים באנגלית ובשם מלא ("GAL STAAL"). אם
-   אותו אדם מופיע ברשימת הנוסעים של הטיול שנשלחה לך, החזר את השם **כפי
-   שהוא ברשימה** ("גל"). כך המושב מתעדכן לנוסע הקיים במקום להיווסף
-   כנוסע נוסף. אם אינך מזהה התאמה — החזר את השם כפי שהוא בכרטיס.
-7. החזר **אך ורק מה שכתוב במסמך**. שדה שאינו מופיע בכרטיס: "" בשדות הטיסה,
-   ואל תשלים אותו מהידע שלך. טרמינל שגוי גרוע בהרבה מטרמינל חסר.
-8. אם התאריך שבמסמך אינו נופל באף יום של הטיול, אל תנחש יום. אמור זאת
+6. החזר **אך ורק מה שכתוב במסמך**. אל תשלים שדות מהידע שלך.
+7. אם התאריך שבמסמך אינו נופל באף יום של הטיול, אל תנחש יום. אמור זאת
    ב-warning, והחזר dayN = null.
-9. אם המסמך אינו קריא — סרוק גרוע, חתוך, או לא המסמך שחשבת — אמור את זה
+8. אם המסמך אינו קריא — סרוק גרוע, חתוך, או לא מה שחשבת — אמור את זה
    ב-summary ואל תמלא שדות על בסיס ניחוש.
+9. מחיר שמופיע במסמך: כתוב אותו ב-note של המסמך. **אל תרשום ממנו הוצאה** —
+   רישום הוצאות נעשה בבקשה מפורשת.
 
---- אם חסר מידע (kind = "question") ---
+${RULES}
 
-שאל כשהתשובה משנה את מה שייכנס לטיול, ואין לך דרך לדעת אותה:
-- שעה או תאריך שלא מופיעים בכרטיס ובלעדיהם אין איפה להכניס אותו.
-- כרטיס שמתאים לשני ימים במסלול, ואין במסמך מה שמכריע.
-- מסמך לשני אנשים כשצריך לדעת של מי.
-- בקשה שאפשר לבצע בשתי דרכים שונות מאוד.
+${ASKING}
 
-כללי השאלות:
-- עד שלוש שאלות, ורק על מה שבאמת חוסם. שאלה שאתה יכול לענות עליה מהמסמך
-  או מהמסלול אינה שאלה.
-- כל שאלה קונקרטית ועומדת בעצמה, בעברית, בלי מונחים טכניים.
-- כשהתשובות האפשריות ידועות וסופרות (יום 2 או יום 5, גל או נועה) — החזר
-  אותן ב-options. אחרת options = null.
-- בסבב של שאלות החזר dayChanges, flights ו-expenses ריקים. ב-summary כתוב
-  בשורה אחת מה כבר הבנת מהמסמך, כדי שהמשתמש יראה שקראת אותו.
-- **אל תשאל שאלה שהמשתמש אינו יכול לדעת את תשובתה.** אם המידע אינו קיים
-  בשום מקום, בצע את מה שאפשר וציין את החסר ב-warning.
+--- אם המסמך לא נקרא (kind = "unclear") ---
 
---- אם זה לא ברור (kind = "unclear") ---
+החזר dayChanges ריק, סווג את המסמך ב-docs לפי מה שכן הבנת, והסבר ב-summary.`;
 
-החזר dayChanges, flights ו-expenses ריקים, והסבר ב-summary מה חסר.`;
+/* ------------------------------------------------------------------ */
+/*  הקשר הטיול                                                         */
+/* ------------------------------------------------------------------ */
 
 /** גרסה מצומצמת של המסמך: בלי נתיבים ונקודות מפה, שאינם ניתנים לעריכה כאן */
 function compactTrip(doc: Record<string, unknown>): unknown {
@@ -255,9 +299,7 @@ function compactTrip(doc: Record<string, unknown>): unknown {
     // הטיסות הקיימות: בלעדיהן המודל אינו יכול לדעת אם כרטיס שצורף הוא
     // הלוך או חזור, ולא אם הוא מחליף רגל קיימת או מוסיף אחת חדשה
     flights: flights ? { out: legOf(flights.out), back: legOf(flights.back) } : null,
-    passengers: Array.isArray(flights?.passengers)
-      ? (flights.passengers as Record<string, unknown>[]).map((p) => p.name)
-      : [],
+    passengers: passengersOf(doc),
     days: days.map((d: Record<string, unknown>) => {
       const hotel = d.hotel as Record<string, unknown> | undefined;
       const drive = d.drive as Record<string, unknown> | undefined;
@@ -279,6 +321,13 @@ function compactTrip(doc: Record<string, unknown>): unknown {
       };
     }),
   };
+}
+
+function passengersOf(doc: Record<string, unknown>): string[] {
+  const flights = doc.flights as Record<string, unknown> | undefined;
+  const list = flights?.passengers;
+  if (!Array.isArray(list)) return [];
+  return list.map((p) => String((p as Record<string, unknown>).name ?? "")).filter(Boolean);
 }
 
 /** הרשימות שמהן המודל חייב לבחור כשהוא רושם הוצאה */
@@ -306,34 +355,23 @@ const MAX_FILES = 3;
 const MAX_B64_TOTAL = 20_000_000;
 const MAX_TEXT_CHARS = 60_000;
 
-interface Attachment {
-  name: string;
-  mediaType: string;
-  data: string;
-}
-
-type Block =
-  | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } }
-  | { type: "document"; source: { type: "text"; media_type: "text/plain"; data: string } }
-  | { type: "image"; source: { type: "base64"; media_type: (typeof IMAGES)[number]; data: string } };
-
 /**
  * מאמת את המסמכים שהגיעו מהלקוח ובונה מהם בלוקים לבקשה.
  * מחזיר הודעת שגיאה במקום בלוקים כשמשהו אינו תקין — לעולם לא מעביר
  * הלאה קלט שלא נבדק.
  */
-function buildAttachments(raw: unknown): { blocks: Block[]; names: string[] } | string {
+function buildAttachments(raw: unknown): { blocks: DocBlock[]; names: string[] } | string {
   if (raw === undefined || raw === null) return { blocks: [], names: [] };
   if (!Array.isArray(raw)) return "המסמכים חייבים להגיע כמערך";
   if (raw.length > MAX_FILES) return `אפשר לצרף עד ${MAX_FILES} מסמכים בבקשה אחת`;
 
-  const blocks: Block[] = [];
+  const blocks: DocBlock[] = [];
   const names: string[] = [];
   let total = 0;
 
   for (const item of raw) {
     if (typeof item !== "object" || item === null) return "מסמך שאינו אובייקט";
-    const a = item as Partial<Attachment>;
+    const a = item as { name?: unknown; mediaType?: unknown; data?: unknown };
     const name = String(a.name ?? "מסמך").trim().slice(0, 200);
     const mediaType = String(a.mediaType ?? "").toLowerCase().split(";")[0].trim();
     const data = String(a.data ?? "");
@@ -385,6 +423,47 @@ function answerLines(raw: unknown): string[] {
       return q && ans ? `- ${q} → ${ans}` : "";
     })
     .filter(Boolean);
+}
+
+/* ------------------------------------------------------------------ */
+/*  התשובה ללקוח                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * הלקוח מקבל מבנה אחד בלבד, בלי קשר למסלול שרץ בשרת. השדות שהמסלול
+ * לא מילא חוזרים ריקים, ושינוי יום ממסלול המסמך מושלם ל-null בשדות
+ * שהוא אינו נוגע בהם — ככה הלקוח לא צריך לדעת איזו סכמה ענתה לו.
+ */
+interface ClientDayChange {
+  n: number;
+  title: string | null;
+  summary: string | null;
+  mode: string | null;
+  driveKm: number | null;
+  driveHours: number | null;
+  driveNote: string | null;
+  hotelName: string | null;
+  hotelArea: string | null;
+  plan: { time: string; text: string }[] | null;
+  tips: string[] | null;
+  places: string[] | null;
+}
+
+function fromDocDay(c: z.infer<typeof DocDayChange>): ClientDayChange {
+  return {
+    n: c.n,
+    title: null,
+    summary: null,
+    mode: null,
+    driveKm: null,
+    driveHours: null,
+    driveNote: null,
+    hotelName: c.hotelName,
+    hotelArea: c.hotelArea,
+    plan: c.plan,
+    tips: c.tips,
+    places: c.places,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -440,7 +519,8 @@ export default async (req: Request) => {
   if (!doc || typeof doc !== "object" || Array.isArray(doc)) {
     return fail("מסמך הטיול חסר", 422);
   }
-  const days = (doc as Record<string, unknown>).days;
+  const tripDoc = doc as Record<string, unknown>;
+  const days = tripDoc.days;
   if (!Array.isArray(days) || !days.length) return fail("אין ימים במסלול לערוך", 422);
 
   const answers = answerLines(body.answers);
@@ -448,6 +528,7 @@ export default async (req: Request) => {
   // סבב שלישי הוא האחרון. שאלה רודפת שאלה היא לא דיאלוג אלא לופ, ועדיף
   // להחיל את מה שהובן ולציין את החסר מאשר להמשיך לשאול
   const finalRound = round >= 2;
+  const withDocs = attachments.blocks.length > 0;
 
   const client = new Anthropic({ apiKey });
 
@@ -459,14 +540,17 @@ export default async (req: Request) => {
     try {
       const parts: string[] = [
         "המסלול הנוכחי:\n```json\n" +
-          JSON.stringify(compactTrip(doc as Record<string, unknown>), null, 1) +
-          "\n```",
-        "הקשר לרישום הוצאות:\n```json\n" +
-          JSON.stringify(expenseContext(body.context), null, 1) +
+          JSON.stringify(compactTrip(tripDoc), null, 1) +
           "\n```",
       ];
 
-      if (attachments.names.length) {
+      if (!withDocs) {
+        parts.push(
+          "הקשר לרישום הוצאות:\n```json\n" +
+            JSON.stringify(expenseContext(body.context), null, 1) +
+            "\n```"
+        );
+      } else {
         parts.push(
           "המסמכים שצירפתי, לפי הסדר שבו הם מופיעים למעלה:\n" +
             attachments.names.map((n, i) => `${i + 1}. ${n}`).join("\n")
@@ -477,20 +561,19 @@ export default async (req: Request) => {
       }
       parts.push(
         "הבקשה שלי:\n" +
-          (instruction ||
-            "צירפתי מסמך. קרא אותו והכנס לטיול את מה שהוא אומר.")
+          (instruction || "צירפתי מסמך. קרא אותו והכנס לטיול את מה שהוא אומר.")
       );
-      if (finalRound) {
+      if (finalRound && withDocs) {
         parts.push(
           "זה הסבב האחרון. אל תשאל שאלות נוספות — החל את מה שאפשר לקבוע " +
             "מהמסמך ומהתשובות, וכתוב ב-warning מה נשאר לא מוכרע."
         );
       }
 
-      const content: (Block | { type: "text"; text: string })[] = [
+      const content = [
         // המסמכים לפני הטקסט — זה הסדר שהתיעוד מחייב למסמכים
         ...attachments.blocks,
-        { type: "text", text: parts.join("\n\n") },
+        { type: "text" as const, text: parts.join("\n\n") },
       ];
 
       const response = await client.beta.messages.parse({
@@ -500,13 +583,20 @@ export default async (req: Request) => {
         // low ולא medium: המשימה תחומה (שדות טקסט של יום, או פרטים
         // שמודפסים על כרטיס), והמחיר של חשיבה ארוכה כאן הוא משתמש
         // שממתין מול מסך טעינה
-        output_config: { effort: "low", format: zodOutputFormat(Result) },
+        output_config: {
+          effort: "low",
+          format: zodOutputFormat(withDocs ? DocResult : TextResult),
+        },
         betas: ["server-side-fallback-2026-07-01"],
         fallbacks: "default",
         system: [
           // הפרומפט יציב בין בקשות — שומרים אותו במטמון כדי שכמה עריכות
           // ברצף, וגם סבבי השאלות של אותה בקשה, ישלמו עליו פעם אחת
-          { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
+          {
+            type: "text",
+            text: withDocs ? SYSTEM_DOC : SYSTEM_TEXT,
+            cache_control: { type: "ephemeral" },
+          },
         ],
         messages: [{ role: "user", content }],
       });
@@ -525,18 +615,33 @@ export default async (req: Request) => {
         cacheRead: response.usage.cache_read_input_tokens ?? 0,
       };
 
+      const empty = {
+        questions: [] as z.infer<typeof Question>[],
+        dayChanges: [] as unknown[],
+        flights: [] as (FlightInfo & { leg: string })[],
+        docs: [] as z.infer<typeof DocMeta>[],
+        expenses: [] as z.infer<typeof Expense>[],
+        metaSubtitle: null as string | null,
+      };
+
       // סבב שאלות: אין מה לפתור ואין מה להחיל, רק לשאול
       if (parsed.kind === "question" && parsed.questions.length) {
         if (!finalRound) {
-          return { ...parsed, questions: parsed.questions.slice(0, 3), dayChanges: [], usage };
+          return {
+            ...empty,
+            kind: parsed.kind,
+            summary: parsed.summary,
+            warning: parsed.warning,
+            questions: parsed.questions.slice(0, 3),
+            usage,
+          };
         }
         // המודל ממשיך לשאול אחרי שנאמר לו שזה הסבב האחרון. מוטב לומר
         // למשתמש מה חסר מאשר לפתוח סבב רביעי.
         return {
-          ...parsed,
+          ...empty,
           kind: "unclear",
-          questions: [],
-          dayChanges: [],
+          warning: parsed.warning,
           summary:
             "לא הצלחתי להכריע: " +
             parsed.questions.map((q) => q.text).join(" · ") +
@@ -545,24 +650,69 @@ export default async (req: Request) => {
         };
       }
 
+      const rawDays: ClientDayChange[] = withDocs
+        ? (parsed as z.infer<typeof DocResult>).dayChanges.map(fromDocDay)
+        : ((parsed as z.infer<typeof TextResult>).dayChanges as ClientDayChange[]);
+
       // שמות המקומות הופכים לנקודות כאן, לא במודל. תקציב קריאות משותף
       // לכל הימים, כדי שבקשה אחת לא תחזיק את השירות החיצוני דקה שלמה.
       const budget = { lookups: 6 };
       const dayChanges = [];
-      for (const change of parsed.dayChanges) {
+      for (const change of rawDays) {
         if (!change.places) {
           dayChanges.push({ ...change, points: null, unresolved: [] });
           continue;
         }
-        const { points, unresolved } = await resolvePlaces(
-          change.places,
-          doc as Record<string, unknown>,
-          budget
-        );
+        const { points, unresolved } = await resolvePlaces(change.places, tripDoc, budget);
         dayChanges.push({ ...change, points, unresolved });
       }
 
-      return { ...parsed, dayChanges, usage };
+      if (!withDocs) {
+        const text = parsed as z.infer<typeof TextResult>;
+        return { ...empty, ...text, dayChanges, usage };
+      }
+
+      // פרטי הטיסה נקראים בקריאה נפרדת, עם סכמה קטנה משלה, ורק עבור
+      // מסמך שסווג ככרטיס טיסה. ראה את ההסבר בראש הקובץ.
+      const docResult = parsed as z.infer<typeof DocResult>;
+      const flights: (FlightInfo & { leg: string })[] = [];
+      const notes: string[] = [];
+      const passengers = passengersOf(tripDoc);
+
+      for (const meta of docResult.docs.slice(0, MAX_FILES)) {
+        if (meta.kind !== "flight") continue;
+        const block = attachments.blocks[Number(meta.index) - 1];
+        if (!block) continue;
+        if (flights.length >= 2) break;             // יותר משתי רגליים אין לטיול
+
+        const leg = meta.leg === "back" ? "back" : "out";
+        if (!meta.leg) {
+          notes.push("לא היה ברור אם הכרטיס הוא הלוך או חזור — עודכנה רגל ההלוך.");
+        }
+        try {
+          const info = await readFlight(client, block, leg === "back" ? "חזור" : "הלוך", passengers);
+          flights.push({ ...info, leg });
+          if (info.note) notes.push(info.note);
+        } catch (err) {
+          // כישלון בקריאת הטיסה אינו מפיל את שאר הבקשה: המסמך עדיין
+          // נשמר, והמשתמש יודע שהפרטים לא נקראו
+          console.error("ai: קריאת כרטיס הטיסה נכשלה", err);
+          notes.push("פרטי הטיסה לא נקראו מהכרטיס. אפשר לנסות שוב מלשונית הטיסות.");
+        }
+      }
+
+      const warning = [docResult.warning, ...notes].filter(Boolean).join(" ");
+
+      return {
+        ...empty,
+        kind: docResult.kind,
+        summary: docResult.summary,
+        warning: warning || null,
+        docs: docResult.docs,
+        dayChanges,
+        flights,
+        usage,
+      };
     } catch (err) {
       if (err instanceof StreamError) throw err;
       // שגיאות מפתח ומכסה הן המקרים שהמשתמש יכול לפעול לפיהם — מפרידים אותן
@@ -574,6 +724,15 @@ export default async (req: Request) => {
       }
       if (err instanceof Anthropic.APIConnectionError) {
         throw new StreamError("אין חיבור לשירות. בדקו רשת ונסו שוב.");
+      }
+      // 400 הוא כמעט תמיד באג אצלנו ולא אצל המשתמש, ו"נסו שוב" היה שולח
+      // אותו לנסות שוב לנצח. ההודעה המקורית מופיעה כדי שיהיה מה לדווח.
+      if (err instanceof Anthropic.BadRequestError) {
+        console.error("ai: הבקשה נדחתה", err);
+        throw new StreamError(
+          "השירות דחה את הבקשה — זו תקלה באפליקציה ולא אצלכם: " +
+            String(err.apiMessage || "").slice(0, 200)
+        );
       }
       console.error("ai: הקריאה נכשלה", err);
       throw new StreamError("העוזר נכשל. נסו שוב.");
