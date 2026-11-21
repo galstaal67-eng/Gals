@@ -377,8 +377,11 @@
 
         const segs = shown
           .map(
-            (p) => `<button type="button" class="ov-seg ov-seg--${OV_TONE[p.type] || "mute"}"
-                 data-ov-name="${esc(p.name)}" title="${esc(p.name)}">
+            (p, i) => `<button type="button" class="ov-seg ov-seg--${OV_TONE[p.type] || "mute"}"
+                 data-ov-name="${esc(p.name)}" data-ov-type="${esc(p.type || "")}"
+                 data-ov-day="${day.n}" data-ov-i="${i + 1}" data-ov-total="${pts.length}"
+                 ${p.img ? `data-ov-img="${esc(p.img)}"` : ""}
+                 title="${esc(p.name)}">
                  <span class="ov-seg__icon" aria-hidden="true">${TYPE_ICON[p.type] || "📍"}</span>
                  <span class="ov-seg__name">${esc(p.name)}</span>
                </button>`
@@ -411,12 +414,55 @@
       .join("");
   }
 
+  /** שם הסוג בעברית, למי שלא מזהה את האייקון */
+  const TYPE_LABEL = {
+    airport: "שדה תעופה", station: "תחנה", hotel: "לינה", sight: "אתר",
+    hike: "מסלול הליכה", food: "אוכל", town: "עיירה", car: "רכב",
+    pass: "מעבר הרים", city: "עיר",
+  };
+
+  /**
+   * הנקודה שנבחרה ברצועה, ככרטיס ולא כשורת טקסט.
+   *
+   * ברצועה עצמה נשאר מקום לאייקון בלבד, ולכן מי שמקיש על נקודה צריך
+   * לקבל כאן את כל מה שהיא: השם המלא, לאיזה יום היא שייכת ובאיזה שלב
+   * בו, ואיך להגיע אליה על המפה.
+   *
+   * ה-thumbnail הוא תמונת המקום כשיש כזו (point.img), והאייקון של הסוג
+   * כשאין. אין כאן קריאה לשום שירות חיצוני מהדפדפן.
+   */
+  function showPick(seg) {
+    const box = $("#ovPick");
+    if (!box) return;
+    const d = seg.dataset;
+    const icon = TYPE_ICON[d.ovType] || "📍";
+    const label = TYPE_LABEL[d.ovType] || "נקודה";
+    const tone = OV_TONE[d.ovType] || "mute";
+
+    box.className = `ov-pick ov-pick--${tone}`;
+    box.innerHTML = `
+      <span class="ov-pick__thumb">${
+        d.ovImg
+          ? `<img src="${esc(d.ovImg)}" alt="" loading="lazy" />`
+          : `<span aria-hidden="true">${icon}</span>`
+      }</span>
+      <span class="ov-pick__body">
+        <b>${esc(d.ovName)}</b>
+        <small>${esc(label)} · יום ${esc(d.ovDay)} · עצירה ${esc(d.ovI)} מתוך ${esc(d.ovTotal)}</small>
+      </span>
+      <button type="button" class="btn btn--sm" data-focus="${esc(d.ovDay)}">🗺️ על המפה</button>`;
+    box.hidden = false;
+    $("#ovHint").hidden = true;
+  }
+
   function renderJourney() {
     const list = $("#journeyList");
     if (!list) return;
 
     const days = visibleDays();
     renderOverview(days);
+    // הבחירה שייכת לרצועה שהייתה; רצועה חדשה מתחילה בלי נקודה נבחרת
+    if ($("#ovPick")) { $("#ovPick").hidden = true; $("#ovHint").hidden = false; }
     list.innerHTML = days.map(journeyCard).join("");
 
     $("#journeyRange").innerHTML = RANGES.map(
@@ -491,7 +537,7 @@
       if (seg) {
         $$("#ovTrack .ov-seg.is-on").forEach((el) => el.classList.remove("is-on"));
         seg.classList.add("is-on");
-        $("#ovCaption").textContent = seg.dataset.ovName;
+        showPick(seg);
         return;
       }
 

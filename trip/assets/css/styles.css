@@ -1420,11 +1420,59 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 /* טווח שעות הוא ביטוי LTR: בלי זה "04:15–19:00" מוצג הפוך בדף RTL */
 .ov-day__time { direction: ltr; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-.overview__caption {
+/* ---------- הנקודה שנבחרה ---------- */
+
+.overview__hint {
   margin: 9px 0 0;
-  font-size: .78rem; color: var(--txt-dim);
-  min-height: 1.2em;
+  font-size: .78rem; color: var(--txt-mute);
 }
+.overview__hint[hidden] { display: none; }
+
+.ov-pick {
+  display: flex; align-items: center; gap: 11px;
+  margin: 10px 0 0; padding: 9px 12px;
+  background: var(--ink-800);
+  border: 1px solid var(--line-strong);
+  border-inline-start: 3px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+[data-theme="light"] .ov-pick { background: #fff; }
+.ov-pick[hidden] { display: none; }
+
+.ov-pick--moss    { border-inline-start-color: var(--moss); }
+.ov-pick--heather { border-inline-start-color: var(--heather); }
+.ov-pick--rose    { border-inline-start-color: var(--rose); }
+.ov-pick--gold    { border-inline-start-color: var(--gold); }
+.ov-pick--sky     { border-inline-start-color: var(--sky); }
+
+/* תמונת המקום כשיש, ואייקון הסוג כשאין — אותו ריבוע בדיוק */
+.ov-pick__thumb {
+  flex: 0 0 auto;
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  overflow: hidden;
+  background: var(--ink-700);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-size: 1.15rem; line-height: 1;
+}
+[data-theme="light"] .ov-pick__thumb { background: #eef2f8; }
+.ov-pick__thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.ov-pick__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ov-pick__body b {
+  font-size: .9rem; line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ov-pick__body small { font-size: .73rem; color: var(--txt-mute); }
+.ov-pick .btn { flex: 0 0 auto; }
+
+@media (max-width: 480px) {
+  .ov-pick { gap: 9px; padding: 8px 10px; }
+  .ov-pick__thumb { width: 32px; height: 32px; font-size: 1rem; }
+  .ov-pick__body b { font-size: .84rem; }
+}
+
 
 /* בטלפון השם אינו נכנס לעמודה צרה, ולכן נשארים האייקונים — השם המלא
    מגיע בהקשה, בשורה שמתחת לרצועה */
