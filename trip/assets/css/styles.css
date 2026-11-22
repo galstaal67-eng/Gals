@@ -758,17 +758,6 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 }
 .map-shell.is-locked .map-touch-guard { display: grid; }
 
-/* =========================================================== PRINT === */
-
-@media print {
-  .nav, .map-shell, .map-filter, .day__actions, .icon-btn, .btn, .fab, .live-strip, .day__docs, .doc-list, .journey__range, .foot { display: none !important; }
-  body { background: #fff; color: #000; }
-  .view { display: block !important; page-break-before: always; }
-  .day__body { display: block !important; }
-  .card, .day, .imp, .panel { border-color: #ccc; box-shadow: none; background: #fff; }
-  a::after { content: " (" attr(href) ")"; font-size: .75em; color: #555; }
-}
-
 /* פרטי המלון בכרטיס היום ובחלונית שמעל המפה */
 .hotel-meta { font-size: .8rem; color: var(--txt-mute); margin-top: .2rem; }
 .hotel-meta b { color: var(--moss); }
@@ -804,21 +793,27 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 
 .psheet {
   color: #000; background: #fff;
-  font-size: 9.2pt; line-height: 1.35;
+  font-size: 10.4pt; line-height: 1.42;
   direction: rtl; text-align: right;
 }
-.psheet__page { position: relative; }
+/* העמוד הוא עמוד A4 מלא ולא "כמה שהתוכן תופס": בלי הגובה הזה החצי
+   התחתון של כל דף נשאר ריק והשורה התחתונה מרחפת באמצע הדף. */
+.psheet__page {
+  position: relative;
+  display: flex; flex-direction: column;
+  min-height: 268mm;
+}
 .psheet__page + .psheet__page { break-before: page; page-break-before: always; }
 
 .psheet__head {
   display: flex; justify-content: space-between; align-items: baseline;
   gap: 8pt; border-bottom: 1.5pt solid #000; padding-bottom: 4pt; margin-bottom: 6pt;
 }
-.psheet__head h1 { font-size: 15pt; margin: 0; letter-spacing: -.2pt; }
-.psheet__head .sub { font-size: 8.6pt; font-weight: 700; white-space: nowrap; }
+.psheet__head h1 { font-size: 18pt; margin: 0; letter-spacing: -.2pt; }
+.psheet__head .sub { font-size: 9.6pt; font-weight: 700; white-space: nowrap; }
 
 .psheet h2 {
-  font-size: 10pt; margin: 7pt 0 3pt;
+  font-size: 11.4pt; margin: 9pt 0 4pt;
   border-bottom: .75pt solid #888; padding-bottom: 1.5pt;
 }
 .psheet h2:first-child { margin-top: 0; }
@@ -830,25 +825,25 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 
 .psheet table { width: 100%; border-collapse: collapse; }
 .psheet th, .psheet td {
-  border-bottom: .5pt solid #c4c4c4; padding: 2.4pt 3pt;
+  border-bottom: .5pt solid #c4c4c4; padding: 3.2pt 3.5pt;
   text-align: right; vertical-align: top;
 }
-.psheet th { font-size: 8pt; background: #ececec; border-bottom-color: #888; }
+.psheet th { font-size: 9pt; background: #ececec; border-bottom-color: #888; }
 .psheet tr { break-inside: avoid; page-break-inside: avoid; }
 .psheet td.n  { font-weight: 800; width: 7mm; text-align: center; }
-.psheet td.dt { width: 17mm; font-size: 8.4pt; white-space: nowrap; }
-.psheet td.km { width: 19mm; font-size: 8.4pt; white-space: nowrap; text-align: center; }
-.psheet td.ho { width: 32mm; font-size: 8.4pt; }
-.psheet td .stops { display: block; font-size: 8pt; color: #444; margin-top: .5pt; }
+.psheet td.dt { width: 19mm; font-size: 9.4pt; white-space: nowrap; }
+.psheet td.km { width: 21mm; font-size: 9.4pt; white-space: nowrap; text-align: center; }
+.psheet td.ho { width: 34mm; font-size: 9.4pt; }
+.psheet td .stops { display: block; font-size: 9pt; color: #444; margin-top: .5pt; }
 .psheet tr.walk td { background: #f2f2f2; }
 
 .psheet ul { margin: 0; padding-inline-start: 11pt; }
-.psheet li { margin-bottom: 1.6pt; }
+.psheet li { margin-bottom: 2.4pt; }
 .psheet .kv { display: flex; gap: 5pt; margin-bottom: 1.5pt; }
 .psheet .kv b { flex: 0 0 15mm; }
 .psheet__foot {
-  margin-top: 7pt; padding-top: 3pt; border-top: .5pt solid #bbb;
-  font-size: 7.6pt; color: #444;
+  margin-top: auto; padding-top: 4pt; border-top: .5pt solid #bbb;
+  font-size: 8.4pt; color: #444;
   display: flex; justify-content: space-between; gap: 8pt;
 }
 
@@ -1936,3 +1931,124 @@ main { scroll-margin-top: 68px; }
   border-radius: var(--radius-sm); font-size: .84rem; color: var(--txt-dim);
 }
 [data-theme="light"] .fl-empty { background: #f6f8fc; }
+
+/* =========================================================== PRINT === */
+/* הגוש הזה יושב בסוף הקובץ בכוונה: כלל הדפסה חייב לבוא אחרי הכלל
+   שהוא מבטל, אחרת כלל מאוחר באותה ספציפיות גובר עליו. */
+
+/* הדפסה היא מסמך נייר, לא צילום מסך של האפליקציה. שלושה כללים:
+   מדפיסים רק את מה שפתוח (ולא את שמונה הלשוניות, שהיו 26 עמודים שחלקם
+   ריקים), מחליפים את ערכת הצבעים הכהה בלבנה דרך המשתנים, ומוודאים
+   ששום דבר לא נחתך — טקסט שגולל הצידה על המסך פשוט אינו קיים על הדף. */
+
+@media print {
+
+  /* ---------- 1. צבע ---------- */
+  /* כל האפליקציה בנויה על משתני צבע, ולכן די בהחלפתם כאן כדי שכל מסך
+     ייצא נקי על נייר — בלי לרדוף אחרי מאות כללים. הערכים חזקים יותר
+     מערכת ה"בהיר" שעל המסך, כי דיו שחורה על נייר לבן קריאה יותר. */
+  html,
+  html[data-theme="dark"],
+  html[data-theme="light"] {
+    --ink-900: #fff;
+    --ink-850: #fff;
+    --ink-800: #fff;
+    --ink-700: #f4f6f9;
+    --ink-600: #e9edf3;
+
+    --line: #d6dbe2;
+    --line-strong: #aab2bd;
+
+    --txt: #000;
+    --txt-dim: #2b3440;
+    --txt-mute: #55606d;
+
+    --moss: #0a6a51;
+    --gold: #8a5600;
+    --heather: #543094;
+    --rose: #96305c;
+    --sky: #14459f;
+    --danger: #a81f1f;
+
+    --shadow: none;
+  }
+
+  body { background: #fff; color: #000; }
+  @page { size: A4; margin: 12mm 10mm; }
+
+  /* הכותרת הראשית צבועה בגרדיאנט דרך background-clip, כלומר הטקסט
+     עצמו שקוף. בלי רקע מודפס היא יצאה לבן על לבן — כלומר נעלמה. */
+  .hero h1 {
+    background: none; color: #000; -webkit-text-fill-color: #000;
+    font-size: 20pt; margin-bottom: 4pt;
+  }
+  .hero { padding-block: 0 8pt; }
+  .hero__eyebrow { color: #000; border-color: #888; }
+
+  /* צבע שנושא מידע — פס היום, תגיות החומרה, הפסים בגרף — חייב לצאת
+     גם כשהדפדפן מכבה רקעים כברירת מחדל. */
+  .ov-seg, .ov-chip, .chip, .bar__fill, .sev, .psheet th, .psheet tr.walk td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ---------- 2. מה לא מודפס ---------- */
+  /* כל מה שקיים כדי ללחוץ עליו, וכל מה שאי אפשר לקרוא על נייר. */
+  .nav, .fab, .btn, .icon-btn, .pill-row, .foot,
+  .live-strip, .map-shell, .map-filter, .map-actions, .map-touch-guard,
+  .journey__range, .overview__hint, .ov-pick, .hero__ridge,
+  .day__actions, .ai-fab, .sync-dot, .day__chev {
+    display: none !important;
+  }
+
+  /* ---------- 3. רק מה שפתוח ---------- */
+  /* קודם הודפסו כל הלשוניות, אחת אחרי השנייה, כל אחת מעמוד חדש — כולל
+     ריקות. מדפיסים את הלשונית שהמשתמש רואה, וזה גם מה שהוא מצפה לו. */
+  .view { display: none !important; }
+  .view.is-active { display: block !important; }
+  .day__body { display: block !important; }
+
+  /* חלון יום פתוח מנצח את הכול: רוצים את היום הזה, על דף משלו. */
+  body:has(#dayOverlay:not([hidden])) > *:not(#dayOverlay) { display: none !important; }
+  #dayOverlay:not([hidden]) {
+    position: static; display: block; padding: 0;
+    background: none; backdrop-filter: none;
+  }
+  #dayOverlay .overlay__sheet {
+    width: 100%; max-height: none; overflow: visible;
+    border: 0; border-radius: 0; box-shadow: none;
+  }
+  /* כותרת דביקה בתוך חלון נגלל היא כותרת שמרחפת באמצע הדף המודפס —
+     ומסתירה את השורה שמתחתיה. על נייר אין גלילה, ולכן אין צורך בה. */
+  .ov-head, .ov-foot { position: static; }
+
+  /* ---------- 4. בלי חיתוכים ---------- */
+  /* על המסך אפשר לגלול הצידה או לקצר עם "…"; על נייר זה פשוט נעלם. */
+  .overview__track {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 8px;
+    overflow: visible;
+  }
+  .ov-day { flex: none; width: auto; break-inside: avoid; }
+  .ov-seg { justify-content: flex-start; }
+  .ov-seg__name, .ov-chip i {
+    display: inline; overflow: visible; white-space: normal; text-overflow: clip;
+  }
+  .ov-chip { max-width: none; }
+
+  /* ---------- 5. שבירת עמודים ---------- */
+  /* רק יחידות קטנות נשמרות שלמות. כרטיס יום שלם גבוה מעמוד, ולכן
+     "לא לשבור" עליו פירושו עמוד כמעט ריק לפניו — וזה בדיוק מה
+     שקרה: 13 עמודים שרובם אוויר. */
+  tr, li, .ov-day, .psheet__box, .kv, .panel, .imp { break-inside: avoid; }
+  h2, h3, .day__head { break-after: avoid; }
+  .card, .day, .imp, .panel { box-shadow: none; }
+
+  /* הוראות שימוש במסך ("לחצו על יום…") הן רעש על נייר */
+  .section-head p, .day-sheet__now, .hint, .muted-hint { display: none; }
+
+  /* כתובות URL אחרי כל קישור הפכו טבלאות שלמות לבלתי קריאות; קישור
+     על נייר הוא טקסט, והכתובות ממילא לא נגישות משם. */
+  a { color: #000; text-decoration: none; }
+}

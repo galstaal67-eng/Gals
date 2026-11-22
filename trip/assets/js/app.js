@@ -1555,9 +1555,30 @@ ${[marks, line].filter(Boolean).join("\n")}
       (m.printHighlight && TRIP.practical.find((p) => p.title.includes(m.printHighlight))) ||
       TRIP.practical.find((p) => p !== booking);
 
-    // חלוקת הימים לשני עמודים נגזרת מהאורך, כדי שהוספת יום לא תדחוף לעמוד שלישי.
-    // עמוד 2 נושא גם את טבלת הלינה ואת שתי התיבות, ולכן הוא מקבל פחות ימים.
-    const split = Math.max(Math.ceil(days.length / 2), days.length - 5);
+    // עמוד 2 נשא שתי תיבות וחצי עמוד ריק. ארבע תיבות ממלאות אותו בלי
+    // לדחוף לעמוד שלישי — ומה שמודפס הוא מה שבאמת מחפשים על נייר.
+    const chosen = [highlight, booking].filter(Boolean);
+    TRIP.practical.forEach((sec) => {
+      if (chosen.length < 4 && !chosen.includes(sec)) chosen.push(sec);
+    });
+    const boxes = chosen
+      .map(
+        (sec) => `
+          <div class="psheet__box">
+            <h2>${esc(sec.icon || "ℹ️")} ${esc(sec.title || "")}</h2>
+            <ul>${(sec.items || [])
+              .slice(0, 5)
+              .map((t) => `<li>${esc(t)}</li>`)
+              .join("")}</ul>
+          </div>`
+      )
+      .join("");
+
+    // חלוקת הימים לשני עמודים. קודם היא הייתה חצי-חצי, ולכן טיול של שישה
+    // ימים הדפיס שלושה ימים בכל עמוד ושני חצאי עמודים ריקים. עמוד 1 לוקח
+    // כמה ימים שנכנסים בו (שמונה שורות ועוד תיבת הטיסות), ורק מה שנשאר
+    // עובר לעמוד 2 — שנושא ממילא את הלינה ואת שתי התיבות.
+    const split = Math.min(days.length, 8);
     const range = `${psDate(days[0].date, "")}–${psDate(days[days.length - 1].date, "")}`;
 
     const sheet = document.createElement("div");
@@ -1578,30 +1599,23 @@ ${[marks, line].filter(Boolean).join("\n")}
           ${f.note ? `<div class="kv"><b>שימו לב</b><span>${esc(f.note)}</span></div>` : ""}
         </div>
 
-        <h2><bdi class="rng">המסלול — ימים 1–${split}</bdi></h2>
+        <h2><bdi class="rng">המסלול${split < days.length ? ` — ימים 1–${split}` : ""}</bdi></h2>
         <table>${DAY_TABLE_HEAD}<tbody>${dayRows(days.slice(0, split))}</tbody></table>
 
         <div class="psheet__foot"><span>עמוד 1 מתוך 2</span><span>${esc(m.subtitle)}</span></div>
       </section>
 
       <section class="psheet__page">
-        <h2><bdi class="rng">המסלול — ימים ${split + 1}–${days.length}</bdi></h2>
-        <table>${DAY_TABLE_HEAD}<tbody>${dayRows(days.slice(split))}</tbody></table>
+        ${split < days.length
+          ? `<h2><bdi class="rng">המסלול — ימים ${split + 1}–${days.length}</bdi></h2>
+             <table>${DAY_TABLE_HEAD}<tbody>${dayRows(days.slice(split))}</tbody></table>`
+          : ""}
 
         <h2>🛏️ לינה — ${nights} לילות</h2>
         <table><thead><tr><th>איפה</th><th>אזור</th><th>תאריכים</th><th>לילות</th><th>מחיר</th></tr></thead>
           <tbody>${stays}</tbody></table>
 
-        <div class="psheet__cols">
-          <div class="psheet__box">
-            <h2>${esc(highlight?.icon || "ℹ️")} ${esc(highlight?.title || "")}</h2>
-            <ul>${(highlight?.items || []).slice(0, 5).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
-          </div>
-          <div class="psheet__box">
-            <h2>✅ להזמין מראש</h2>
-            <ul>${(booking?.items || []).slice(0, 6).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
-          </div>
-        </div>
+        <div class="psheet__cols">${boxes}</div>
 
         <div class="psheet__foot">
           <span>עמוד 2 מתוך 2</span>
