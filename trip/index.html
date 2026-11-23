@@ -122,6 +122,28 @@
   </div>
 </div>
 
+<!-- ============================================ BOARDING PASS ======== -->
+<!-- הברקוד שמוצג כאן הוא תמיד המסמך המקורי של חברת התעופה, ולא ברקוד
+     שנבנה מהפרטים: ברקוד משוחזר נראה אמיתי ועלול לא להיסרק בשער. -->
+<div class="overlay pass" id="passOverlay" hidden>
+  <div class="overlay__sheet pass__sheet" role="dialog" aria-modal="true" aria-labelledby="passTitle">
+    <div class="ov-head">
+      <h2 id="passTitle">🎫 כרטיס עלייה</h2>
+      <button class="icon-btn" data-pass-close aria-label="סגירה">✕</button>
+    </div>
+    <div class="pass__body" id="passBody"></div>
+  </div>
+
+  <!-- סרגל מצב הסריקה: מופיע רק כשהברקוד פרוש על כל המסך -->
+  <div class="pass__bar">
+    <button class="btn btn--sm" data-pass-zoom="-1" aria-label="הקטנה">➖</button>
+    <button class="btn btn--sm" data-pass-zoom="1" aria-label="הגדלה">➕</button>
+    <button class="btn btn--sm" data-pass-focus hidden>הכרטיס כולו</button>
+    <button class="btn btn--sm" data-pass-rotate>⟳ סיבוב</button>
+    <button class="btn btn--sm btn--primary" data-pass-unscan>סיום</button>
+  </div>
+</div>
+
 <div class="overlay" id="tripsOverlay" hidden>
   <div class="overlay__sheet" role="dialog" aria-modal="true" aria-labelledby="tripsTitle">
 
@@ -606,6 +628,7 @@
 <script src="assets/js/ai.js"></script>
 <script src="assets/js/docs.js"></script>
 <script src="assets/js/flights.js"></script>
+<script src="assets/js/pass.js"></script>
 <script src="assets/js/live.js"></script>
 <script src="assets/js/app.js"></script>
 </body>

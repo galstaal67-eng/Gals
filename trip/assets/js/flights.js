@@ -87,6 +87,10 @@ const FlightsView = (() => {
             <a href="${url}" target="_blank" rel="noopener" class="fl-doc__name">
               ${esc(d.who ? d.who + " · " : "")}${esc(d.name)}</a>
             <span class="muted sm">${esc(kb(d.size))}</span>
+            ${d.kind === "boarding"
+              ? `<button class="btn btn--sm btn--primary" data-pass-show="${esc(d.id)}"
+                         title="תצוגת כרטיס עלייה עם הברקוד">🎫 הצג כרטיס</button>`
+              : ""}
             <button class="btn btn--sm" data-doc-read="${esc(d.id)}"
                     title="קריאת פרטי הטיסה מהמסמך">🔍 קרא פרטים</button>
             <button class="trip-row__del" data-doc-del="${esc(d.id)}"
@@ -118,6 +122,11 @@ const FlightsView = (() => {
       </div>
 
       ${cd && !cd.past ? `<p class="fl-note">🕐 ${esc(cd.airport)}</p>` : ""}
+
+      ${blank ? "" : `<div class="fl-pass">
+        <button class="btn btn--sm ${mine.some((d) => d.kind === "boarding") ? "btn--primary" : ""}"
+                data-pass-leg="${key}">🎫 כרטיס עלייה</button>
+      </div>`}
 
       <div class="fl-docs">
         <h4>מסמכים <span class="muted sm">(נשמרים במכשיר הזה)</span></h4>
@@ -284,6 +293,12 @@ const FlightsView = (() => {
       });
 
       $("#flightsView").addEventListener("click", async (e) => {
+        const show = e.target.closest("[data-pass-show]");
+        if (show) return BoardingPass.open({ docId: show.dataset.passShow });
+
+        const legBtn = e.target.closest("[data-pass-leg]");
+        if (legBtn) return BoardingPass.open({ leg: legBtn.dataset.passLeg });
+
         const read = e.target.closest("[data-doc-read]");
         if (read) return readDoc(read.dataset.docRead);
 

@@ -536,6 +536,14 @@
    * ה-thumbnail הוא תמונת המקום כשיש כזו (point.img), והאייקון של הסוג
    * כשאין. אין כאן קריאה לשום שירות חיצוני מהדפדפן.
    */
+  /** איזו רגל טיסה יוצאת או נוחתת ביום הזה — לפי התאריך */
+  function legKeyOfDay(n) {
+    const day = TRIP.days.find((d) => d.n === Number(n));
+    const f = TRIP.flights || {};
+    if (day && f.back?.date === day.date) return "back";
+    return "out";
+  }
+
   function showPick(seg) {
     const box = $("#ovPick");
     if (!box) return;
@@ -559,7 +567,11 @@
         <small>${esc(sub)}</small>
       </span>
       ${
-        d.ovLat && d.ovLng
+        d.ovDetail
+          ? // קצה טיסה: מה שרוצים ממנו ביום הנסיעה הוא כרטיס העלייה
+            `<button type="button" class="btn btn--sm btn--primary"
+               data-pass-leg="${esc(legKeyOfDay(d.ovDay))}">🎫 כרטיס עלייה</button>`
+          : d.ovLat && d.ovLng
           ? `<a class="btn btn--sm" target="_blank" rel="noopener"
                title="${esc(d.ovName)} — נפתח באפליקציית המפות, ובמחשב ב-Google Maps"
                href="${esc(placeMapsLink(d.ovLat, d.ovLng))}">🗺️ פתח במפות</a>`
@@ -641,6 +653,9 @@
         showPick(seg);
         return;
       }
+
+      const pass = e.target.closest("[data-pass-leg]");
+      if (pass) { BoardingPass.open({ leg: pass.dataset.passLeg }); return; }
 
       const focus = e.target.closest("[data-focus]");
       if (focus) {
@@ -3104,6 +3119,9 @@ ${[marks, line].filter(Boolean).join("\n")}
       getTrip: () => TRIP,
       saveTrip: () => { TRIP = TripStore.save(TRIP); },
     });
+
+    // כרטיס העלייה. הוא קורא את אותם מסמכים, ולכן די לו בגישה לטיול.
+    BoardingPass.init({ getTrip: () => TRIP });
 
     // שכבת המידע החיצוני. היא מקבלת גישה לטיול, ללשוניות ולשערים —
     // ולא לשום משתנה פנימי אחר.

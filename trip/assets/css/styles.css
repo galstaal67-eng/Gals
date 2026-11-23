@@ -1932,6 +1932,165 @@ main { scroll-margin-top: 68px; }
 }
 [data-theme="light"] .fl-empty { background: #f6f8fc; }
 
+/* הכפתור שפותח את כרטיס העלייה מתוך כרטיס הטיסה */
+.fl-pass { margin-top: 10px; }
+
+/* ============================================== BOARDING PASS ======== */
+/* הכרטיס נראה ככרטיס עלייה אמיתי — לא קישוט: בשער מסתכלים על זה חצי
+   שנייה, וצריך לזהות מיד מה זה ואיפה הברקוד. הרקע לבן תמיד, גם בערכה
+   הכהה, כי סורק קורא ניגודיות. */
+
+.pass__sheet { width: min(460px, 100%); }
+.pass__body { padding: 4px 14px 16px; }
+
+.pass__tabs {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.pass__tab {
+  flex: 1 1 auto; padding: 6px 10px;
+  background: var(--ink-700); border: 1px solid var(--line);
+  border-radius: 999px; color: var(--txt-dim);
+  font: inherit; font-size: .78rem; cursor: pointer;
+}
+.pass__tab.is-on { background: var(--moss); border-color: var(--moss); color: #06251c; font-weight: 700; }
+
+.pass__card {
+  background: #fff; color: #10151c;
+  border-radius: 14px; overflow: hidden;
+  box-shadow: 0 12px 30px -18px rgba(0, 0, 0, .9);
+}
+
+.pass__top {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 9px 13px;
+  background: #10202f; color: #fff;
+  font-size: .78rem;
+}
+.pass__airline { font-weight: 700; }
+.pass__leg { opacity: .82; }
+
+.pass__route {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  gap: 8px; padding: 14px 13px 10px;
+  /* קודי שדה ושעות הם ביטוי LTR גם בדף RTL */
+  direction: ltr;
+}
+.pass__port { text-align: center; }
+.pass__port b {
+  display: block; font-size: 1.9rem; line-height: 1; letter-spacing: .02em;
+}
+.pass__port span { font-size: .9rem; color: #46566a; font-variant-numeric: tabular-nums; }
+
+.pass__line {
+  position: relative; min-width: 54px; height: 16px;
+  border-top: 2px dashed #b9c4d1;
+}
+.pass__line i {
+  position: absolute; inset-inline-start: 50%; top: -11px;
+  transform: translateX(-50%);
+  font-style: normal; font-size: 1rem; color: #10202f;
+  background: #fff; padding: 0 4px;
+}
+
+.pass__fields {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 8px 6px; padding: 4px 13px 13px;
+}
+.pass__f b {
+  display: block; font-size: .62rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: #7b8899;
+}
+.pass__f span { font-size: .92rem; font-weight: 600; }
+.pass__f span.pass__f--big { font-size: 1.3rem; line-height: 1.1; }
+
+/* קו התלישה, כמו בכרטיס נייר */
+.pass__perf {
+  position: relative; height: 0;
+  border-top: 2px dashed #c9d2dd; margin: 0 13px;
+}
+.pass__perf::before, .pass__perf::after {
+  content: ""; position: absolute; top: -9px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--ink-850);
+}
+.pass__perf::before { inset-inline-start: -21px; }
+.pass__perf::after  { inset-inline-end: -21px; }
+
+.pass__code {
+  display: grid; place-items: center; gap: 8px;
+  padding: 13px; min-height: 120px;
+  background: #fff;
+}
+.pass__scan { display: block; width: 100%; height: auto; }
+.pass__wait { margin: 0; color: #55606d; font-size: .82rem; text-align: center; }
+
+.pass__actions {
+  display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+  padding: 0 13px 11px;
+}
+.pass__src {
+  margin: 0; padding: 0 13px 12px;
+  font-size: .7rem; color: #7b8899; text-align: center;
+}
+
+/* ---------- מצב סריקה ---------- */
+/* כל המסך הופך לברקוד: רקע לבן, בלי ממשק, ואפשרות לסובב — סורק בשער
+   לרוב רוצה את הברקוד לאורך, והטלפון ביד אנכי. */
+
+.pass__bar { display: none; }
+
+.pass.is-scan {
+  /* לא grid: רצועת ברקוד רחבה מהמסך הייתה מותחת את תא הרשת, ואיתו את
+     כל מה שבפנים — ואז הברקוד נחתך משני הצדדים במקום להיכנס לרוחב */
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+  backdrop-filter: none;
+}
+.pass.is-scan .pass__sheet {
+  width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh;
+  background: #fff; border: 0; border-radius: 0; box-shadow: none;
+}
+.pass.is-scan .ov-head,
+.pass.is-scan .pass__tabs,
+.pass.is-scan .pass__top,
+.pass.is-scan .pass__route,
+.pass.is-scan .pass__fields,
+.pass.is-scan .pass__perf,
+.pass.is-scan .pass__actions,
+.pass.is-scan .pass__src { display: none; }
+
+.pass.is-scan .pass__body { padding: 0; height: 100%; }
+.pass.is-scan .pass__card { border-radius: 0; box-shadow: none; height: 100%; }
+.pass.is-scan .pass__code {
+  padding: 0; min-height: 100vh; align-content: center;
+  /* עמודה ברוחב המסך ולא ברוחב התוכן */
+  width: 100vw;
+  grid-template-columns: minmax(0, 1fr);
+  /* בהגדלה הברקוד גדול מהמסך, וגוללים אליו */
+  overflow: auto;
+}
+.pass.is-scan .pass__scan {
+  width: calc(100% * var(--pass-zoom, 1));
+  max-width: none;
+  transform: rotate(var(--pass-rot, 0deg));
+  transform-origin: center;
+}
+/* ברבע סיבוב הרוחב והגובה מתחלפים: בלי זה הברקוד גולש מהמסך */
+.pass.is-scan[style*="--pass-rot: 90deg"] .pass__scan,
+.pass.is-scan[style*="--pass-rot: 270deg"] .pass__scan {
+  width: calc(100vh * var(--pass-zoom, 1));
+}
+
+.pass.is-scan .pass__bar {
+  /* inset-inline-start: 50% + translateX(-50%) נראה נכון בדף LTR ובורח
+     מהמסך ב-RTL, כי ה-transform תמיד פיזי וההיסט לוגי */
+  display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+  position: fixed; inset-block-end: 14px; inset-inline: 10px;
+  z-index: 10;
+}
+
 /* =========================================================== PRINT === */
 /* הגוש הזה יושב בסוף הקובץ בכוונה: כלל הדפסה חייב לבוא אחרי הכלל
    שהוא מבטל, אחרת כלל מאוחר באותה ספציפיות גובר עליו. */
@@ -2021,6 +2180,21 @@ main { scroll-margin-top: 68px; }
   /* כותרת דביקה בתוך חלון נגלל היא כותרת שמרחפת באמצע הדף המודפס —
      ומסתירה את השורה שמתחתיה. על נייר אין גלילה, ולכן אין צורך בה. */
   .ov-head, .ov-foot { position: static; }
+
+  /* כרטיס עלייה פתוח מודפס לבדו — יש דלפקים שעדיין רוצים נייר */
+  body:has(#passOverlay:not([hidden])) > *:not(#passOverlay) { display: none !important; }
+  #passOverlay:not([hidden]) {
+    position: static; display: block; padding: 0;
+    background: none; backdrop-filter: none;
+  }
+  #passOverlay .overlay__sheet {
+    width: 100%; max-height: none; overflow: visible;
+    border: 0; border-radius: 0; box-shadow: none;
+  }
+  #passOverlay .ov-head, .pass__tabs, .pass__actions, .pass__bar { display: none !important; }
+  .pass__card { break-inside: avoid; border: 1px solid #aab2bd; }
+  /* הכותרת היא טקסט לבן על כהה; בלי רקע מודפס היא לבן על לבן */
+  .pass__top { background: none; color: #000; border-bottom: 1px solid #aab2bd; }
 
   /* ---------- 4. בלי חיתוכים ---------- */
   /* על המסך אפשר לגלול הצידה או לקצר עם "…"; על נייר זה פשוט נעלם. */
