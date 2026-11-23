@@ -143,6 +143,7 @@ const FlightsView = (() => {
             <option value="other">מסמך אחר</option>
           </select>
           <select data-who="${key}" aria-label="של מי"></select>
+          <button class="btn btn--sm" data-mail-open>📬 ייבוא מהמייל</button>
         </div>
       </div>
     </article>`;
@@ -293,6 +294,8 @@ const FlightsView = (() => {
       });
 
       $("#flightsView").addEventListener("click", async (e) => {
+        if (e.target.closest("[data-mail-open]")) return MailImport.open();
+
         const show = e.target.closest("[data-pass-show]");
         if (show) return BoardingPass.open({ docId: show.dataset.passShow });
 

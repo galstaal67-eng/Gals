@@ -1935,6 +1935,38 @@ main { scroll-margin-top: 68px; }
 /* הכפתור שפותח את כרטיס העלייה מתוך כרטיס הטיסה */
 .fl-pass { margin-top: 10px; }
 
+/* ================================================ MAIL IMPORT ======== */
+
+.mail__setup, .mail__main { padding: 4px 16px 16px; }
+.mail__steps { margin: 8px 0 12px; padding-inline-start: 18px; color: var(--txt-dim); }
+.mail__steps li { margin-bottom: 4px; }
+
+.mail__idrow { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.mail__idrow input {
+  flex: 1 1 auto; min-width: 0;
+  /* שאילתת Gmail ו-Client ID הם ביטויים באנגלית; בשדה RTL הם נקראים הפוך */
+  direction: ltr; text-align: left;
+}
+.mail__idrow .btn { flex: 0 0 auto; }
+
+.mail__picks { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+
+.mail__note { margin: 0 0 10px; font-size: .82rem; color: var(--moss); }
+.mail__note.is-bad { color: var(--danger); }
+
+.mail__list { display: grid; gap: 8px; }
+.mail__row {
+  padding: 10px 12px;
+  background: var(--ink-800); border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.mail__row b { display: block; font-size: .9rem; }
+.mail__from { font-size: .72rem; color: var(--txt-mute); }
+.mail__snip { margin: 6px 0 8px; font-size: .78rem; color: var(--txt-dim); }
+.mail__acts { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.mail__foot { margin-top: 12px; line-height: 1.6; }
+
 /* ============================================== BOARDING PASS ======== */
 /* הכרטיס נראה ככרטיס עלייה אמיתי — לא קישוט: בשער מסתכלים על זה חצי
    שנייה, וצריך לזהות מיד מה זה ואיפה הברקוד. הרקע לבן תמיד, גם בערכה

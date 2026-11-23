@@ -239,6 +239,7 @@ const BoardingPass = (() => {
              </div>
              <p class="pass__src">הברקוד הוא המקור מחברת התעופה: ${esc(doc.title || doc.name)}</p>`
           : `<div class="pass__actions">
+               <button class="btn btn--sm btn--primary" data-pass-mail>📬 חיפוש במייל</button>
                <button class="btn btn--sm" data-pass-upload>📎 מעבר ללשונית הטיסות</button>
              </div>`}
       </div>`;
@@ -477,6 +478,7 @@ const BoardingPass = (() => {
       if (e.target.closest("[data-pass-focus]")) { focus(!focused); return; }
       const z = e.target.closest("[data-pass-zoom]");
       if (z) { stepZoom(Number(z.dataset.passZoom)); return; }
+      if (e.target.closest("[data-pass-mail]")) { close(); MailImport.open(); return; }
       if (e.target.closest("[data-pass-upload]")) {
         close();
         document.getElementById("tab-flights")?.click();

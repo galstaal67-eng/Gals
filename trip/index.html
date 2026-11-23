@@ -122,6 +122,59 @@
   </div>
 </div>
 
+<!-- ============================================== MAIL IMPORT ======== -->
+<!-- הקריאה מתבצעת בדפדפן מול Google; שום מייל אינו עובר דרך השרת. -->
+<div class="overlay" id="mailOverlay" hidden>
+  <div class="overlay__sheet" role="dialog" aria-modal="true" aria-labelledby="mailTitle">
+    <div class="ov-head">
+      <h2 id="mailTitle">📬 ייבוא מהמייל</h2>
+      <button class="icon-btn" data-mail-close aria-label="סגירה">✕</button>
+    </div>
+
+    <!-- ---------- חיבור ראשוני ---------- -->
+    <section class="mail__setup" id="mailSetup" hidden>
+      <p class="sm">
+        כדי לקרוא מה-Gmail צריך <b>Client ID</b> משלכם. אין כאן מפתח משותף:
+        Google מזהה את האפליקציה מול החשבון שיצר אותה, וכך גם הגישה נשארת
+        שלכם בלבד. ההרשאה המבוקשת היא <b>קריאה בלבד</b>.
+      </p>
+      <ol class="sm mail__steps">
+        <li>נכנסים ל-<a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud</a> ויוצרים פרויקט.</li>
+        <li>APIs &amp; Services ← Library ← מפעילים <b>Gmail API</b>.</li>
+        <li>OAuth consent screen ← External ← מוסיפים את עצמכם ב-Test users.</li>
+        <li>Credentials ← Create credentials ← <b>OAuth client ID</b> ← Web application.</li>
+        <li>ב-Authorized JavaScript origins מוסיפים את כתובת האתר הזה.</li>
+        <li>מעתיקים את ה-Client ID לכאן.</li>
+      </ol>
+      <div class="mail__idrow">
+        <input type="text" id="mailId" placeholder="...apps.googleusercontent.com" />
+        <button class="btn btn--sm btn--primary" data-mail-save-id>שמירה</button>
+      </div>
+    </section>
+
+    <!-- ---------- חיפוש ---------- -->
+    <section class="mail__main" id="mailMain" hidden>
+      <div class="mail__picks">
+        <button class="btn btn--sm btn--primary" data-mail-find="all">הכול</button>
+        <button class="btn btn--sm" data-mail-find="flights">✈️ טיסות וכרטיסים</button>
+        <button class="btn btn--sm" data-mail-find="stays">🛏️ לינה</button>
+        <button class="btn btn--sm" data-mail-find="place">📍 לפי היעד</button>
+      </div>
+      <div class="mail__idrow">
+        <input type="text" id="mailQ" placeholder="חיפוש חופשי בשפת Gmail" />
+        <button class="btn btn--sm" data-mail-find="free">חיפוש</button>
+      </div>
+      <p class="mail__note" id="mailNote" hidden></p>
+      <div class="mail__list" id="mailResults"></div>
+      <p class="muted sm mail__foot">
+        המיילים נקראים בדפדפן מול Google ואינם עוברים דרך השרת. מסמך שנבחר
+        נשלח לעוזר — הוא קורא, מציע, והשמירה במכשיר קורית רק באישור.
+        <button class="btn btn--sm" data-mail-forget>ניתוק החשבון</button>
+      </p>
+    </section>
+  </div>
+</div>
+
 <!-- ============================================ BOARDING PASS ======== -->
 <!-- הברקוד שמוצג כאן הוא תמיד המסמך המקורי של חברת התעופה, ולא ברקוד
      שנבנה מהפרטים: ברקוד משוחזר נראה אמיתי ועלול לא להיסרק בשער. -->
@@ -629,6 +682,7 @@
 <script src="assets/js/docs.js"></script>
 <script src="assets/js/flights.js"></script>
 <script src="assets/js/pass.js"></script>
+<script src="assets/js/mail.js"></script>
 <script src="assets/js/live.js"></script>
 <script src="assets/js/app.js"></script>
 </body>

@@ -743,6 +743,16 @@ const TripAI = (() => {
   /* ------------------------------------------------------------------ */
 
   return {
+    /**
+     * פותח את העוזר עם קבצים שכבר בידנו — מה שהייבוא מהמייל צריך.
+     * זה אותו מסלול של צירוף ביד: העוזר קורא, מציע, ושומר רק באישור.
+     */
+    openWith(files, prompt) {
+      open();
+      addFiles(files);
+      if (prompt) $("#aiPrompt").value = prompt;
+    },
+
     /** host: { getTrip(), onApply(doc, {undo}) } */
     init(hostApi) {
       host = hostApi;
