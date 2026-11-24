@@ -138,12 +138,22 @@ function stats(name, schema) {
   return { name, bytes: json.length, props, enums, enumValues, unions };
 }
 
+/* /api/ask — שאלה על הרגע הנוכחי, עם חיפוש ברשת */
+const ASK = z.object({
+  headline: z.string(),
+  bullets: z.array(z.string()),
+  caution: z.string().nullable(),
+  fresh: z.boolean(),
+  sources: z.array(z.object({ title: z.string(), url: z.string() })),
+});
+
 const rows = [
   stats("BASELINE (worked in production)", BASELINE),
   stats("BROKEN   (rejected: grammar too large)", BROKEN),
   stats("new TEXT path", TEXT),
   stats("new DOC path", DOC),
   stats("flight read (already in production)", FLIGHT),
+  stats("ask (web search)", ASK),
 ];
 
 const pad = (s, n) => String(s).padEnd(n);

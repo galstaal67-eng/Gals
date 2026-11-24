@@ -226,6 +226,84 @@
     );
   }
 
+  /* ------------------------------------------------------------------ */
+  /*  שני שעונים                                                          */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * הפרש השעות בין היעד לבית, בדקות.
+   *
+   * אם אזור הזמן של היעד שמור במסמך — משתמשים בו. אם לא, הוא נגזר
+   * מהטיסה עצמה: ההמראה רשומה בשעון המוצא והנחיתה בשעון היעד, ולכן
+   * ההפרש ביניהן פחות משך הטיסה הוא בדיוק הפרש השעונים. בטביליסי:
+   * 11:55 פחות (07:20 ועוד 2:35) = שעתיים.
+   */
+  function destDelta() {
+    const out = TRIP.flights?.out;
+    const dep = MIN(out?.dep);
+    const arr = MIN(out?.arr);
+    const dur = MIN(out?.duration);
+    if (dep === null || arr === null || dur === null) return null;
+    let d = arr - (dep + dur);
+    while (d > 720) d -= 1440;
+    while (d <= -720) d += 1440;
+    return d;
+  }
+
+  /** השעה באזור זמן נתון, או null אם השם אינו מוכר לדפדפן */
+  function timeIn(tz, when) {
+    try {
+      return new Intl.DateTimeFormat("he-IL", {
+        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz,
+      }).format(when);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * שעון הבית ושעון היעד.
+   *
+   * שעון הבית מחושב תמיד מאזור הזמן ולא מהמכשיר, כי המכשיר מראה את
+   * המקום שבו המטייל נמצא — ואחרי הנחיתה זה כבר לא הבית.
+   */
+  function clocks() {
+    const now = new Date();
+    const homeTz = TRIP.meta?.homeTz || "Asia/Jerusalem";
+    const home = timeIn(homeTz, now) || hhmm(nowMin());
+
+    const destTz = TRIP.meta?.tz;
+    let dest = destTz ? timeIn(destTz, now) : null;
+    if (!dest) {
+      const d = destDelta();
+      dest = d === null ? null : hhmm(MIN(home) + d);
+    }
+    if (!dest) return null;
+
+    return {
+      home,
+      dest,
+      label: TRIP.meta?.title || "היעד",
+      same: home === dest,
+    };
+  }
+
+  function renderClocks() {
+    const box = $("#heroClocks");
+    if (!box) return;
+    const c = clocks();
+    if (!c) { box.hidden = true; return; }
+
+    box.innerHTML = `
+      <span class="clock clock--dest">
+        <b>${esc(c.dest)}</b><small>${esc(c.label)}</small>
+      </span>
+      <span class="clock clock--home">
+        <b>${esc(c.home)}</b><small>בית</small>
+      </span>`;
+    box.hidden = false;
+  }
+
   /** מרחק אווירי בק"מ בין שתי נקודות */
   function kmBetween(a, b) {
     if (!a?.lat || !b?.lat) return null;
@@ -291,6 +369,16 @@
   // הבחירה חיה כל עוד הקוביה פתוחה; היא מצוירת מחדש כל חצי דקה
   let arriveWay = null;
 
+  /** כמה דקות לוקח לפי מה שכתוב באופציה ("20–25 דק'", "~שעה") */
+  function wayMinutes(opt) {
+    const t = String(opt?.time || "");
+    const hours = t.match(/(\d+)\s*שעות/);
+    if (hours) return Number(hours[1]) * 60;
+    if (/שעה/.test(t)) return 60;
+    const mins = [...t.matchAll(/(\d+)/g)].map((m) => Number(m[1]));
+    return mins.length ? Math.max(...mins) : null;
+  }
+
   function arrivalCard(day, leg, from) {
     const hotel = day.hotel;
     const ways = (TRIP.arrival?.options || []).reduce((m, o) => ({ ...m, [o.key]: o }), {});
@@ -310,8 +398,17 @@
           "פתחו את המפות — המסלול מחושב שם לפי המצב עכשיו."
         : hotel?.area || "",
       facts: way
-        ? [chosen?.time, chosen?.cost, far && `${far.toFixed(0)} ק"מ אווירי`].filter(Boolean)
-        : [far && `${far.toFixed(0)} ק"מ מהשדה`].filter(Boolean),
+        ? [
+            chosen?.time,
+            chosen?.cost,
+            // שעת ההגעה המשוערת ללינה — מה שבאמת רוצים לדעת ברגע הזה
+            wayMinutes(chosen) && `מגיעים ~${hhmm(nowMin() + wayMinutes(chosen))}`,
+            far && `${far.toFixed(0)} ק"מ אווירי`,
+          ].filter(Boolean)
+        : [
+            leg?.arr && `נחתנו ב-${leg.arr}`,
+            far && `${far.toFixed(0)} ק"מ מהשדה`,
+          ].filter(Boolean),
       ways: offered.map((w) => ({ ...w, on: w.key === arriveWay })),
       dir: way ? dirLink(from, hotel, way.mode) : "",
       next: `אחרי שתגיעו — התוכנית של יום ${day.n}`,
@@ -397,7 +494,7 @@
           tone: "air",
           icon: "🛬",
           title: "באוויר",
-          main: `נוחתים${to ? " ב" + to : ""} — ${left(land - m)}`,
+          main: `נוחתים${to ? " ב" + to : ""} ב-${leg.arr || hhmm(land)} — ${left(land - m)}`,
           facts: [arrTerm && `נחיתה בטרמינל ${arrTerm}`, ...facts].filter(Boolean),
           status: leg.flightNo,
           next:
@@ -534,6 +631,117 @@
   const statusLink = (flightNo) =>
     `https://www.google.com/search?q=${encodeURIComponent(String(flightNo) + " flight status")}`;
 
+  /* ---------- לשאול את החבר ---------- */
+
+  /**
+   * השאלה שנשאלת בלחיצה אחת, לפי מה שקורה עכשיו.
+   *
+   * זו הנקודה שבה הקוביה מפסיקה להיות לוח מידע: היא יודעת איפה אנחנו
+   * ומה הלאה, ולכן היא יכולה לשאול את השאלה הנכונה בלי שנקליד אותה.
+   */
+  function askPrompt(card) {
+    const f = TRIP.flights || {};
+    const leg = card.pass ? f[card.pass] : null;
+    const place = TRIP.meta?.title || "";
+
+    if (leg && ["soon", "alert", "air", "pre"].includes(card.tone)) {
+      return (
+        `מה הסטטוס של טיסה ${leg.flightNo} בתאריך ${fullDate(leg.date)}? ` +
+        "האם יש עיכוב, מאיזה שער היא יוצאת, ומה השעה המעודכנת?"
+      );
+    }
+    if (card.tone === "arrive") {
+      return (
+        `נחתנו עכשיו בנמל התעופה של ${place}. מה הדרך הכי טובה להגיע ל-` +
+        `${TRIP.days?.[0]?.hotel?.name || "המלון"} עכשיו, כמה זה עולה וכמה זמן זה לוקח?`
+      );
+    }
+    if (card.day) {
+      return (
+        `אנחנו ב${place}, ${card.main}. מה כדאי לדעת על זה עכשיו — שעות ` +
+        "פתיחה, מחיר כניסה, תורים, ואיפה אוכלים טוב בסביבה?"
+      );
+    }
+    return `מה כדאי לדעת היום על ${place} — מזג אוויר, אירועים, ומשהו ששווה לראות?`;
+  }
+
+  let answer = null;      // התשובה האחרונה, חיה כל עוד הדף פתוח
+  let asking = false;
+
+  async function runAsk(question) {
+    if (asking) return;
+    asking = true;
+    answer = { question, loading: true };
+    renderNow();
+
+    try {
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          question,
+          code: localStorage.getItem("ai:code") || "",
+          context: {
+            trip: TRIP.meta?.title,
+            place: TRIP.meta?.countries?.join(", ") || TRIP.meta?.title,
+            when: new Date().toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" }),
+            state: $("#nowBox").className.replace(/.*is-/, ""),
+            now: $("#nowBox .now__sub")?.textContent || "",
+            next: $("#nowBox .now__main")?.textContent || "",
+            hotel: TRIP.days?.find((d) => d.date === todayISO())?.hotel?.name || "",
+            flight: (() => {
+              const leg = TRIP.flights?.out;
+              return leg ? `${leg.flightNo} ${leg.from} ${leg.dep} → ${leg.to} ${leg.arr}` : "";
+            })(),
+          },
+        }),
+      });
+      const out = await TripAPI.readJson(res);
+      if (!res.ok || !out || out.error) {
+        throw new Error(out?.error || `הבדיקה נכשלה (${res.status})`);
+      }
+      answer = { question, ...out, at: new Date() };
+    } catch (err) {
+      answer = { question, error: err.message || "הבדיקה נכשלה." };
+    } finally {
+      asking = false;
+      renderNow();
+    }
+  }
+
+  /** החלק שמוצג אחרי שהחבר בדק */
+  function answerHTML() {
+    if (!answer) return "";
+    if (answer.loading) {
+      return '<div class="now__answer is-wait">בודק ברשת…</div>';
+    }
+    if (answer.error) {
+      return `<div class="now__answer is-bad">${esc(answer.error)}</div>`;
+    }
+    const src = (answer.sources || [])
+      .map(
+        (x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a>`
+      )
+      .join("");
+    return `
+      <div class="now__answer">
+        <b>${esc(answer.headline || "")}</b>
+        ${(answer.bullets || []).length
+          ? `<ul>${answer.bullets.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>`
+          : ""}
+        ${answer.caution ? `<p class="now__warn">⚠️ ${esc(answer.caution)}</p>` : ""}
+        <p class="now__src">
+          ${answer.fresh ? "נבדק ברשת" : "מידע כללי, בלי חיפוש"}
+          ${answer.at ? ` · ${answer.at.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}` : ""}
+          ${src}
+        </p>
+        <form class="now__more" data-now-more>
+          <input type="text" placeholder="לשאול משהו אחר…" aria-label="שאלה לחבר" />
+          <button class="btn btn--sm" type="submit">שאל</button>
+        </form>
+      </div>`;
+  }
+
   function renderNow() {
     const box = $("#nowBox");
     if (!box) return;
@@ -566,8 +774,11 @@
           ? `<p class="now__facts">${card.facts.map((t) => `<span>${esc(t)}</span>`).join("")}</p>`
           : ""}
         ${card.next ? `<p class="now__next">${esc(card.next)}</p>` : ""}
+        ${answerHTML()}
       </div>
       <div class="now__acts">
+        <button class="btn btn--sm" data-now-ask ${asking ? "disabled" : ""}
+                title="בדיקה ברשת לרגע הזה">${asking ? "בודק…" : "🔎 בדוק עכשיו"}</button>
         ${card.dir ? `<a class="btn btn--sm btn--primary" target="_blank" rel="noopener"
              href="${esc(card.dir)}">🗺️ נווט</a>` : ""}
         ${card.pass ? `<button class="btn btn--sm${card.tone === "alert" ? " btn--primary" : ""}"
@@ -2941,6 +3152,7 @@ ${[marks, line].filter(Boolean).join("\n")}
     applyTripChrome();
     tickCountdown();
     renderNow();
+    renderClocks();
 
     activeDay = "all";
     if (map) { map.remove(); map = null; }
@@ -3530,9 +3742,23 @@ ${[marks, line].filter(Boolean).join("\n")}
     bindJourney();
     setInterval(tickCountdown, 60_000);
     // חצי דקה: שעת עלייה למטוס היא רגע שרוצים לראות בלי לרענן
-    setInterval(renderNow, 30_000);
+    setInterval(() => { renderNow(); renderClocks(); }, 30_000);
+    $("#nowBox").addEventListener("submit", (e) => {
+      const form = e.target.closest("[data-now-more]");
+      if (!form) return;
+      e.preventDefault();
+      const q = form.querySelector("input").value.trim();
+      if (q) runAsk(q);
+    });
     $("#nowBox").addEventListener("click", (e) => {
       if (e.target.closest("[data-now-bell]")) return askNotify();
+
+      const ask = e.target.closest("[data-now-ask]");
+      if (ask) {
+        const card = nowCard();
+        if (card) runAsk(askPrompt(card));
+        return;
+      }
 
       const way = e.target.closest("[data-now-way]");
       if (way) {
