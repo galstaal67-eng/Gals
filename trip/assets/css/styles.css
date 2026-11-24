@@ -2020,12 +2020,25 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 
 /* הרמז לשלב הבא. הוא מה שהופך את הקוביה ממסך מידע לליווי: בכל רגע
    ברור מה יקרה אחריו, ולכן אין צורך לחפש. */
-/* מי מדבר אליך. בלי זה הקוביה היא עוד מסך מידע, ואיתה יש כאן מישהו */
+/* מי מדבר אליך. בלי זה הקוביה היא עוד מסך מידע, ואיתה יש כאן מישהו.
+   זה גם הקיצור להגדרות: רמת הליווי ונושאי העניין נמצאים מאחוריו. */
 .now__who {
-  display: inline-block; margin-bottom: 2px;
-  font-size: .64rem; font-weight: 800; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--moss); opacity: .9;
+  display: inline-block; margin-bottom: 2px; padding: 0;
+  background: none; border: 0; cursor: pointer;
+  font: inherit; font-size: .64rem; font-weight: 800; letter-spacing: .08em;
+  color: var(--moss); opacity: .9;
 }
+.now__who:hover { opacity: 1; text-decoration: underline; }
+
+/* הבהוב קצר אחרי קפיצה להגדרות, כדי שיהיה ברור לאן הגענו */
+.card.is-flash {
+  animation: cardFlash 1.6s ease;
+}
+@keyframes cardFlash {
+  0%, 100% { box-shadow: none; }
+  25%      { box-shadow: 0 0 0 3px color-mix(in srgb, var(--moss) 55%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { .card.is-flash { animation: none; } }
 
 /* הרמז לשלב הבא הוא כפתור: אפשר גם לראות אותו עכשיו, לא רק לשמוע עליו */
 .now__next {

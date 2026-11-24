@@ -942,7 +942,8 @@
       <span class="now__walker" aria-hidden="true"><span>🚶</span></span>
       <span class="now__icon" aria-hidden="true">${card.icon}</span>
       <div class="now__body">
-        <span class="now__who">חבר/ה מלווה</span>
+        <button class="now__who" data-now-settings
+                title="רמת הליווי ונושאי העניין">חבר/ה מלווה ⚙︎</button>
         <b class="now__title">${esc(card.title)}</b>
         <p class="now__main">${esc(card.main)}</p>
         ${cardGuts(card)}
@@ -3932,6 +3933,16 @@ ${[marks, line].filter(Boolean).join("\n")}
     });
     $("#nowBox").addEventListener("click", (e) => {
       if (e.target.closest("[data-now-bell]")) return askNotify();
+
+      if (e.target.closest("[data-now-settings]")) {
+        // ההגדרות יושבות בלשונית המידע; מכאן קופצים ישר אליהן
+        selectTab($("#tab-info"));
+        const card = document.querySelector(".card.watch");
+        card?.scrollIntoView({ behavior: "smooth", block: "center" });
+        card?.classList.add("is-flash");
+        setTimeout(() => card?.classList.remove("is-flash"), 1600);
+        return;
+      }
 
       const shut = e.target.closest("[data-found-close]");
       if (shut) {
