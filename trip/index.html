@@ -653,6 +653,27 @@
     </div>
     <div class="hero__stats" id="tripStats"></div>
 
+    <div class="card pad watch">
+      <h3>🧑‍🤝‍🧑 רמת הליווי</h3>
+      <p class="sm">
+        כמה פעמים החבר/ה המלווה ייצא לבדוק ברשת מה השתנה — עיכוב בטיסה,
+        שער שהתחלף, מעבר שנסגר, שביתה, מזג אוויר שמשנה את היום.
+        <b>כל בדיקה עולה כסף</b>, ולכן הבחירה כאן.
+      </p>
+      <div class="watch__levels" id="watchLevels"></div>
+      <p class="muted sm">
+        בדיקה שלא מצאה דבר שותקת — לא מופיעה, לא מצלצלת. התראה נשלחת רק
+        על מה שמשנה את השעות הקרובות, ולא בין 23:00 ל-07:00.
+        הבדיקה רצה כל עוד האפליקציה פתוחה, וכשחוזרים אליה אחרי שהטלפון
+        היה נעול היא משלימה את מה שהוחמץ.
+      </p>
+      <div class="row-between">
+        <button class="btn btn--sm" id="watchNow">🔎 בדיקה עכשיו</button>
+      </div>
+      <h4>מה נמצא</h4>
+      <ul class="watch__log" id="watchLog"></ul>
+    </div>
+
     <div class="card pad install" id="installCard" hidden>
       <h3>📲 האפליקציה במסך הבית</h3>
       <p id="installText"></p>
@@ -735,6 +756,7 @@
 <script src="assets/js/mail.js"></script>
 <script src="assets/js/money.js"></script>
 <script src="assets/js/install.js"></script>
+<script src="assets/js/watch.js"></script>
 <script src="assets/js/live.js"></script>
 <script src="assets/js/app.js"></script>
 

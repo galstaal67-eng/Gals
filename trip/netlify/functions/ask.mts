@@ -43,6 +43,12 @@ const Answer = z.object({
   fresh: z
     .boolean()
     .describe("true אם התשובה נשענת על חיפוש שנעשה עכשיו, false אם על ידע כללי"),
+  alert: z
+    .boolean()
+    .describe(
+      "true רק אם זה משנה את מה שצריך לעשות בשעות הקרובות ומצדיק להפריע למטייל. " +
+        "בבדיקה יזומה שלא מצאה דבר — false."
+    ),
   sources: z.array(Source).describe("המקורות שנבדקו. ריק אם לא נעשה חיפוש."),
 });
 
@@ -84,6 +90,7 @@ export default async (req: Request) => {
 
   let body: {
     question?: unknown;
+    mode?: unknown;
     code?: unknown;
     context?: Record<string, unknown>;
   } | null;
@@ -99,6 +106,9 @@ export default async (req: Request) => {
 
   const question = line(body.question, 500);
   if (!question) return fail("לא נשלחה שאלה", 422);
+
+  // בדיקה יזומה ברקע היא לא שאלה של המטייל, וצריך לומר לה מתי לשתוק
+  const watching = String(body.mode ?? "") === "watch";
 
   /* ההקשר הוא מה שהקוביה כבר יודעת: איפה אנחנו, מתי, ומה הלאה.
      רק שדות קצרים, וכולם עוברים ניקוי — זה קלט מהדפדפן. */
@@ -143,7 +153,16 @@ export default async (req: Request) => {
         tools: withSearch ? SEARCH : undefined,
         system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
         messages: [
-          { role: "user", content: `${context}\n\nהשאלה: ${question}` },
+          {
+            role: "user",
+            content:
+              `${context}\n\nהשאלה: ${question}` +
+              (watching
+                ? "\n\nזו בדיקה יזומה שרצה ברקע, ולא שאלה שנשאלה עכשיו. " +
+                  "אם אין שום דבר חדש שמצדיק להפריע — כתוב זאת בכותרת, " +
+                  "השאר את bullets ריק, ו-alert=false. עדיף שתיקה על רעש."
+                : ""),
+          },
         ],
       });
 

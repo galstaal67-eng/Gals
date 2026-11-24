@@ -2156,6 +2156,57 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
   border-radius: 999px; color: var(--txt);
 }
 
+/* ---------- רמת הליווי ---------- */
+
+.watch__levels { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.watch__level {
+  flex: 1 1 7rem; min-width: 0;
+  padding: 8px 10px;
+  background: var(--ink-800); border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--txt-dim); font: inherit; text-align: start; cursor: pointer;
+}
+.watch__level b { display: block; font-size: .92rem; }
+.watch__level small { font-size: .7rem; color: var(--txt-mute); }
+.watch__level.is-on {
+  background: color-mix(in srgb, var(--moss) 16%, var(--ink-800));
+  border-color: var(--moss); color: var(--txt);
+}
+.watch__level.is-on small { color: var(--moss); }
+
+.watch__log { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.watch__log li {
+  padding: 7px 10px;
+  background: var(--ink-800); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); font-size: .82rem;
+}
+.watch__log time { display: block; font-size: .68rem; color: var(--txt-mute); }
+
+/* ---------- מה שהבדיקה היזומה מצאה, בתוך הקוביה ---------- */
+
+.now__found {
+  position: relative;
+  margin: 9px 0 0; padding: 9px 11px;
+  background: var(--ink-900);
+  border: 1px solid var(--line-strong);
+  border-inline-start: 3px solid var(--moss);
+  border-radius: var(--radius-sm);
+  font-size: .84rem; line-height: 1.55;
+}
+.now__found.is-alert {
+  border-inline-start-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 9%, var(--ink-900));
+}
+.now__found-tag {
+  display: block; margin-bottom: 3px;
+  font-size: .66rem; font-weight: 700; letter-spacing: .05em;
+  color: var(--txt-mute);
+}
+.now__found.is-alert .now__found-tag { color: var(--gold); }
+.now__found b { display: block; margin-bottom: 4px; padding-inline-end: 22px; color: var(--txt); }
+.now__found ul { margin: 0; padding-inline-start: 17px; color: var(--txt-dim); }
+.now__found li { margin-bottom: 3px; }
+
 /* ============================================ CURRENCY CONVERT ======== */
 /* כפתור קטן מעל כפתור העוזר, וחלונית שנפתחת בדיוק מעליו — לא חלון
    מלא: זו פעולה של חמש שניות בדוכן בשוק, ולא מסך שנכנסים אליו. */

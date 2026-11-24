@@ -779,6 +779,22 @@
   let answer = null;      // התשובה האחרונה, חיה כל עוד הדף פתוח
   let asking = false;
 
+  /** מה שהחבר צריך לדעת כדי לענות — אותו הקשר לשאלה ולבדיקה היזומה */
+  function nowContext() {
+    const box = $("#nowBox");
+    const leg = TRIP.flights?.out;
+    return {
+      trip: TRIP.meta?.title,
+      place: TRIP.meta?.countries?.join(", ") || TRIP.meta?.title,
+      when: new Date().toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" }),
+      state: box ? box.className.replace(/.*is-/, "") : "",
+      now: $("#nowBox .now__sub")?.textContent || "",
+      next: $("#nowBox .now__main")?.textContent || "",
+      hotel: TRIP.days?.find((d) => d.date === todayISO())?.hotel?.name || "",
+      flight: leg ? `${leg.flightNo} ${leg.from} ${leg.dep} → ${leg.to} ${leg.arr}` : "",
+    };
+  }
+
   async function runAsk(question) {
     if (asking) return;
     asking = true;
@@ -792,19 +808,7 @@
         body: JSON.stringify({
           question,
           code: localStorage.getItem("ai:code") || "",
-          context: {
-            trip: TRIP.meta?.title,
-            place: TRIP.meta?.countries?.join(", ") || TRIP.meta?.title,
-            when: new Date().toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" }),
-            state: $("#nowBox").className.replace(/.*is-/, ""),
-            now: $("#nowBox .now__sub")?.textContent || "",
-            next: $("#nowBox .now__main")?.textContent || "",
-            hotel: TRIP.days?.find((d) => d.date === todayISO())?.hotel?.name || "",
-            flight: (() => {
-              const leg = TRIP.flights?.out;
-              return leg ? `${leg.flightNo} ${leg.from} ${leg.dep} → ${leg.to} ${leg.arr}` : "";
-            })(),
-          },
+          context: nowContext(),
         }),
       });
       const out = await TripAPI.readJson(res);
@@ -863,6 +867,55 @@
       </div>`;
   }
 
+  /** הידיעה האחרונה שהבדיקה היזומה מצאה, עד שסוגרים אותה */
+  function foundHTML() {
+    const found = TripWatch.found()[0];
+    if (!found) return "";
+    const src = (found.sources || [])
+      .map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a>`)
+      .join("");
+    const when = new Date(found.at).toLocaleTimeString("he-IL", {
+      hour: "2-digit", minute: "2-digit",
+    });
+    return `
+      <div class="now__found ${found.alert ? "is-alert" : ""}">
+        <button class="now__x" data-found-close="${esc(found.id)}" aria-label="סגירה">✕</button>
+        <span class="now__found-tag">${found.alert ? "⚠️ שים לב" : "מצאתי"} · ${esc(when)}</span>
+        <b>${esc(found.headline)}</b>
+        ${found.bullets.length
+          ? `<ul>${found.bullets.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>`
+          : ""}
+        ${found.caution ? `<p class="now__warn">⚠️ ${esc(found.caution)}</p>` : ""}
+        ${src ? `<p class="now__src">${src}</p>` : ""}
+      </div>`;
+  }
+
+  /* ---------- רמת הליווי ---------- */
+
+  function renderWatch() {
+    const box = $("#watchLevels");
+    if (!box) return;
+    const now = TripWatch.level();
+    box.innerHTML = TripWatch.LEVELS.map(
+      (l) => `<button class="watch__level ${l.key === now ? "is-on" : ""}" data-watch="${l.key}">
+                <b>${esc(l.label)}</b><small>${esc(l.note)}</small>
+              </button>`
+    ).join("");
+
+    const list = $("#watchLog");
+    const rows = TripWatch.found();
+    list.innerHTML = rows.length
+      ? rows
+          .map(
+            (f) => `<li>
+              <time>${new Date(f.at).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" })}</time>
+              <b>${esc(f.headline)}</b>
+            </li>`
+          )
+          .join("")
+      : '<li class="muted sm">עדיין לא נמצא משהו שהצדיק להפריע.</li>';
+  }
+
   function renderNow() {
     const box = $("#nowBox");
     if (!box) return;
@@ -892,6 +945,7 @@
              </button>`
           : ""}
         ${peekHTML(card)}
+        ${foundHTML()}
         ${answerHTML()}
       </div>
       <div class="now__acts">
@@ -3871,6 +3925,13 @@ ${[marks, line].filter(Boolean).join("\n")}
     $("#nowBox").addEventListener("click", (e) => {
       if (e.target.closest("[data-now-bell]")) return askNotify();
 
+      const shut = e.target.closest("[data-found-close]");
+      if (shut) {
+        TripWatch.dismiss(shut.dataset.foundClose);
+        renderWatch();
+        return renderNow();
+      }
+
       if (e.target.closest("[data-now-peek]")) {
         peeking = !peeking;
         return renderNow();
@@ -3917,6 +3978,35 @@ ${[marks, line].filter(Boolean).join("\n")}
 
     // ההצעה להתקין במסך הבית, לפי מה שהדפדפן הזה מאפשר
     InstallApp.init();
+
+    // הליווי הפעיל: בודק ברקע לפי הרמה שנבחרה, ושותק כשאין מה לומר
+    TripWatch.init({
+      context: nowContext,
+      onFound: () => { renderNow(); renderWatch(); },
+    });
+    renderWatch();
+
+    $("#watchLevels").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-watch]");
+      if (!b) return;
+      TripWatch.setLevel(b.dataset.watch);
+      renderWatch();
+      // רמה שמתחילה לצלצל דורשת רשות; מבקשים אותה כשבוחרים, לא אחר כך
+      if (b.dataset.watch !== "off" && window.Notification && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    });
+
+    $("#watchNow").addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = "בודק…";
+      await TripWatch.check(true);
+      btn.disabled = false;
+      btn.textContent = "🔎 בדיקה עכשיו";
+      renderWatch();
+      renderNow();
+    });
 
     // שכבת המידע החיצוני. היא מקבלת גישה לטיול, ללשוניות ולשערים —
     // ולא לשום משתנה פנימי אחר.

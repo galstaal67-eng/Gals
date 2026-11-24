@@ -144,6 +144,7 @@ const ASK = z.object({
   bullets: z.array(z.string()),
   caution: z.string().nullable(),
   fresh: z.boolean(),
+  alert: z.boolean(),
   sources: z.array(z.object({ title: z.string(), url: z.string() })),
 });
 

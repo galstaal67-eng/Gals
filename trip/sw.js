@@ -35,6 +35,7 @@ const SHELL = [
   "./assets/js/mail.js",
   "./assets/js/money.js",
   "./assets/js/install.js",
+  "./assets/js/watch.js",
   "./assets/js/live.js",
   "./assets/js/app.js",
   "./assets/vendor/leaflet/leaflet.js",
