@@ -2056,6 +2056,9 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 }
 .now__peek b { display: block; margin-bottom: 3px; color: var(--txt); }
 .now__peek p { margin: 0; }
+.now__peek .now__ways, .now__peek .now__facts { margin-top: 7px; }
+.now__peek-main { margin-bottom: 2px !important; color: var(--txt); font-weight: 600; }
+.now__peek-go { margin-top: 9px !important; }
 
 .now__tip {
   margin: 7px 0 0; padding: 6px 9px;

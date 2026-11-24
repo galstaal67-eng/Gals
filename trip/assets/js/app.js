@@ -379,7 +379,14 @@
     return mins.length ? Math.max(...mins) : null;
   }
 
-  function arrivalCard(day, leg, from) {
+  function arrivalCard(day, leg, from, m, preview) {
+    /*
+     * שעת ההגעה המשוערת נמדדת משעת הנחיתה כשמציצים קדימה, ומהשעה
+     * הנוכחית כשבאמת נחתנו. הסיבה היא אזורי זמן: הזמן המוצג בהצצה הוא
+     * בשעון המוצא, ושעת הנחיתה רשומה בשעון היעד — ובלי ההבחנה הזו
+     * ההצצה הייתה מבטיחה הגעה למלון שעתיים לפני הנחיתה.
+     */
+    const base = preview && MIN(leg?.arr) !== null ? MIN(leg.arr) + 15 : m ?? nowMin();
     const hotel = day.hotel;
     const ways = (TRIP.arrival?.options || []).reduce((m, o) => ({ ...m, [o.key]: o }), {});
     // הליכה מוצעת רק כשהיא באמת אפשרית. משדה תעופה היא כמעט אף פעם לא.
@@ -402,7 +409,7 @@
             chosen?.time,
             chosen?.cost,
             // שעת ההגעה המשוערת ללינה — מה שבאמת רוצים לדעת ברגע הזה
-            wayMinutes(chosen) && `מגיעים ~${hhmm(nowMin() + wayMinutes(chosen))}`,
+            wayMinutes(chosen) && `מגיעים ~${hhmm(base + wayMinutes(chosen))}`,
             far && `${far.toFixed(0)} ק"מ אווירי`,
           ].filter(Boolean)
         : [
@@ -468,7 +475,7 @@
       const nearLanding =
         (m > land && m <= land + 120) || (arrM !== null && m >= arrM && m <= arrM + 120);
       if (nearLanding && key === "out" && day?.hotel) {
-        return arrivalCard(day, leg, arrivalPort(day));
+        return arrivalCard(day, leg, arrivalPort(day), m, Boolean(at));
       }
       if (m > land + 20) break;
 
@@ -691,6 +698,30 @@
   // האם תצוגת השלב הבא פתוחה
   let peeking = false;
 
+  /** הבחירות והמידע של כרטיס — אותו גוף בדיוק, בקוביה ובהצצה */
+  function cardGuts(card) {
+    return `
+      ${card.sub ? `<p class="now__sub">${esc(card.sub)}</p>` : ""}
+      ${card.ways
+        ? `<p class="now__ways">${card.ways
+            .map(
+              (w) => `<button class="now__way ${w.on ? "is-on" : ""}" data-now-way="${w.key}">
+                        ${w.icon} ${esc(w.label)}</button>`
+            )
+            .join("")}</p>`
+        : ""}
+      ${card.tip ? `<p class="now__tip">💡 ${esc(card.tip)}</p>` : ""}
+      ${card.facts?.length
+        ? `<p class="now__facts">${card.facts.map((t) => `<span>${esc(t)}</span>`).join("")}</p>`
+        : ""}`;
+  }
+
+  /**
+   * ההצצה אינה תקציר של השלב הבא אלא **השלב הבא עצמו**: אותן בחירות,
+   * אותו מידע, ואותם כפתורים. מי שמציץ בשלב ההגעה יכול כבר עכשיו לבחור
+   * מונית או תחבורה ציבורית ולראות מחיר, זמן ומסלול — ולא לחכות לנחיתה
+   * כדי להתחיל להתארגן.
+   */
   function peekHTML(card) {
     if (!peeking) return "";
     const at = nextStage(card);
@@ -702,12 +733,11 @@
       <div class="now__peek">
         <span class="now__peek-when">${esc(at.label)}</span>
         <b>${esc(soon.icon)} ${esc(soon.title)}</b>
-        <p>${esc(soon.main)}</p>
-        ${soon.facts?.length
-          ? `<p class="now__facts">${soon.facts
-              .slice(0, 4)
-              .map((t) => `<span>${esc(t)}</span>`)
-              .join("")}</p>`
+        <p class="now__peek-main">${esc(soon.main)}</p>
+        ${cardGuts(soon)}
+        ${soon.dir
+          ? `<p class="now__peek-go"><a class="btn btn--sm btn--primary" target="_blank"
+               rel="noopener" href="${esc(soon.dir)}">🗺️ נווט</a></p>`
           : ""}
       </div>`;
   }
@@ -854,19 +884,7 @@
         <span class="now__who">חבר/ה מלווה</span>
         <b class="now__title">${esc(card.title)}</b>
         <p class="now__main">${esc(card.main)}</p>
-        ${card.sub ? `<p class="now__sub">${esc(card.sub)}</p>` : ""}
-        ${card.ways
-          ? `<p class="now__ways">${card.ways
-              .map(
-                (w) => `<button class="now__way ${w.on ? "is-on" : ""}" data-now-way="${w.key}">
-                          ${w.icon} ${esc(w.label)}</button>`
-              )
-              .join("")}</p>`
-          : ""}
-        ${card.tip ? `<p class="now__tip">💡 ${esc(card.tip)}</p>` : ""}
-        ${card.facts.length
-          ? `<p class="now__facts">${card.facts.map((t) => `<span>${esc(t)}</span>`).join("")}</p>`
-          : ""}
+        ${cardGuts(card)}
         ${card.next
           ? `<button class="now__next" data-now-peek aria-expanded="${peeking}">
                ${esc(card.next)}
