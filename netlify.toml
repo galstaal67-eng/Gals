@@ -17,6 +17,18 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
+# ה-Service Worker וקובץ ההגדרות של ההתקנה חייבים להיבדק בכל טעינה:
+# עותק ישן של sw.js במטמון הדפדפן היה מקפיא את האפליקציה על גרסה שעברה.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
 # הקוד והתוכן של האתר משתנים בין פריסות — תמיד לאמת מול השרת.
 [[headers]]
   for = "/assets/js/*"

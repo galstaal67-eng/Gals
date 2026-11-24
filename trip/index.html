@@ -20,6 +20,11 @@
   <link rel="stylesheet" href="assets/css/styles.css" />
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏔️</text></svg>" />
+
+  <!-- התקנה במסך הבית. iOS מתעלם מאייקוני ה-manifest ולוקח את
+       apple-touch-icon, ולכן שניהם כאן. -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
 </head>
 <body>
 
@@ -648,6 +653,12 @@
     </div>
     <div class="hero__stats" id="tripStats"></div>
 
+    <div class="card pad install" id="installCard" hidden>
+      <h3>📲 האפליקציה במסך הבית</h3>
+      <p id="installText"></p>
+      <button class="btn btn--primary" id="installBtn" hidden>התקנה</button>
+    </div>
+
     <div class="section-head mt-3">
       <h2>מידע שימושי</h2>
       <p>נהיגה, מזג אוויר, כסף, הזמנות מראש — כל מה שכדאי לדעת לפני היציאה.</p>
@@ -723,7 +734,24 @@
 <script src="assets/js/pass.js"></script>
 <script src="assets/js/mail.js"></script>
 <script src="assets/js/money.js"></script>
+<script src="assets/js/install.js"></script>
 <script src="assets/js/live.js"></script>
 <script src="assets/js/app.js"></script>
+
+<!-- ה-Service Worker הוא מה שמאפשר התקנה ופתיחה בלי רשת. הוא נרשם
+     אחרי הטעינה כדי לא להתחרות על הפס עם הדף עצמו. -->
+<script>
+  // הקשר מאובטח בלבד — כולל localhost, שבו רצה הפיתוח
+  const secure =
+    location.protocol === "https:" ||
+    ["localhost", "127.0.0.1"].includes(location.hostname);
+  if ("serviceWorker" in navigator && secure) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {
+        /* דפדפן שחוסם, או פתיחה מקובץ מקומי — האפליקציה עובדת בלעדיו */
+      });
+    });
+  }
+</script>
 </body>
 </html>
