@@ -293,6 +293,10 @@
 </div>
 
 <!-- ==================================================== HERO ========= -->
+<!-- רצועת השעונים קבועה בראש המסך גם בגלילה, ולכן היא יושבת מחוץ
+     לכותרת: אלמנט sticky נעצר יחד עם ההורה שלו, והכותרת נגללת. -->
+<div class="clockbar" id="heroClocks" hidden></div>
+
 <header class="hero">
   <svg class="hero__ridge" viewBox="0 0 1440 140" preserveAspectRatio="none" aria-hidden="true">
     <path d="M0 140 L0 96 L120 58 L235 92 L360 34 L470 78 L600 22 L720 70 L845 30 L980 84 L1105 46 L1230 90 L1340 52 L1440 88 L1440 140 Z"
@@ -302,10 +306,6 @@
   </svg>
 
   <div class="wrap hero__inner">
-    <!-- רצועת השעונים פותחת את הדף: היעד מימין, הבית משמאל. שעון הבית
-         מחושב מאזור הזמן ולא מהמכשיר, שמראה את המקום שבו אנחנו נמצאים. -->
-    <div class="hero__clocks" id="heroClocks" hidden></div>
-
     <h1 id="heroTitle">טביליסי</h1>
     <span class="hero__eyebrow" id="heroEyebrow">🇬🇪 24 – 29 בנובמבר 2026</span>
     <p class="hero__sub" id="heroSub">

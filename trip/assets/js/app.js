@@ -411,7 +411,7 @@
           ].filter(Boolean),
       ways: offered.map((w) => ({ ...w, on: w.key === arriveWay })),
       dir: way ? dirLink(from, hotel, way.mode) : "",
-      next: `אחרי שתגיעו — התוכנית של יום ${day.n}`,
+      next: `כשתגיעו למלון אעבור אתכם על התוכנית של יום ${day.n}`,
       day: day.n,
     };
   }
@@ -420,10 +420,10 @@
    * מה להציג עכשיו. מחזיר תיאור בלבד — הציור נפרד, כדי שאפשר יהיה
    * לבדוק את ההחלטה עצמה בלי DOM.
    */
-  function nowCard() {
+  function nowCard(at) {
     const f = TRIP.flights || {};
-    const today = todayISO();
-    const m = nowMin();
+    const today = at?.date || todayISO();
+    const m = at?.m ?? nowMin();
 
     /* ---------- טיסה היום ---------- */
     for (const key of ["out", "back"]) {
@@ -483,9 +483,10 @@
           facts: [depTerm && `טרמינל ${depTerm}`, ...facts].filter(Boolean),
           pass: key,
           status: leg.flightNo,
-          next: `אחרי ההמראה — כמה נשאר עד הנחיתה${
-            key === "out" ? ", ואז איך מגיעים למלון" : ""
-          }`,
+          next:
+            key === "out"
+              ? "כשתנחתו אתן לכם את הדרכים להגיע למלון — מונית, תחבורה ציבורית, מחיר וזמן"
+              : "אחרי ההמראה אראה לכם כמה נשאר עד הנחיתה",
         };
       }
 
@@ -499,8 +500,8 @@
           status: leg.flightNo,
           next:
             key === "out"
-              ? "כשננחת — אלווה אתכם משם ללינה: מונית, תחבורה ציבורית או ברגל"
-              : "אחרי הנחיתה — הביתה. הטיול הזה נגמר.",
+              ? "כשתנחתו אלווה אתכם מהטרמינל ועד המלון, עם מחיר וזמן לכל דרך"
+              : "אחרי הנחיתה — הביתה. נתראה בטיול הבא.",
         };
       }
 
@@ -518,18 +519,20 @@
         ].filter(Boolean),
         pass: key,
         status: leg.flightNo,
-        next: `בשעת העלייה למטוס (${hhmm(board.at)}) אתריע לכם ללכת לשער`,
+        next: `ב-${hhmm(board.at)} אתריע לכם ללכת לשער, ואחרי ההמראה אלווה אתכם עד המלון`,
       };
     }
 
     /* ---------- יום בטיול ---------- */
     const day = TRIP.days.find((d) => d.date === today);
     if (day) {
-      const prog = dayProgress(day);
+      // הכול נגזר מ-m ולא מהשעון, כדי שהצצה לשלב הבא תראה את מה שיהיה
+      // אז — ולא את מה שקורה עכשיו עם כותרת אחרת
       const rows = (day.plan || []).filter((p) => MIN(p.time) !== null);
       const past = rows.filter((p) => MIN(p.time) <= m);
       const now_ = past[past.length - 1];
-      const next = prog?.next;
+      const next = rows.find((p) => MIN(p.time) > m);
+      const prog = rows.length ? { done: past.length, total: rows.length } : null;
 
       const facts = [
         prog && `${prog.done} מתוך ${prog.total} בתוכנית`,
@@ -575,8 +578,9 @@
     /* ---------- לפני ואחרי ---------- */
     const out = f.out;
     const start = new Date(TRIP.meta.startDate).getTime();
-    if (out?.date && Date.now() < start) {
-      const days = Math.ceil((new Date(out.date + "T12:00:00").getTime() - Date.now()) / 86400000);
+    const nowTs = new Date(`${today}T12:00:00`).getTime();
+    if (out?.date && nowTs < start) {
+      const days = Math.ceil((new Date(out.date + "T12:00:00").getTime() - nowTs) / 86400000);
       return {
         tone: "pre",
         icon: "🧳",
@@ -591,7 +595,7 @@
         ].filter(Boolean),
         pass: "out",
         status: out.flightNo,
-        next: "ביום הטיסה אלווה אתכם מהבית ועד המלון — שעת עלייה, שער, ונחיתה",
+        next: "ביום הטיסה אלווה אתכם מהבית ועד המלון — מתי לצאת, מתי לעלות, ואיך מגיעים",
       };
     }
     return null;
@@ -630,6 +634,83 @@
    */
   const statusLink = (flightNo) =>
     `https://www.google.com/search?q=${encodeURIComponent(String(flightNo) + " flight status")}`;
+
+  /* ---------- השלב הבא ---------- */
+
+  /**
+   * מתי מתחיל השלב הבא, ואיך קוראים לו.
+   *
+   * זה מה שמאפשר להציג אותו **עכשיו**: במקום לתאר אותו במילים, הכרטיס
+   * של אותו רגע נבנה מראש ומוצג כמו שהוא. אותה פונקציה בדיוק, עם זמן
+   * אחר — ולכן אין כאן תיאור שני שעלול לסתור את הראשון.
+   */
+  function nextStage(card) {
+    const f = TRIP.flights || {};
+    const today = todayISO();
+    const leg = card.pass ? f[card.pass] : null;
+    const dep = MIN(leg?.dep);
+    const dur = MIN(leg?.duration) || 0;
+
+    if (card.tone === "pre" && leg?.date) {
+      return { date: leg.date, m: Math.max(0, dep - 120), label: "בוקר הטיסה" };
+    }
+    if (card.tone === "soon" && leg) {
+      const b = boardingOf(leg);
+      return { date: today, m: b.at + 5, label: "שעת העלייה למטוס" };
+    }
+    if (card.tone === "alert" && leg) {
+      // מדלגים על "באוויר": הרמז בשעת העלייה מבטיח את הדרכים למלון,
+      // וההצצה צריכה להראות בדיוק את מה שהובטח
+      return card.pass === "out"
+        ? { date: today, m: dep + dur + 15, label: "כשתנחתו" }
+        : { date: today, m: dep + 40, label: "באוויר" };
+    }
+    if (card.tone === "air" && leg) {
+      return { date: today, m: dep + dur + 10, label: "אחרי הנחיתה" };
+    }
+    if (card.tone === "arrive") {
+      const day = TRIP.days.find((d) => d.date === today);
+      const row = (day?.plan || []).find((x) => MIN(x.time) !== null && MIN(x.time) > nowMin());
+      return row
+        ? { date: today, m: MIN(row.time) + 1, label: `התוכנית של יום ${day.n}` }
+        : null;
+    }
+    if (card.day) {
+      const day = TRIP.days.find((d) => d.n === card.day);
+      const rows = (day?.plan || []).filter((x) => MIN(x.time) !== null);
+      const row = rows.find((x) => MIN(x.time) > nowMin());
+      if (row) return { date: today, m: MIN(row.time) + 1, label: `השלב הבא · ${row.time}` };
+      const tomorrow = TRIP.days.find((d) => d.n === card.day + 1);
+      if (!tomorrow) return null;
+      const first = (tomorrow.plan || []).find((x) => MIN(x.time) !== null);
+      return { date: tomorrow.date, m: MIN(first?.time) ?? 540, label: `מחר · יום ${tomorrow.n}` };
+    }
+    return null;
+  }
+
+  // האם תצוגת השלב הבא פתוחה
+  let peeking = false;
+
+  function peekHTML(card) {
+    if (!peeking) return "";
+    const at = nextStage(card);
+    const soon = at ? nowCard(at) : null;
+    if (!soon) {
+      return '<div class="now__peek">אין שלב נוסף אחרי זה.</div>';
+    }
+    return `
+      <div class="now__peek">
+        <span class="now__peek-when">${esc(at.label)}</span>
+        <b>${esc(soon.icon)} ${esc(soon.title)}</b>
+        <p>${esc(soon.main)}</p>
+        ${soon.facts?.length
+          ? `<p class="now__facts">${soon.facts
+              .slice(0, 4)
+              .map((t) => `<span>${esc(t)}</span>`)
+              .join("")}</p>`
+          : ""}
+      </div>`;
+  }
 
   /* ---------- לשאול את החבר ---------- */
 
@@ -764,10 +845,13 @@
       window.Notification &&
       Notification.permission === "default";
 
+    const at = nextStage(card);
+
     box.className = `now wrap is-${card.tone}`;
     box.innerHTML = `
       <span class="now__icon" aria-hidden="true">${card.icon}</span>
       <div class="now__body">
+        <span class="now__who">חבר/ה מלווה</span>
         <b class="now__title">${esc(card.title)}</b>
         <p class="now__main">${esc(card.main)}</p>
         ${card.sub ? `<p class="now__sub">${esc(card.sub)}</p>` : ""}
@@ -783,7 +867,13 @@
         ${card.facts.length
           ? `<p class="now__facts">${card.facts.map((t) => `<span>${esc(t)}</span>`).join("")}</p>`
           : ""}
-        ${card.next ? `<p class="now__next">${esc(card.next)}</p>` : ""}
+        ${card.next
+          ? `<button class="now__next" data-now-peek aria-expanded="${peeking}">
+               ${esc(card.next)}
+               ${at ? `<span class="now__peek-cue">${peeking ? "סגירה" : "להציץ"}</span>` : ""}
+             </button>`
+          : ""}
+        ${peekHTML(card)}
         ${answerHTML()}
       </div>
       <div class="now__acts">
@@ -3763,6 +3853,10 @@ ${[marks, line].filter(Boolean).join("\n")}
     $("#nowBox").addEventListener("click", (e) => {
       if (e.target.closest("[data-now-bell]")) return askNotify();
 
+      if (e.target.closest("[data-now-peek]")) {
+        peeking = !peeking;
+        return renderNow();
+      }
       if (e.target.closest("[data-now-close]")) {
         answer = null;
         return renderNow();
