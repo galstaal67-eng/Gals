@@ -179,6 +179,250 @@
   }
 
   /* ==================================================================== */
+  /*  קוביית "עכשיו" — מה רלוונטי בשעה הזו                                */
+  /* ==================================================================== */
+
+  /**
+   * מה שמוצג מתחת לכותרת הוא מה שצריך **ברגע הזה**, ולא סיכום של הטיול.
+   * בבוקר של יום טיסה זו הטיסה, בשעת העלייה זו התראה ללכת לשער, באוויר
+   * זה כמה נשאר, ובמהלך יום רגיל זו השורה הבאה בתוכנית.
+   *
+   * השוואות הזמן נעשות מול השעון של המכשיר, שהוא השעון של המקום שבו
+   * המטייל נמצא — ולכן הן נכונות לשדה היציאה. **משך** הטיסה משמש לחישוב
+   * מה שנותר באוויר ולא שעת הנחיתה, כי הנחיתה רשומה בשעון היעד: טיסת
+   * החזרה ממריאה ב-12:05 בטביליסי ונוחתת ב-12:45 בישראל, וחיסור ישיר
+   * שלהן היה נותן ארבעים דקות במקום שעתיים וארבעים.
+   */
+
+  const MIN = (hhmm) => {
+    const m = String(hhmm || "").match(/^(\d{1,2}):(\d{2})/);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  };
+
+  const nowMin = () => {
+    const d = new Date();
+    return d.getHours() * 60 + d.getMinutes();
+  };
+
+  const hhmm = (mins) => {
+    const m = ((mins % 1440) + 1440) % 1440;
+    return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  };
+
+  /** "עוד 1:40" / "עוד 25 דק'" */
+  function left(mins) {
+    if (mins <= 0) return "עכשיו";
+    if (mins < 60) return `עוד ${mins} דק'`;
+    return `עוד ${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, "0")} שעות`;
+  }
+
+  /** שעת העלייה למטוס. אם אינה רשומה בכרטיס — אומדן, ונאמר שהוא אומדן. */
+  function boardingOf(leg) {
+    const dep = MIN(leg.dep);
+    if (leg.boarding && MIN(leg.boarding) !== null) {
+      return { at: MIN(leg.boarding), exact: true };
+    }
+    return dep === null ? null : { at: dep - 40, exact: false };
+  }
+
+  /** רק השם, בלי קוד השדה והטרמינל שבתוך הסוגריים */
+  const placeName = (s) => String(s || "").split("(")[0].replace(/·.*$/, "").trim();
+
+  /**
+   * מה להציג עכשיו. מחזיר תיאור בלבד — הציור נפרד, כדי שאפשר יהיה
+   * לבדוק את ההחלטה עצמה בלי DOM.
+   */
+  function nowCard() {
+    const f = TRIP.flights || {};
+    const today = todayISO();
+    const m = nowMin();
+
+    /* ---------- טיסה היום ---------- */
+    for (const key of ["out", "back"]) {
+      const leg = f[key];
+      if (!leg || leg.date !== today) continue;
+
+      const dep = MIN(leg.dep);
+      if (dep === null) continue;
+      const board = boardingOf(leg);
+      const dur = MIN(leg.duration) || 0;
+      const land = dep + dur;
+      const from = placeName(leg.from);
+      const to = placeName(leg.to);
+
+      // הטרמינל נלקח מתוך שם השדה ולא משדה terminal, שאינו עקבי: בהלוך
+      // הוא טרמינל היציאה ובחזור הוא טרמינל הנחיתה. לפני הטיסה מעניין
+      // מאיפה יוצאים, ובאוויר לאן מגיעים.
+      const term = (txt) => (String(txt || "").match(/טרמינל\s*(\S+)/) || [])[1];
+      const depTerm = term(leg.from);
+      const arrTerm = term(leg.to);
+
+      const facts = [
+        leg.flightNo && `✈️ ${leg.flightNo}`,
+        leg.gate && `שער ${leg.gate}`,
+        (leg.seats || []).length && `מושב ${leg.seats.map((x) => x.seat).join(" · ")}`,
+        leg.duration && `משך ${leg.duration}`,
+      ].filter(Boolean);
+
+      // אחרי הנחיתה היום ממשיך כרגיל, ולכן נופלים משם לתוכנית היומית
+      if (m > land + 20) break;
+
+      if (m >= board.at && m <= dep + 20) {
+        return {
+          tone: "alert",
+          icon: "🛫",
+          title: "עלייה למטוס",
+          main: leg.gate
+            ? `לכו לשער ${leg.gate} — ההמראה ב-${leg.dep}`
+            : `לכו לשער. ההמראה ב-${leg.dep}${board.exact ? "" : " · שעת העלייה משוערת"}`,
+          facts: [depTerm && `טרמינל ${depTerm}`, ...facts].filter(Boolean),
+          pass: key,
+        };
+      }
+
+      if (m > dep + 20 && m <= land) {
+        return {
+          tone: "air",
+          icon: "🛬",
+          title: "באוויר",
+          main: `נוחתים${to ? " ב" + to : ""} — ${left(land - m)}`,
+          facts: [arrTerm && `נחיתה בטרמינל ${arrTerm}`, ...facts].filter(Boolean),
+        };
+      }
+
+      const beAt = dep - Math.round((f.checkIn?.airportBefore ?? 3) * 60);
+      return {
+        tone: "soon",
+        icon: "✈️",
+        title: "טיסה היום",
+        main: `${from} → ${to} · המראה ב-${leg.dep} · ${left(dep - m)}`,
+        facts: [
+          `עלייה למטוס ${hhmm(board.at)}${board.exact ? "" : " (משוער)"}`,
+          m < beAt ? `להיות בשדה ב-${hhmm(beAt)}` : "",
+          depTerm && `טרמינל ${depTerm}`,
+          ...facts,
+        ].filter(Boolean),
+        pass: key,
+      };
+    }
+
+    /* ---------- יום בטיול ---------- */
+    const day = TRIP.days.find((d) => d.date === today);
+    if (day) {
+      const prog = dayProgress(day);
+      const rows = (day.plan || []).filter((p) => MIN(p.time) !== null);
+      const past = rows.filter((p) => MIN(p.time) <= m);
+      const now_ = past[past.length - 1];
+      const next = prog?.next;
+
+      const facts = [
+        prog && `${prog.done} מתוך ${prog.total} בתוכנית`,
+        day.hotel?.name && `🛏️ ${day.hotel.name}`,
+        dayMoney(day) && `💸 ${dayMoney(day)}`,
+      ].filter(Boolean);
+
+      if (next) {
+        return {
+          tone: "day",
+          icon: "📍",
+          title: `יום ${day.n} · ${day.title || ""}`.trim(),
+          main: `הבא בתור ${next.time} — ${next.text}`,
+          sub: now_ ? `עכשיו: ${now_.text}` : "",
+          facts,
+          day: day.n,
+        };
+      }
+      return {
+        tone: "night",
+        icon: now_ ? "🌙" : "📍",
+        title: `יום ${day.n} · ${day.title || ""}`.trim(),
+        main: now_ ? "התוכנית של היום הושלמה." : "אין שעות בתוכנית של היום.",
+        sub: day.hotel?.name ? `לינה: ${day.hotel.name}` : "",
+        facts,
+        day: day.n,
+      };
+    }
+
+    /* ---------- לפני ואחרי ---------- */
+    const out = f.out;
+    const start = new Date(TRIP.meta.startDate).getTime();
+    if (out?.date && Date.now() < start) {
+      const days = Math.ceil((new Date(out.date + "T12:00:00").getTime() - Date.now()) / 86400000);
+      return {
+        tone: "pre",
+        icon: "🧳",
+        title: days <= 1 ? "יוצאים מחר" : `עוד ${days} ימים ליציאה`,
+        main: `${placeName(out.from)} → ${placeName(out.to)} · המראה ב-${out.dep}${
+          out.date ? " · " + fullDate(out.date) : ""
+        }`,
+        facts: [
+          out.flightNo && `✈️ ${out.flightNo}`,
+          (String(out.from || "").match(/טרמינל\s*(\S+)/) || [])[1] &&
+            `טרמינל ${(out.from.match(/טרמינל\s*(\S+)/) || [])[1]}`,
+        ].filter(Boolean),
+        pass: "out",
+      };
+    }
+    return null;
+  }
+
+  /* ---------- התראת העלייה למטוס ---------- */
+  /* התראת דפדפן נשלחת פעם אחת לטיסה, וכשהמשתמש אישר. היא עובדת כל עוד
+     האפליקציה פתוחה בלשונית — אין כאן Service Worker, ולכן אין הבטחה
+     שתגיע כשהטלפון נעול. הקוביה עצמה היא ההתראה האמיתית. */
+  let notified = null;
+
+  function notifyBoarding(card) {
+    if (card.tone !== "alert") return;
+    const key = `${todayISO()}:${card.pass}`;
+    if (notified === key) return;
+    notified = key;
+    try {
+      if (window.Notification && Notification.permission === "granted") {
+        new Notification("עלייה למטוס", { body: card.main, tag: "boarding" });
+      }
+    } catch { /* דפדפן בלי התראות */ }
+  }
+
+  function askNotify() {
+    if (!window.Notification) return;
+    Notification.requestPermission().then(() => renderNow());
+  }
+
+  function renderNow() {
+    const box = $("#nowBox");
+    if (!box) return;
+    const card = nowCard();
+    if (!card) { box.hidden = true; return; }
+
+    const wantsBell =
+      card.tone !== "alert" &&
+      Boolean(card.pass) &&
+      window.Notification &&
+      Notification.permission === "default";
+
+    box.className = `now wrap is-${card.tone}`;
+    box.innerHTML = `
+      <span class="now__icon" aria-hidden="true">${card.icon}</span>
+      <div class="now__body">
+        <b class="now__title">${esc(card.title)}</b>
+        <p class="now__main">${esc(card.main)}</p>
+        ${card.sub ? `<p class="now__sub">${esc(card.sub)}</p>` : ""}
+        ${card.facts.length
+          ? `<p class="now__facts">${card.facts.map((t) => `<span>${esc(t)}</span>`).join("")}</p>`
+          : ""}
+      </div>
+      <div class="now__acts">
+        ${card.pass ? `<button class="btn btn--sm${card.tone === "alert" ? " btn--primary" : ""}"
+             data-pass-leg="${esc(card.pass)}">🎫 כרטיס עלייה</button>` : ""}
+        ${card.day ? `<button class="btn btn--sm" data-ov-open="${card.day}">היום המלא</button>` : ""}
+        ${wantsBell ? '<button class="btn btn--sm" data-now-bell title="התראה בשעת העלייה למטוס, כל עוד האפליקציה פתוחה">🔔</button>' : ""}
+      </div>`;
+    box.hidden = false;
+    notifyBoarding(card);
+  }
+
+  /* ==================================================================== */
   /*  מפה                                                                 */
   /* ==================================================================== */
 
@@ -245,7 +489,18 @@
   /** מעל זה העמודה נהיית בלתי קריאה, והשאר נספר ב-"ועוד" */
   const OV_MAX = 8;
 
-  const todayISO = () => new Date().toISOString().slice(0, 10);
+  /**
+   * תאריך היום לפי השעון של המכשיר.
+   *
+   * לא toISOString(): הוא מחזיר UTC, ולכן בחצות ועד השעתיים שאחריה הוא
+   * היה מחזיר את אתמול — בדיוק בשעות שבהן יוצאים לטיסת בוקר.
+   */
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
+  };
   const ovShortDate = (iso) => (iso ? `${+iso.slice(8, 10)}.${+iso.slice(5, 7)}` : "");
 
   /** היום שאליו גוללים: הנוכחי אם הטיול רץ, אחרת קצה הטיול */
@@ -2525,6 +2780,7 @@ ${[marks, line].filter(Boolean).join("\n")}
   function renderTrip() {
     applyTripChrome();
     tickCountdown();
+    renderNow();
 
     activeDay = "all";
     if (map) { map.remove(); map = null; }
@@ -3113,6 +3369,17 @@ ${[marks, line].filter(Boolean).join("\n")}
     applyTheme();
     bindJourney();
     setInterval(tickCountdown, 60_000);
+    // חצי דקה: שעת עלייה למטוס היא רגע שרוצים לראות בלי לרענן
+    setInterval(renderNow, 30_000);
+    $("#nowBox").addEventListener("click", (e) => {
+      if (e.target.closest("[data-now-bell]")) return askNotify();
+
+      const pass = e.target.closest("[data-pass-leg]");
+      if (pass) return BoardingPass.open({ leg: pass.dataset.passLeg });
+
+      const day = e.target.closest("[data-ov-open]");
+      if (day) return openDayModal(day.dataset.ovOpen);
+    });
 
     // לפני renderTrip: הרינדור הראשון כבר קורא ל-FlightsView.render
     FlightsView.init({

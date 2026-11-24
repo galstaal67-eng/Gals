@@ -1939,6 +1939,81 @@ main { scroll-margin-top: 68px; }
 /* הכפתור שפותח את כרטיס העלייה מתוך כרטיס הטיסה */
 .fl-pass { margin-top: 10px; }
 
+/* ==================================================== NOW BOX ======== */
+/* מה שרלוונטי בשעה הזו, מתחת לכותרת. בשעת העלייה למטוס היא משנה צבע
+   ונעשית ההתראה עצמה — זה הרגע היחיד בטיול שבו טעות עולה בטיסה. */
+
+.now {
+  display: flex; align-items: flex-start; gap: 11px;
+  margin: 0 auto 2px;
+  padding: 12px 14px;
+  background: var(--ink-800);
+  border: 1px solid var(--line-strong);
+  border-inline-start: 3px solid var(--moss);
+  border-radius: var(--radius);
+}
+.now[hidden] { display: none; }
+
+.now__icon { flex: 0 0 auto; font-size: 1.5rem; line-height: 1.1; }
+/* בסיס אפס: עם flex-wrap, בסיס "auto" נמדד לפי רוחב התוכן — והגוש
+   ירד שורה מתחת לאייקון במקום לשבת לצידו */
+.now__body { flex: 1 1 0; min-width: 0; }
+
+.now__title { font-size: .76rem; color: var(--txt-mute); font-weight: 700; }
+.now__main { margin: 2px 0 0; font-size: 1.02rem; font-weight: 700; line-height: 1.35; }
+.now__sub { margin: 3px 0 0; font-size: .84rem; color: var(--txt-dim); }
+
+/* שורה בתוכנית היומית יכולה להיות פסקה שלמה. כאן רוצים מבט, לא קריאה —
+   הטקסט המלא נמצא במרחק לחיצה אחת, בכפתור "היום המלא". */
+.now__main, .now__sub {
+  display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;
+}
+.now__main { -webkit-line-clamp: 3; }
+.now__sub { -webkit-line-clamp: 2; }
+
+.now__facts {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  margin: 8px 0 0;
+}
+.now__facts span {
+  padding: 2px 8px;
+  background: var(--ink-700); border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: .72rem; color: var(--txt-dim);
+}
+
+.now__acts { flex: 0 0 auto; display: grid; gap: 6px; }
+
+/* ---------- המצבים ---------- */
+
+.now.is-soon  { border-inline-start-color: var(--sky); }
+.now.is-air   { border-inline-start-color: var(--heather); }
+.now.is-night { border-inline-start-color: var(--txt-mute); }
+.now.is-pre   { border-inline-start-color: var(--gold); }
+
+.now.is-alert {
+  border-color: var(--gold);
+  border-inline-start-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 12%, var(--ink-800));
+  animation: nowPulse 2.4s ease-in-out infinite;
+}
+.now.is-alert .now__title { color: var(--gold); }
+.now.is-alert .now__main { font-size: 1.12rem; }
+
+@keyframes nowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 34%, transparent); }
+  50%      { box-shadow: 0 0 0 7px color-mix(in srgb, var(--gold) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .now.is-alert { animation: none; }
+}
+
+@media (max-width: 560px) {
+  /* בטלפון הכפתורים יורדים מתחת לטקסט ולא דוחסים אותו לעמודה צרה */
+  .now { flex-wrap: wrap; }
+  .now__acts { flex: 1 1 100%; grid-auto-flow: column; justify-content: start; }
+}
+
 /* ============================================ CURRENCY CONVERT ======== */
 /* כפתור קטן מעל כפתור העוזר, וחלונית שנפתחת בדיוק מעליו — לא חלון
    מלא: זו פעולה של חמש שניות בדוכן בשוק, ולא מסך שנכנסים אליו. */
