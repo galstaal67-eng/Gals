@@ -288,6 +288,34 @@
     };
   }
 
+  /**
+   * הטמפרטורה במקום שאנחנו בו, בין שני השעונים.
+   *
+   * עדיפות ל-`tNow` — המדידה של עכשיו — ורק בהיעדרה לטווח היומי. השניים
+   * אינם אותו דבר: 11°/2° אומר מה צפוי היום, ו-7° אומר מה ללבוש בדקה
+   * הזו, וזה מה שמחפשים ברצועה שנמצאת תמיד על המסך.
+   */
+  function tempNow() {
+    if (typeof LiveView === "undefined" || !LiveView.weatherFor) return "";
+    const wx = LiveView.weatherFor();
+    const today = todayISO();
+    const d = (wx || []).find((x) => x.date === today);
+    if (!d) return "";
+
+    const value =
+      d.tNow !== null && d.tNow !== undefined
+        ? `${Math.round(d.tNow)}°`
+        : d.tMax === null && d.tMin === null
+        ? ""
+        : `${Math.round(d.tMax ?? 0)}°/${Math.round(d.tMin ?? 0)}°`;
+    if (!value) return "";
+
+    const title = `${d.text} ב${d.place}`;
+    return `<span class="clock clock--temp" title="${esc(title)}">
+              <b>${esc(d.icon || "🌡️")} ${esc(value)}</b><small>${esc(d.place)}</small>
+            </span>`;
+  }
+
   function renderClocks() {
     const box = $("#heroClocks");
     if (!box) return;
@@ -298,6 +326,7 @@
       <span class="clock clock--dest">
         <b>${esc(c.dest)}</b><small>${esc(c.label)}</small>
       </span>
+      ${tempNow()}
       <span class="clock clock--home">
         <b>${esc(c.home)}</b><small>בית</small>
       </span>`;
@@ -1329,6 +1358,7 @@
       setChip(el, d.icon, temps);
       el.title = `${d.text} ב${d.place}`;
     });
+    renderClocks();          // הרצועה מציגה את הטמפרטורה של היום
   }
 
   /* ------------------------------------------------------------------ */

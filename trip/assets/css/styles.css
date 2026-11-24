@@ -1971,6 +1971,12 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 .clock small { font-size: .68rem; color: var(--txt-mute); }
 .clock--dest b { color: var(--moss); }
 .clock--home b { color: var(--txt-dim); font-size: 1rem; }
+.clock--temp b { color: var(--sky); font-size: 1rem; }
+.clock--temp small {
+  /* שם המקום יכול להיות ארוך; ברצועה צרה הוא מתקצר ולא דוחף */
+  max-width: 7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@media (max-width: 400px) { .clock--temp small { display: none; } }
 
 
 

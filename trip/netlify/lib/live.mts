@@ -50,6 +50,8 @@ export interface DayWeather {
   icon: string;
   tMax: number | null;
   tMin: number | null;
+  /** הטמפרטורה **עכשיו**, רק ליום שהוא היום באותו מקום */
+  tNow: number | null;
   rainMm: number | null;
   rainChance: number | null;
   windKmh: number | null;
@@ -134,6 +136,11 @@ const DAILY =
   "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum," +
   "precipitation_probability_max,wind_speed_10m_max,sunrise,sunset";
 
+interface CurrentBlock {
+  time?: unknown;
+  temperature_2m?: unknown;
+}
+
 interface DailyBlock {
   time?: unknown;
   weather_code?: unknown;
@@ -181,10 +188,15 @@ export async function fetchWeather(
     [...byPlace.entries()].map(async ([key, group]) => {
       const url =
         `https://api.open-meteo.com/v1/forecast?latitude=${key.split(",")[0]}` +
-        `&longitude=${key.split(",")[1]}&daily=${DAILY}&timezone=auto&forecast_days=16`;
+        `&longitude=${key.split(",")[1]}&daily=${DAILY}&current=temperature_2m` +
+        "&timezone=auto&forecast_days=16";
       try {
-        const data = (await getJson(url)) as { daily?: DailyBlock };
+        const data = (await getJson(url)) as { daily?: DailyBlock; current?: CurrentBlock };
         const d = data.daily || {};
+        // הטמפרטורה הנוכחית שייכת ליום אחד — זה שהתאריך שלו הוא התאריך
+        // שהשירות החזיר ב-current, בשעון המקום עצמו
+        const nowDate = String(data.current?.time ?? "").slice(0, 10);
+        const nowTemp = num(data.current?.temperature_2m);
         const times = arr(d.time).map(String);
         for (const point of group) {
           const i = times.indexOf(point.date);
@@ -200,6 +212,7 @@ export async function fetchWeather(
             icon,
             tMax: num(arr(d.temperature_2m_max)[i]),
             tMin: num(arr(d.temperature_2m_min)[i]),
+            tNow: point.date === nowDate ? nowTemp : null,
             rainMm: num(arr(d.precipitation_sum)[i]),
             rainChance: num(arr(d.precipitation_probability_max)[i]),
             windKmh: num(arr(d.wind_speed_10m_max)[i]),
