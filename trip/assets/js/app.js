@@ -1147,6 +1147,23 @@
     return null;
   }
 
+  /**
+   * יום השבוע בקיצור, לעמודות צרות: ג׳ במקום שלישי.
+   *
+   * נגזר מהתאריך ולא מהמחרוזת שבמסמך, כי המחרוזת יכולה להיות כתובה
+   * בכל צורה — ואות ראשונה של "שישי" ושל "שבת" היא אותה אות.
+   */
+  function dowShort(day) {
+    if (!day?.date) return "";
+    try {
+      const d = new Date(day.date + "T12:00:00");
+      // he-IL מחזיר כבר "ג׳" עם גרש; הוספת גרש נוספת נתנה "ג׳׳"
+      return new Intl.DateTimeFormat("he-IL", { weekday: "narrow" }).format(d);
+    } catch {
+      return String(day.dow || "").slice(0, 1);
+    }
+  }
+
   /** צ'יפ אחד: אייקון תמיד, ערך כשיש מקום לו בעמודה */
   const ovChip = (icon, value, attr = "") =>
     `<span class="ov-chip" ${attr} ${value ? "" : "hidden"}><b>${icon}</b><i>${esc(value || "")}</i></span>`;
@@ -1209,9 +1226,9 @@
         return `<article class="ov-day is-${dayStatus(day)}" data-ov-col="${day.n}">
           <button type="button" class="ov-day__head" data-ov-open="${day.n}"
                   title="${esc(day.title || "")}">
-            <b>יום ${day.n}</b>
+            <b>יום ${day.n}<i class="ov-day__dow">${esc(day.dow || "")}</i><i
+               class="ov-day__dow-s">${esc(dowShort(day))}</i></b>
             <span class="ov-day__when">
-              <i class="ov-day__dow">${esc(day.dow || "")}</i>
               <i class="ov-day__date">${ovShortDate(day.date)}</i>
             </span>
             <span class="ov-day__profile">${esc(day.profile || day.title || "")}</span>
