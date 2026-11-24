@@ -2076,6 +2076,7 @@ main { scroll-margin-top: 68px; }
 /* ---------- התשובה מהחבר ---------- */
 
 .now__answer {
+  position: relative;
   margin: 9px 0 0; padding: 9px 11px;
   background: var(--ink-900); border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -2083,7 +2084,17 @@ main { scroll-margin-top: 68px; }
 }
 .now__answer.is-wait { color: var(--txt-mute); }
 .now__answer.is-bad { color: var(--danger); }
-.now__answer b { display: block; margin-bottom: 5px; }
+.now__answer b { display: block; margin-bottom: 5px; padding-inline-end: 22px; }
+
+/* סגירה: אחרי שקראו את התשובה היא רק תופסת מקום, ובעוד שעה היא גם
+   כבר לא נכונה */
+.now__x {
+  position: absolute; inset-block-start: 5px; inset-inline-end: 6px;
+  width: 22px; height: 22px;
+  background: none; border: 0; border-radius: 999px;
+  color: var(--txt-mute); font: inherit; font-size: .8rem; cursor: pointer;
+}
+.now__x:hover { background: var(--ink-700); color: var(--txt); }
 .now__answer ul { margin: 0; padding-inline-start: 17px; color: var(--txt-dim); }
 .now__answer li { margin-bottom: 3px; }
 .now__warn { margin: 6px 0 0; color: var(--gold); }

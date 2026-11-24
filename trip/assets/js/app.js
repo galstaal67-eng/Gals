@@ -712,11 +712,20 @@
   /** החלק שמוצג אחרי שהחבר בדק */
   function answerHTML() {
     if (!answer) return "";
+
+    // תשובה על שער, עיכוב או שעת פתיחה מתיישנת מהר. אחרי חצי שעה היא
+    // נעלמת מעצמה, כדי שלא תישאר על המסך ותיראה כמו המצב עכשיו.
+    if (answer.at && Date.now() - answer.at.getTime() > 30 * 60_000) {
+      answer = null;
+      return "";
+    }
+
+    const close = '<button class="now__x" data-now-close aria-label="סגירה">✕</button>';
     if (answer.loading) {
       return '<div class="now__answer is-wait">בודק ברשת…</div>';
     }
     if (answer.error) {
-      return `<div class="now__answer is-bad">${esc(answer.error)}</div>`;
+      return `<div class="now__answer is-bad">${close}${esc(answer.error)}</div>`;
     }
     const src = (answer.sources || [])
       .map(
@@ -725,6 +734,7 @@
       .join("");
     return `
       <div class="now__answer">
+        ${close}
         <b>${esc(answer.headline || "")}</b>
         ${(answer.bullets || []).length
           ? `<ul>${answer.bullets.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>`
@@ -3752,6 +3762,11 @@ ${[marks, line].filter(Boolean).join("\n")}
     });
     $("#nowBox").addEventListener("click", (e) => {
       if (e.target.closest("[data-now-bell]")) return askNotify();
+
+      if (e.target.closest("[data-now-close]")) {
+        answer = null;
+        return renderNow();
+      }
 
       const ask = e.target.closest("[data-now-ask]");
       if (ask) {
