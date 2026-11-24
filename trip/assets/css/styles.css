@@ -118,13 +118,15 @@ ul { margin: 0; padding-inline-start: 1.15rem; }
 
 .hero__inner { position: relative; z-index: 2; }
 
+/* התאריכים יושבים מתחת לשם היעד ולא מעליו: קודם לאן, אחר כך מתי */
 .hero__eyebrow {
   display: inline-flex; align-items: center; gap: .5rem;
   font-size: .82rem; font-weight: 700; letter-spacing: .04em;
   color: var(--moss);
   background: rgba(76, 201, 164, .10);
   border: 1px solid rgba(76, 201, 164, .28);
-  padding: .32rem .8rem; border-radius: 999px; margin-bottom: 1rem;
+  padding: .32rem .8rem; border-radius: 999px;
+  margin: 0 0 1rem;
 }
 
 .hero h1 {
@@ -1943,11 +1945,13 @@ main { scroll-margin-top: 68px; }
 /* מימין שעון היעד, משמאל שעון הבית — תמיד באותו סדר, כדי שמבט חטוף
    יספיק. שעון הבית הוא מה שצריך כדי לדעת אם מותר להתקשר הביתה. */
 
-.hero__top {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; flex-wrap: wrap;
+/* רצועה קבועה בראש הדף, לרוחב כולו */
+.hero__clocks {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 14px;
+  padding-bottom: .7rem; margin-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
 }
-.hero__clocks { display: flex; align-items: baseline; gap: 14px; }
 .hero__clocks[hidden] { display: none; }
 
 .clock { display: flex; align-items: baseline; gap: 5px; }
@@ -1961,9 +1965,7 @@ main { scroll-margin-top: 68px; }
 .clock--dest b { color: var(--moss); }
 .clock--home b { color: var(--txt-dim); font-size: 1rem; }
 
-@media (max-width: 480px) {
-  .hero__clocks { width: 100%; justify-content: space-between; }
-}
+
 
 /* ==================================================== NOW BOX ======== */
 /* מה שרלוונטי בשעה הזו, מתחת לכותרת. בשעת העלייה למטוס היא משנה צבע
