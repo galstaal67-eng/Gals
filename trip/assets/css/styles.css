@@ -1979,6 +1979,7 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
    ונעשית ההתראה עצמה — זה הרגע היחיד בטיול שבו טעות עולה בטיסה. */
 
 .now {
+  position: relative;
   display: flex; align-items: flex-start; gap: 11px;
   margin: 0 auto 2px;
   padding: 12px 14px;
@@ -2154,6 +2155,53 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
   padding: 5px 9px; font-size: .8rem;
   background: var(--ink-800); border: 1px solid var(--line);
   border-radius: 999px; color: var(--txt);
+}
+
+/* ---------- החבר/ה שמהלך/ת על הקצה ---------- */
+/* דמות קטנה שחוצה את הפאה העליונה של הקוביה הלוך ושוב, עם קפיצה קלה.
+   זה לא קישוט בלבד: זה מה שהופך את הקוביה ממסך למישהו. */
+
+.now__walker {
+  position: absolute; inset-block-start: -12px; inset-inline-start: 8px;
+  font-size: .95rem; line-height: 1;
+  animation: walkAcross 22s linear infinite;
+  pointer-events: none;
+}
+.now__walker > span {
+  display: inline-block;
+  animation: walkHop .55s ease-in-out infinite;
+}
+
+@keyframes walkAcross {
+  0%   { inset-inline-start: 8px;                transform: scaleX(1); }
+  47%  { inset-inline-start: calc(100% - 30px);  transform: scaleX(1); }
+  50%  { inset-inline-start: calc(100% - 30px);  transform: scaleX(-1); }
+  97%  { inset-inline-start: 8px;                transform: scaleX(-1); }
+  100% { inset-inline-start: 8px;                transform: scaleX(1); }
+}
+@keyframes walkHop {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  40%      { transform: translateY(-4px) rotate(-7deg); }
+  70%      { transform: translateY(-1px) rotate(5deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .now__walker, .now__walker > span { animation: none; }
+}
+
+/* ---------- נושאי עניין ---------- */
+
+.watch__topics { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.watch__topic {
+  padding: 5px 11px;
+  background: var(--ink-800); border: 1px solid var(--line);
+  border-radius: 999px; color: var(--txt-dim);
+  font: inherit; font-size: .8rem; cursor: pointer;
+}
+.watch__topic:hover { border-color: var(--moss); color: var(--txt); }
+.watch__topic.is-on {
+  background: var(--moss); border-color: var(--moss);
+  color: #06251c; font-weight: 700;
 }
 
 /* ---------- רמת הליווי ---------- */

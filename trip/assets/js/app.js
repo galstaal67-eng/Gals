@@ -902,6 +902,13 @@
               </button>`
     ).join("");
 
+    const chips = $("#watchTopics");
+    const picked = TripWatch.topics();
+    chips.innerHTML = TripWatch.TOPICS.map(
+      (t) => `<button class="watch__topic ${picked.includes(t.key) ? "is-on" : ""}"
+                data-topic="${t.key}">${t.icon} ${esc(t.label)}</button>`
+    ).join("");
+
     const list = $("#watchLog");
     const rows = TripWatch.found();
     list.innerHTML = rows.length
@@ -932,6 +939,7 @@
 
     box.className = `now wrap is-${card.tone}`;
     box.innerHTML = `
+      <span class="now__walker" aria-hidden="true"><span>🚶</span></span>
       <span class="now__icon" aria-hidden="true">${card.icon}</span>
       <div class="now__body">
         <span class="now__who">חבר/ה מלווה</span>
@@ -3985,6 +3993,13 @@ ${[marks, line].filter(Boolean).join("\n")}
       onFound: () => { renderNow(); renderWatch(); },
     });
     renderWatch();
+
+    $("#watchTopics").addEventListener("click", (e) => {
+      const t = e.target.closest("[data-topic]");
+      if (!t) return;
+      TripWatch.toggleTopic(t.dataset.topic);
+      renderWatch();
+    });
 
     $("#watchLevels").addEventListener("click", (e) => {
       const b = e.target.closest("[data-watch]");

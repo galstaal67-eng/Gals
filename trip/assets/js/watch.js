@@ -25,6 +25,7 @@
 
 const TripWatch = (() => {
   const LEVEL_KEY = "watch:level";
+  const TOPIC_KEY = "watch:topics";
   const LOG_KEY = "watch:log";
   const LAST_KEY = "watch:last";
 
@@ -65,10 +66,55 @@ const TripWatch = (() => {
 
   /* ------------------------------------------------------------------ */
 
-  const QUESTION =
-    "בדוק מה השתנה ברשת ומשפיע על השעות הקרובות שלנו: עיכוב או שינוי " +
-    "בטיסה, שער עלייה, מזג אוויר חריג, כביש או מעבר שנסגר, שביתה, " +
-    "אירוע או סגירה במקום שאנחנו אמורים להיות בו. רק מה שמשנה מה לעשות.";
+  /**
+   * הנושאים שאפשר לבקש מהחבר להביא.
+   *
+   * הם **מוסיפים** ואינם מחליפים: מה שקשור לטיסה, להגעה מהשדה למלון
+   * ולחזרה לשדה נבדק תמיד, בלי קשר למה שסומן כאן. אלה הדברים שאי אפשר
+   * לפספס, והם לא עניין של טעם.
+   */
+  const TOPICS = [
+    { key: "sights", icon: "📷", label: "אתרים לראות" },
+    { key: "food", icon: "🍽️", label: "מסעדות" },
+    { key: "bars", icon: "🍷", label: "ברים" },
+    { key: "shopping", icon: "🛍️", label: "קניות" },
+    { key: "general", icon: "💡", label: "כללי" },
+  ];
+
+  function topics() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(TOPIC_KEY) || "[]");
+      return Array.isArray(raw) ? raw.filter((k) => TOPICS.some((t) => t.key === k)) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function toggleTopic(key) {
+    const now = topics();
+    const next = now.includes(key) ? now.filter((k) => k !== key) : [...now, key];
+    localStorage.setItem(TOPIC_KEY, JSON.stringify(next));
+  }
+
+  /** השאלה שנשלחת בבדיקה היזומה: קודם הליבה, ואז מה שמעניין */
+  function question() {
+    const core =
+      "קודם כל בדוק את מה שאסור לפספס: עיכוב או שינוי בטיסה, שער עלייה, " +
+      "שעת המראה מעודכנת, דרכים להגיע מהשדה למלון או חזרה לשדה, כביש או " +
+      "מעבר שנסגר, שביתה, מזג אוויר חריג, או סגירה במקום שאנחנו אמורים " +
+      "להיות בו. כל אלה הם alert=true.";
+
+    const picked = topics();
+    if (!picked.length) return core;
+
+    const names = TOPICS.filter((t) => picked.includes(t.key)).map((t) => t.label).join(", ");
+    return (
+      core +
+      ` אם אין שום דבר כזה, תן דבר אחד ששווה לדעת עכשיו בנושאים: ${names}. ` +
+      "משהו קונקרטי וקרוב למקום שאנחנו בו, עם שם ומחיר או שעה — ולא המלצה " +
+      "כללית. טיפ כזה הוא alert=false. אם גם אין טיפ טוב, שתוק."
+    );
+  }
 
   async function check(manual) {
     if (running) return null;
@@ -78,7 +124,7 @@ const TripWatch = (() => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          question: QUESTION,
+          question: question(),
           mode: "watch",
           code: localStorage.getItem("ai:code") || "",
           context: host.context(),
@@ -88,8 +134,13 @@ const TripWatch = (() => {
       localStorage.setItem(LAST_KEY, String(Date.now()));
       if (!res.ok || !out || out.error) return null;
 
-      // שתיקה: לא מצא דבר, או מצא משהו שלא מצדיק הפרעה
-      if (!out.alert && !manual) return null;
+      /*
+       * שתיקה מזוהה לפי bullets ריק — כך הפרומפט מורה לסמן "אין מה לומר".
+       * טיפ בנושא שסומן אינו דחוף (alert=false) אבל כן נשמר ומוצג; מה
+       * שמבדיל ביניהם הוא הצלצול, לא הנוכחות.
+       */
+      const empty = !(out.bullets || []).length;
+      if (empty && !manual) return null;
 
       const id = sign(out.headline);
       if (log.some((x) => x.id === id)) return null;      // כבר נאמר
@@ -166,6 +217,9 @@ const TripWatch = (() => {
   return {
     init,
     LEVELS,
+    TOPICS,
+    topics,
+    toggleTopic,
     level,
     levelOf,
     setLevel,
