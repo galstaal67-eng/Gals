@@ -670,6 +670,37 @@
   <span class="fab__text">עוזר</span>
 </button>
 
+<!-- המרת מטבע: כפתור קטן מעל כפתור העוזר, וחלונית שנפתחת במקום -->
+<button class="fab fab--fx" id="fxBtn" title="המרת מטבע" aria-label="המרת מטבע"
+        aria-expanded="false" aria-controls="fxBox">
+  <span class="fab__icon" aria-hidden="true">₾</span>
+</button>
+
+<div class="fx" id="fxBox" role="dialog" aria-label="המרת מטבע" hidden>
+  <div class="fx__head">
+    <b>המרת מטבע</b>
+    <button class="icon-btn icon-btn--sm" data-fx-close aria-label="סגירה">✕</button>
+  </div>
+
+  <div class="fx__grid">
+    <div class="fx__cell">
+      <input type="text" id="fxA" inputmode="decimal" autocomplete="off"
+             aria-label="סכום להמרה" placeholder="0" />
+      <select id="fxFrom" aria-label="מטבע המקור"></select>
+    </div>
+
+    <button class="fx__swap" data-fx-swap title="החלפת כיוון" aria-label="החלפת כיוון">⇅</button>
+
+    <div class="fx__cell">
+      <input type="text" id="fxB" inputmode="decimal" autocomplete="off"
+             aria-label="הסכום אחרי ההמרה" placeholder="0" />
+      <select id="fxTo" aria-label="מטבע היעד"></select>
+    </div>
+  </div>
+
+  <p class="fx__rate" id="fxRate"></p>
+</div>
+
 <footer class="foot wrap">
   <p id="footNote">הנתונים נשמרים בדפדפן ומסתנכרנים בין המכשירים</p>
 </footer>
@@ -683,6 +714,7 @@
 <script src="assets/js/flights.js"></script>
 <script src="assets/js/pass.js"></script>
 <script src="assets/js/mail.js"></script>
+<script src="assets/js/money.js"></script>
 <script src="assets/js/live.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
