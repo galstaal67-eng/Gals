@@ -549,6 +549,8 @@ table.data th {
 table.data td.num { font-variant-numeric: tabular-nums; text-align: start; }
 table.data tbody tr:hover { background: rgba(255, 255, 255, .03); }
 table.data td.note { white-space: normal; color: var(--txt-dim); min-width: 12rem; }
+/* שתיהן קיימות רק בשביל הצגת הטבלה בטלפון */
+.exp-sub, .exp-cur { display: none; }
 .empty-row td { text-align: center; color: var(--txt-mute); padding: 2rem; }
 
 .cat-dot {
@@ -713,6 +715,51 @@ table.data.cost-table td:first-child { min-width: 15rem; }
   table.data td.row-title::before { content: none; }
 
   .empty-row td { display: block; grid-column: 1 / -1; }
+
+  /* ---- הוצאות בפועל: טבלה אמיתית גם בטלפון ---- */
+  /* רשימת ההוצאות היא השוואה — כמה, על מה, מתי — ובכרטיסים ערומים
+     זו השוואה שצריך לגלול כדי לעשות. שלוש עמודות יורדות, והתוכן שלהן
+     עובר לשורה שנייה בתוך תא הסעיף. */
+
+  table.data.exp-table { display: table; width: 100%; min-width: 0; table-layout: fixed; }
+  table.data.exp-table thead { display: table-header-group; }
+  table.data.exp-table tbody { display: table-row-group; }
+  table.data.exp-table tr { display: table-row; padding: 0; }
+  table.data.exp-table th,
+  table.data.exp-table td {
+    display: table-cell;
+    padding: .5rem .3rem;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  table.data.exp-table td::before { content: none; }
+
+  /* מי שילם, מטבע והערות — יורדות מהרוחב.
+     הסלקטור חוזר על table.data כי כלל ה-display שמעליו ספציפי ממנו,
+     ובלעדיו העמודות פשוט נשארו */
+  table.data.exp-table th:nth-child(3), table.data.exp-table td:nth-child(3),
+  table.data.exp-table th:nth-child(5), table.data.exp-table td:nth-child(5),
+  table.data.exp-table th:nth-child(7), table.data.exp-table td:nth-child(7) { display: none; }
+
+  table.data.exp-table th:nth-child(1), table.data.exp-table td:nth-child(1) { width: 3.1rem; }
+  table.data.exp-table th:nth-child(4), table.data.exp-table td:nth-child(4) { width: 4.8rem; text-align: start; }
+  table.data.exp-table th:nth-child(6), table.data.exp-table td:nth-child(6) { width: 5rem; }
+  table.data.exp-table th:nth-child(8), table.data.exp-table td:nth-child(8) { width: 2rem; }
+
+  .exp-table .exp-sub {
+    display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: .68rem; color: var(--txt-mute); font-weight: 400;
+  }
+  .exp-table .exp-cur { display: inline; color: var(--txt-mute); font-size: .76rem; }
+
+  /* בלי ellipsis: התא צר, והנקודות שהופיעו ליד ה-✕ נראו כמו תוכן */
+  table.data.exp-table td.row-action {
+    margin: 0; padding: .3rem 0; text-overflow: clip;
+  }
+  .exp-table td.row-action [data-del] {
+    min-width: 0; padding: .3rem .4rem; border: 0; background: none;
+  }
+  .exp-table td.row-action [data-del] b { display: none; }   /* רק ה-✕ */
   .empty-row td::before { content: none; }
 }
 

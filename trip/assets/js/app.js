@@ -3083,13 +3083,19 @@ ${[marks, line].filter(Boolean).join("\n")}
             (e) => `
         <tr>
           <td class="num" data-label="תאריך">${e.date ? shortDate(e.date) : "—"}</td>
-          <td data-label="סעיף"><i class="cat-dot" style="background:${catColor(e.category)}"></i>${esc(e.category)}</td>
+          <td data-label="סעיף">
+            <i class="cat-dot" style="background:${catColor(e.category)}"></i>${esc(e.category)}
+            <!-- בטלפון העמודות "מי שילם" ו"הערות" אינן נכנסות לרוחב,
+                 והתוכן שלהן יורד לשורה שנייה בתוך אותו תא -->
+            <span class="exp-sub">${esc(e.payer)}${e.note ? " · " + esc(e.note) : ""}</span>
+          </td>
           <td data-label="מי שילם">${esc(e.payer)}</td>
-          <td class="num" data-label="סכום">${nfNum.format(e.amount)}</td>
+          <td class="num" data-label="סכום">${nfNum.format(e.amount)}<span class="exp-cur"> ${esc(e.currency)}</span></td>
           <td data-label="מטבע">${esc(e.currency)}</td>
           <td class="num" data-label="בש&quot;ח">${ils2(toILS(e))}</td>
           <td class="note" data-label="הערות">${esc(e.note) || "—"}</td>
-          <td class="row-action"><button class="btn btn--sm btn--ghost btn--danger" data-del="${e.id}">✕ מחיקה</button></td>
+          <td class="row-action"><button class="btn btn--sm btn--ghost btn--danger"
+                data-del="${e.id}" aria-label="מחיקה"><span>✕</span> <b>מחיקה</b></button></td>
         </tr>`
           )
           .join("")
