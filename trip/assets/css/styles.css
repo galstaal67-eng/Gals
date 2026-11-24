@@ -1982,7 +1982,40 @@ main { scroll-margin-top: 68px; }
   font-size: .72rem; color: var(--txt-dim);
 }
 
-.now__acts { flex: 0 0 auto; display: grid; gap: 6px; }
+/* הרמז לשלב הבא. הוא מה שהופך את הקוביה ממסך מידע לליווי: בכל רגע
+   ברור מה יקרה אחריו, ולכן אין צורך לחפש. */
+.now__next {
+  margin: 8px 0 0; padding-top: 7px;
+  border-top: 1px dashed var(--line);
+  font-size: .78rem; color: var(--txt-mute);
+}
+.now__next::before { content: "↙ "; opacity: .7; }
+
+.now__tip {
+  margin: 7px 0 0; padding: 6px 9px;
+  background: color-mix(in srgb, var(--gold) 10%, transparent);
+  border-inline-start: 2px solid var(--gold);
+  border-radius: var(--radius-sm);
+  font-size: .8rem; color: var(--txt-dim); line-height: 1.5;
+}
+
+/* בחירת אופן ההגעה מהשדה ללינה */
+.now__ways { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+.now__way {
+  padding: 5px 11px;
+  background: var(--ink-700); border: 1px solid var(--line);
+  border-radius: 999px; color: var(--txt-dim);
+  font: inherit; font-size: .8rem; cursor: pointer;
+}
+.now__way:hover { border-color: var(--moss); color: var(--txt); }
+.now__way.is-on {
+  background: var(--moss); border-color: var(--moss);
+  color: #06251c; font-weight: 700;
+}
+
+.now.is-arrive { border-inline-start-color: var(--moss); }
+
+.now__acts { flex: 0 0 auto; display: grid; gap: 6px; align-content: start; }
 
 /* ---------- המצבים ---------- */
 

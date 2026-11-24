@@ -216,6 +216,51 @@
     return `עוד ${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, "0")} שעות`;
   }
 
+  /** קישור ניווט בין שתי נקודות, באופן ההגעה שנבחר */
+  function dirLink(from, to, mode) {
+    if (!from?.lat || !to?.lat) return "";
+    return (
+      "https://www.google.com/maps/dir/?api=1" +
+      `&origin=${from.lat},${from.lng}&destination=${to.lat},${to.lng}` +
+      `&travelmode=${mode}`
+    );
+  }
+
+  /** מרחק אווירי בק"מ בין שתי נקודות */
+  function kmBetween(a, b) {
+    if (!a?.lat || !b?.lat) return null;
+    const R = 6371;
+    const rad = (d) => (d * Math.PI) / 180;
+    const dLat = rad(b.lat - a.lat);
+    const dLng = rad(b.lng - a.lng);
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  /** שדה התעופה שנוחתים בו ביום הזה — זה שבתוך תיבת היעד */
+  function arrivalPort(day) {
+    return (day?.points || []).find((pt) => pt.type === "airport" && inDestination(pt)) || null;
+  }
+
+  /**
+   * טיפ מהיום שמתאים למה שקורה עכשיו.
+   *
+   * ההתאמה היא לפי מילה משותפת ארוכה בין שורת התוכנית לבין הטיפ — שם
+   * של מקום, בדרך כלל. זו לא הבנה של טקסט, ולכן כשאין התאמה לא מוצג
+   * טיפ אקראי: טיפ שאינו קשור למה שמול העיניים הוא רעש.
+   */
+  function tipFor(day, item) {
+    const tips = (day?.tips || []).filter(Boolean);
+    if (!tips.length || !item?.text) return "";
+    const words = String(item.text)
+      .split(/[^\u0590-\u05FFA-Za-z']+/)
+      .filter((w) => w.length >= 5);
+    if (!words.length) return "";
+    return tips.find((t) => words.some((w) => t.includes(w))) || "";
+  }
+
   /** שעת העלייה למטוס. אם אינה רשומה בכרטיס — אומדן, ונאמר שהוא אומדן. */
   function boardingOf(leg) {
     const dep = MIN(leg.dep);
@@ -227,6 +272,52 @@
 
   /** רק השם, בלי קוד השדה והטרמינל שבתוך הסוגריים */
   const placeName = (s) => String(s || "").split("(")[0].replace(/·.*$/, "").trim();
+
+  /* ---------- איך מגיעים מהשדה ללינה ---------- */
+
+  /**
+   * אופני ההגעה. מה שכתוב בהם מגיע ממסמך הטיול (`TRIP.arrival`), ולכן
+   * הוא מה שהמטייל עצמו אישר ולא ידע כללי שהומצא כאן.
+   *
+   * הקישור למפות הוא התשובה שתמיד נכונה: הוא נפתח באפליקציית המפות עם
+   * המוצא, היעד ואופן ההגעה שנבחר, והמסלול מחושב שם לפי המצב באותו רגע.
+   */
+  const WAYS = [
+    { key: "taxi", icon: "🚕", label: "מונית", mode: "driving" },
+    { key: "transit", icon: "🚌", label: "תחבורה ציבורית", mode: "transit" },
+    { key: "walk", icon: "🚶", label: "ברגל", mode: "walking" },
+  ];
+
+  // הבחירה חיה כל עוד הקוביה פתוחה; היא מצוירת מחדש כל חצי דקה
+  let arriveWay = null;
+
+  function arrivalCard(day, leg, from) {
+    const hotel = day.hotel;
+    const ways = (TRIP.arrival?.options || []).reduce((m, o) => ({ ...m, [o.key]: o }), {});
+    // הליכה מוצעת רק כשהיא באמת אפשרית. משדה תעופה היא כמעט אף פעם לא.
+    const far = kmBetween(from, hotel);
+    const offered = WAYS.filter((w) => w.key !== "walk" || (far !== null && far < 4));
+    const way = offered.find((w) => w.key === arriveWay);
+    const chosen = way ? ways[way.key] : null;
+
+    return {
+      tone: "arrive",
+      icon: "🧳",
+      title: "נחתנו",
+      main: hotel?.name ? `איך מגיעים ל-${hotel.name}?` : "איך מגיעים ללינה?",
+      sub: way
+        ? (chosen?.steps || []).join(" · ") ||
+          "פתחו את המפות — המסלול מחושב שם לפי המצב עכשיו."
+        : hotel?.area || "",
+      facts: way
+        ? [chosen?.time, chosen?.cost, far && `${far.toFixed(0)} ק"מ אווירי`].filter(Boolean)
+        : [far && `${far.toFixed(0)} ק"מ מהשדה`].filter(Boolean),
+      ways: offered.map((w) => ({ ...w, on: w.key === arriveWay })),
+      dir: way ? dirLink(from, hotel, way.mode) : "",
+      next: `אחרי שתגיעו — התוכנית של יום ${day.n}`,
+      day: day.n,
+    };
+  }
 
   /**
    * מה להציג עכשיו. מחזיר תיאור בלבד — הציור נפרד, כדי שאפשר יהיה
@@ -264,7 +355,24 @@
         leg.duration && `משך ${leg.duration}`,
       ].filter(Boolean);
 
-      // אחרי הנחיתה היום ממשיך כרגיל, ולכן נופלים משם לתוכנית היומית
+      /*
+       * אחרי הנחיתה: שעתיים של ליווי מהשדה ללינה.
+       *
+       * החלון נבדק פעמיים בכוונה. שעון המכשיר הוא שעון המקום שבו
+       * המטייל נמצא: לפני ההמראה הוא שעון המוצא, ואחרי הנחיתה הוא כבר
+       * שעון היעד. `land` מחושב משעת ההמראה ולכן נכון בשעון המוצא,
+       * ו-`arr` רשומה בשעון היעד — כל אחד מהם נכון בצד שלו, ולכן
+       * מקבלים את שניהם. המחיר הוא כיסוי רחב מהדרוש כששני השעונים
+       * רחוקים זה מזה, וזה מחיר זול מאשר לפספס את הרגע שבו באמת צריך
+       * את זה: יוצאים מהטרמינל עם מזוודות ומחפשים איך מגיעים.
+       */
+      const day = TRIP.days.find((d) => d.date === today);
+      const arrM = MIN(leg.arr);
+      const nearLanding =
+        (m > land && m <= land + 120) || (arrM !== null && m >= arrM && m <= arrM + 120);
+      if (nearLanding && key === "out" && day?.hotel) {
+        return arrivalCard(day, leg, arrivalPort(day));
+      }
       if (m > land + 20) break;
 
       if (m >= board.at && m <= dep + 20) {
@@ -277,6 +385,10 @@
             : `לכו לשער. ההמראה ב-${leg.dep}${board.exact ? "" : " · שעת העלייה משוערת"}`,
           facts: [depTerm && `טרמינל ${depTerm}`, ...facts].filter(Boolean),
           pass: key,
+          status: leg.flightNo,
+          next: `אחרי ההמראה — כמה נשאר עד הנחיתה${
+            key === "out" ? ", ואז איך מגיעים למלון" : ""
+          }`,
         };
       }
 
@@ -287,6 +399,11 @@
           title: "באוויר",
           main: `נוחתים${to ? " ב" + to : ""} — ${left(land - m)}`,
           facts: [arrTerm && `נחיתה בטרמינל ${arrTerm}`, ...facts].filter(Boolean),
+          status: leg.flightNo,
+          next:
+            key === "out"
+              ? "כשננחת — אלווה אתכם משם ללינה: מונית, תחבורה ציבורית או ברגל"
+              : "אחרי הנחיתה — הביתה. הטיול הזה נגמר.",
         };
       }
 
@@ -303,6 +420,8 @@
           ...facts,
         ].filter(Boolean),
         pass: key,
+        status: leg.flightNo,
+        next: `בשעת העלייה למטוס (${hhmm(board.at)}) אתריע לכם ללכת לשער`,
       };
     }
 
@@ -322,24 +441,37 @@
       ].filter(Boolean);
 
       if (next) {
+        const after = rows[rows.indexOf(next) + 1];
         return {
           tone: "day",
           icon: "📍",
           title: `יום ${day.n} · ${day.title || ""}`.trim(),
           main: `הבא בתור ${next.time} — ${next.text}`,
           sub: now_ ? `עכשיו: ${now_.text}` : "",
+          tip: tipFor(day, now_ || next),
           facts,
           day: day.n,
+          next: after
+            ? `ואחר כך ${after.time} — ${after.text}`
+            : day.hotel?.name
+            ? `בסוף היום — חזרה ל${day.hotel.name}`
+            : "",
         };
       }
+      const tomorrow = TRIP.days.find((d) => d.n === day.n + 1);
+      const first = (tomorrow?.plan || []).find((x) => MIN(x.time) !== null);
       return {
         tone: "night",
         icon: now_ ? "🌙" : "📍",
         title: `יום ${day.n} · ${day.title || ""}`.trim(),
         main: now_ ? "התוכנית של היום הושלמה." : "אין שעות בתוכנית של היום.",
         sub: day.hotel?.name ? `לינה: ${day.hotel.name}` : "",
+        tip: tipFor(day, now_),
         facts,
         day: day.n,
+        next: tomorrow
+          ? `מחר — יום ${tomorrow.n}: ${tomorrow.title || ""}${first ? ` · מתחילים ב-${first.time}` : ""}`
+          : "מחר — היום האחרון",
       };
     }
 
@@ -361,6 +493,8 @@
             `טרמינל ${(out.from.match(/טרמינל\s*(\S+)/) || [])[1]}`,
         ].filter(Boolean),
         pass: "out",
+        status: out.flightNo,
+        next: "ביום הטיסה אלווה אתכם מהבית ועד המלון — שעת עלייה, שער, ונחיתה",
       };
     }
     return null;
@@ -389,6 +523,17 @@
     Notification.requestPermission().then(() => renderNow());
   }
 
+  /**
+   * בדיקת סטטוס הטיסה.
+   *
+   * אין כאן קריאה ל-API של סטטוס טיסות: שירות אמין כזה דורש מפתח בתשלום
+   * (ראו "מה עוד אפשר לחבר" ב-README), ולהמציא מספר שער או עיכוב זה
+   * בדיוק סוג המידע שאסור לנחש. הכפתור פותח חיפוש על מספר הטיסה, שבו
+   * מופיע לוח הטיסות החי של גוגל — עם שער, עיכוב וסטטוס.
+   */
+  const statusLink = (flightNo) =>
+    `https://www.google.com/search?q=${encodeURIComponent(String(flightNo) + " flight status")}`;
+
   function renderNow() {
     const box = $("#nowBox");
     if (!box) return;
@@ -408,13 +553,28 @@
         <b class="now__title">${esc(card.title)}</b>
         <p class="now__main">${esc(card.main)}</p>
         ${card.sub ? `<p class="now__sub">${esc(card.sub)}</p>` : ""}
+        ${card.ways
+          ? `<p class="now__ways">${card.ways
+              .map(
+                (w) => `<button class="now__way ${w.on ? "is-on" : ""}" data-now-way="${w.key}">
+                          ${w.icon} ${esc(w.label)}</button>`
+              )
+              .join("")}</p>`
+          : ""}
+        ${card.tip ? `<p class="now__tip">💡 ${esc(card.tip)}</p>` : ""}
         ${card.facts.length
           ? `<p class="now__facts">${card.facts.map((t) => `<span>${esc(t)}</span>`).join("")}</p>`
           : ""}
+        ${card.next ? `<p class="now__next">${esc(card.next)}</p>` : ""}
       </div>
       <div class="now__acts">
+        ${card.dir ? `<a class="btn btn--sm btn--primary" target="_blank" rel="noopener"
+             href="${esc(card.dir)}">🗺️ נווט</a>` : ""}
         ${card.pass ? `<button class="btn btn--sm${card.tone === "alert" ? " btn--primary" : ""}"
              data-pass-leg="${esc(card.pass)}">🎫 כרטיס עלייה</button>` : ""}
+        ${card.status ? `<a class="btn btn--sm" target="_blank" rel="noopener"
+             title="סטטוס הטיסה, עיכובים ושער — נפתח בחיפוש"
+             href="${esc(statusLink(card.status))}">🔄 סטטוס</a>` : ""}
         ${card.day ? `<button class="btn btn--sm" data-ov-open="${card.day}">היום המלא</button>` : ""}
         ${wantsBell ? '<button class="btn btn--sm" data-now-bell title="התראה בשעת העלייה למטוס, כל עוד האפליקציה פתוחה">🔔</button>' : ""}
       </div>`;
@@ -3373,6 +3533,12 @@ ${[marks, line].filter(Boolean).join("\n")}
     setInterval(renderNow, 30_000);
     $("#nowBox").addEventListener("click", (e) => {
       if (e.target.closest("[data-now-bell]")) return askNotify();
+
+      const way = e.target.closest("[data-now-way]");
+      if (way) {
+        arriveWay = arriveWay === way.dataset.nowWay ? null : way.dataset.nowWay;
+        return renderNow();
+      }
 
       const pass = e.target.closest("[data-pass-leg]");
       if (pass) return BoardingPass.open({ leg: pass.dataset.passLeg });
