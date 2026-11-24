@@ -570,10 +570,17 @@
       const next = rows.find((p) => MIN(p.time) > m);
       const prog = rows.length ? { done: past.length, total: rows.length } : null;
 
+      /*
+       * "💸 ₪2,720" לבדו אינו אומר אם זו ההוצאה של היום או של הטיול.
+       * לכן שתי מילים: כמה יצא היום, וכמה יצא עד כה.
+       */
+      const spentToday = dayMoney(day);
+      const spentTrip = state.expenses.length ? ils2(state.expenses.reduce((n, e) => n + toILS(e), 0)) : "";
       const facts = [
         prog && `${prog.done} מתוך ${prog.total} בתוכנית`,
         day.hotel?.name && `🛏️ ${day.hotel.name}`,
-        dayMoney(day) && `💸 ${dayMoney(day)}`,
+        spentToday ? `💸 ${spentToday} היום` : "💸 עדיין אין הוצאות היום",
+        spentTrip && `📊 ${spentTrip} בטיול`,
       ].filter(Boolean);
 
       if (next) {
@@ -896,10 +903,32 @@
       </div>`;
   }
 
+  // האם רשימת ההתראות שנסגרו פתוחה
+  let showFound = false;
+
+  /** כל מה שנמצא עד כה — נפתח מהמשולש, אחרי שסוגרים התראה */
+  function foundListHTML() {
+    const all = TripWatch.found();
+    if (!showFound || !all.length) return "";
+    return `
+      <div class="now__found is-list">
+        <button class="now__x" data-found-list="0" aria-label="סגירה">✕</button>
+        <span class="now__found-tag">ההתראות שהיו</span>
+        <ul>${all
+          .map(
+            (f) => `<li>
+              <time>${new Date(f.at).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" })}</time>
+              ${f.alert ? "⚠️ " : ""}${esc(f.headline)}
+            </li>`
+          )
+          .join("")}</ul>
+      </div>`;
+  }
+
   /** הידיעה האחרונה שהבדיקה היזומה מצאה, עד שסוגרים אותה */
   function foundHTML() {
-    const found = TripWatch.found()[0];
-    if (!found) return "";
+    const found = TripWatch.unseen();
+    if (!found) return foundListHTML();
     const src = (found.sources || [])
       .map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a>`)
       .join("");
@@ -954,7 +983,8 @@
 
   function renderNow() {
     const box = $("#nowBox");
-    if (!box) return;
+    // נקראת גם מתוך זרימת הסנכרון, שרצה לפני שהטיול נטען
+    if (!box || !TRIP?.days?.length) return;
     const card = nowCard();
     if (!card) { box.hidden = true; return; }
 
@@ -987,6 +1017,10 @@
         ${answerHTML()}
       </div>
       <div class="now__acts">
+        ${!TripWatch.unseen() && TripWatch.found().length
+          ? `<button class="btn btn--sm now__bell" data-found-list="1"
+               title="ההתראות שנסגרו">⚠️<span>${TripWatch.found().length}</span></button>`
+          : ""}
         <button class="btn btn--sm" data-now-ask ${asking ? "disabled" : ""}
                 title="בדיקה ברשת לרגע הזה">${asking ? "בודק…" : "🔎 בדוק עכשיו"}</button>
         ${card.dir ? `<a class="btn btn--sm btn--primary" target="_blank" rel="noopener"
@@ -996,6 +1030,7 @@
         ${card.status ? `<a class="btn btn--sm" target="_blank" rel="noopener"
              title="סטטוס הטיסה, עיכובים ושער — נפתח בחיפוש"
              href="${esc(statusLink(card.status))}">🔄 סטטוס</a>` : ""}
+        ${card.day ? `<button class="btn btn--sm" data-add-exp>➕ הוצאה</button>` : ""}
         ${card.day ? `<button class="btn btn--sm" data-ov-open="${card.day}">היום המלא</button>` : ""}
         ${wantsBell ? '<button class="btn btn--sm" data-now-bell title="התראה בשעת העלייה למטוס, כל עוד האפליקציה פתוחה">🔔</button>' : ""}
       </div>`;
@@ -1280,11 +1315,26 @@
    * ולא בספארי, וכתובת https נפתחת באפליקציה המותקנת בשני המכשירים
    * ונופלת לדפדפן כשאין כזו.
    *
-   * קואורדינטות ולא שם: שם הוא חיפוש, ו"מצודת נריקלה" עלול לנחות על
-   * מצודה אחרת. הקואורדינטה מדויקת.
+   * **השם והקואורדינטה יחד.** קואורדינטה לבדה פותחת סיכה על מפה, בלי
+   * שם, בלי שעות פתיחה, בלי ביקורות ובלי כפתור "ניווט" לשם — וזה בדיוק
+   * מה שרוצים ממקום. שם לבדו הוא חיפוש, ו"מצודת נריקלה" עלול לנחות על
+   * מצודה אחרת. הצורה `/search/<שם>/@<נ״צ>,17z` מחפשת את השם **סביב**
+   * הנקודה, ולכן מקבלים את כרטיס המקום הנכון.
    */
-  function placeMapsLink(lat, lng) {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lat + "," + lng)}`;
+  function placeMapsLink(name, lat, lng) {
+    const at = `${lat},${lng}`;
+    /*
+     * שמות במסמך הם תיאוריים: "פארק ריקה — תחנת רכבל", "סטפנצמינדה
+     * (קזבגי)". מה שאחרי המקף או בסוגריים הוא הסבר שלנו ולא שם שגוגל
+     * מכיר, והוא מה שיכול להפוך חיפוש מוצלח לחיפוש ריק.
+     */
+    const q = String(name || "")
+      .split(/\s[—–-]\s/)[0]
+      .replace(/\s*\(.*$/, "")
+      .trim();
+    return q
+      ? `https://www.google.com/maps/search/${encodeURIComponent(q)}/@${at},17z`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(at)}`;
   }
 
   function pointSeg(day, p, i, total) {
@@ -1428,7 +1478,7 @@
           : d.ovLat && d.ovLng
           ? `<a class="btn btn--sm" target="_blank" rel="noopener"
                title="${esc(d.ovName)} — נפתח באפליקציית המפות, ובמחשב ב-Google Maps"
-               href="${esc(placeMapsLink(d.ovLat, d.ovLng))}">🗺️ פתח במפות</a>`
+               href="${esc(placeMapsLink(d.ovName, d.ovLat, d.ovLng))}">🗺️ פתח במפות</a>`
           : `<button type="button" class="btn btn--sm" data-focus="${esc(d.ovDay)}">🗺️ על המפה</button>`
       }`;
     box.hidden = false;
@@ -3128,6 +3178,10 @@ ${[marks, line].filter(Boolean).join("\n")}
       })
     );
 
+    // הקוביה מציגה כמה יצא היום; כל שינוי בהוצאות משנה אותה. זו הנקודה
+    // היחידה שכל המסלולים עוברים בה — הוספה, מחיקה, סנכרון וייבוא
+    renderNow();
+
     /* --- חלוקה לסעיפים --- */
     const byCat = {};
     state.expenses.forEach((e) => {
@@ -3943,7 +3997,7 @@ ${[marks, line].filter(Boolean).join("\n")}
     const ok = await TripAPI.addExpenses(items);
     if (ok) {
       const fresh = await TripAPI.refresh();
-      if (fresh) { state.expenses = fresh.expenses; save(); renderExpenses(); }
+      if (fresh) { state.expenses = fresh.expenses; save(); renderExpenses(); renderNow(); }
       $("#uploadPrompt").hidden = true;
       pendingUpload = null;
     } else {
@@ -3997,6 +4051,12 @@ ${[marks, line].filter(Boolean).join("\n")}
         return;
       }
 
+      const listBtn = e.target.closest("[data-found-list]");
+      if (listBtn) {
+        showFound = listBtn.dataset.foundList === "1";
+        return renderNow();
+      }
+
       const shut = e.target.closest("[data-found-close]");
       if (shut) {
         TripWatch.dismiss(shut.dataset.foundClose);
@@ -4028,6 +4088,16 @@ ${[marks, line].filter(Boolean).join("\n")}
 
       const pass = e.target.closest("[data-pass-leg]");
       if (pass) return BoardingPass.open({ leg: pass.dataset.passLeg });
+
+      if (e.target.closest("[data-add-exp]")) {
+        // רישום הוצאה הוא פעולה של שתי שניות, ולכן הטופס נפתח מוכן:
+        // התאריך של היום, והמיקוד בסכום
+        selectTab($("#tab-expenses"));
+        const date = $("#exDate");
+        if (date) date.value = todayISO();
+        setTimeout(() => $("#exAmount")?.focus(), 250);
+        return;
+      }
 
       const day = e.target.closest("[data-ov-open]");
       if (day) return openDayModal(day.dataset.ovOpen);

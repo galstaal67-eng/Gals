@@ -2325,6 +2325,25 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 }
 .now__found.is-alert .now__found-tag { color: var(--gold); }
 .now__found b { display: block; margin-bottom: 4px; padding-inline-end: 22px; color: var(--txt); }
+
+/* הרשימה שנפתחת מהמשולש — מה שנסגר ולא נעלם */
+.now__found.is-list ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.now__found.is-list li { color: var(--txt-dim); }
+.now__found.is-list time {
+  display: inline-block; margin-inline-end: 6px;
+  font-size: .68rem; color: var(--txt-mute);
+}
+
+/* המשולש עצמו: קטן, עם מונה, ותמיד במקום אחד */
+.now__bell {
+  display: inline-flex; align-items: center; gap: 4px;
+  border-color: var(--gold); color: var(--gold);
+}
+.now__bell span {
+  min-width: 1.1rem; padding: 0 4px;
+  background: var(--gold); color: #2a1c00;
+  border-radius: 999px; font-size: .68rem; font-weight: 800;
+}
 .now__found ul { margin: 0; padding-inline-start: 17px; color: var(--txt-dim); }
 .now__found li { margin-bottom: 3px; }
 

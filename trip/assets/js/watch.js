@@ -225,7 +225,19 @@ const TripWatch = (() => {
     setLevel,
     check,                       // בדיקה ידנית, מכפתור
     found: () => log.slice(),
+    /** מה שעוד לא נקרא — זה מה שמוצג בקוביה */
+    unseen: () => log.find((x) => !x.seen) || null,
     clear() { log = []; save(); },
-    dismiss(id) { log = log.filter((x) => x.id !== id); save(); },
+    /**
+     * סגירה מסמנת כנקרא ואינה מוחקת.
+     *
+     * התראה שנסגרה ונעלמה לגמרי היא התראה שאי אפשר לחזור אליה — וזה
+     * בדיוק מה שקרה: נסגרה, ולא נמצאה אחר כך. היא נשארת ברשימה,
+     * ומשולש קטן בקוביה פותח אותה שוב.
+     */
+    dismiss(id) {
+      const hit = log.find((x) => x.id === id);
+      if (hit) { hit.seen = true; save(); }
+    },
   };
 })();
