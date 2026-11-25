@@ -42,6 +42,12 @@ const DayRoute = (() => {
   let tick = null;
   let openList = false;              // האם הרשימה המלאה פרושה
   let showAll = false;               // האם רשימת ההתראות שנסגרו פתוחה
+  let heading = null;                 // לאן הטלפון מופנה, מעלות מצפון
+  let headOn = false;                 // האם חיישן הכיוון מאזין
+  let headAsk = false;                // האם צריך אישור מפורש (iOS)
+  let outdoor = false;                // מצב חוץ — מסך אחד, גדול, לקריאה בהליכה
+  let wake = null;                    // Wake Lock, כדי שהמסך לא ייכבה בדרך
+  let rafId = 0;
 
   /**
    * **איפה אני** ו**במה אני מסתכל** הם שני דברים.
@@ -112,6 +118,148 @@ const DayRoute = (() => {
   }
 
   /* ------------------------------------------------------------------ */
+  /*  מצפן                                                              */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * לאן ללכת — ולא איפה זה על מפה.
+   *
+   * מפה דורשת שתמצא בה את עצמך, תסובב אותה בראש ותתרגם לרחוב שמולך.
+   * זו עבודה, והיא נעשית כשהעיניים בטלפון ולא בחוץ. חץ שמצביע על
+   * התחנה **ביחס לכיוון שאליו אתה מופנה עכשיו** אינו דורש תרגום: מסתכלים
+   * שנייה, מרימים את הראש, והולכים לשם.
+   *
+   * זה גם מה שהמחקר על ניווט להולכי רגל אומר: ממשק דליל שמראה את
+   * המקטע הנוכחי ונקודת ציון עבד טוב יותר מממשק שהוסיף מפה, והנחיות
+   * לפי נקודות ציון מעובדות מהר יותר ונזכרות טוב יותר מהנחיות לפי
+   * שמות רחובות.
+   */
+  function bearing(a, b) {
+    const p = Math.PI / 180;
+    const dLng = (b.lng - a.lng) * p;
+    const y = Math.sin(dLng) * Math.cos(b.lat * p);
+    const x =
+      Math.cos(a.lat * p) * Math.sin(b.lat * p) -
+      Math.sin(a.lat * p) * Math.cos(b.lat * p) * Math.cos(dLng);
+    return (Math.atan2(y, x) / p + 360) % 360;
+  }
+
+  /** הפרש זוויות בטווח ‎-180..180 */
+  const angDiff = (a, b) => ((((a - b) % 360) + 540) % 360) - 180;
+
+  /** המילה שמחליפה את המעלות. מעלות אף אחד לא מתרגם תוך כדי הליכה. */
+  function turnWord(rel) {
+    const a = Math.abs(rel);
+    if (a <= 22) return "ישר קדימה";
+    if (a <= 67) return rel > 0 ? "נטה ימינה" : "נטה שמאלה";
+    if (a <= 112) return rel > 0 ? "ימינה" : "שמאלה";
+    if (a <= 157) return rel > 0 ? "אחורה ימינה" : "אחורה שמאלה";
+    return "מאחוריך";
+  }
+
+  const ROSE = ["צפון", "צפון־מזרח", "מזרח", "דרום־מזרח", "דרום", "דרום־מערב", "מערב", "צפון־מערב"];
+  const roseWord = (deg) => ROSE[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+
+  /**
+   * קריאת כיוון מהחיישן.
+   *
+   * שני עולמות: ב-iOS יש `webkitCompassHeading`, שהוא כבר מעלות מצפון,
+   * ודורש אישור מפורש מתוך לחיצה. בכרום יש אירוע `deviceorientationabsolute`
+   * ו-`alpha` שנמדד נגד כיוון השעון. בודקים את מה שבאמת הגיע באירוע ולא
+   * את סוג הדפדפן — `alpha` של אירוע יחסי נראה בדיוק אותו דבר ומצביע
+   * לכיוון שרירותי, וזו תקלה שקשה לראות.
+   */
+  function onOrient(e) {
+    let h = null;
+    if (typeof e.webkitCompassHeading === "number" && !Number.isNaN(e.webkitCompassHeading)) {
+      h = e.webkitCompassHeading;
+    } else if (e.absolute === true && typeof e.alpha === "number") {
+      h = (360 - e.alpha) % 360;
+    }
+    if (h === null) return;
+
+    // החלקה: מחט שרועדת קשה יותר לקריאה ממחט שמאחרת ברבע שנייה
+    heading = heading === null ? h : heading + angDiff(h, heading) * 0.25;
+    heading = ((heading % 360) + 360) % 360;
+    paintCompass();
+  }
+
+  async function startHeading() {
+    if (headOn) return;
+    const DOE = window.DeviceOrientationEvent;
+    if (!DOE) return;
+    if (typeof DOE.requestPermission === "function") {
+      try {
+        if ((await DOE.requestPermission()) !== "granted") { headAsk = true; return render(); }
+      } catch { headAsk = true; return render(); }
+    }
+    window.addEventListener("deviceorientationabsolute", onOrient, true);
+    window.addEventListener("deviceorientation", onOrient, true);
+    headOn = true;
+    headAsk = false;
+    render();
+  }
+
+  function stopHeading() {
+    window.removeEventListener("deviceorientationabsolute", onOrient, true);
+    window.removeEventListener("deviceorientation", onOrient, true);
+    headOn = false;
+    heading = null;
+  }
+
+  /**
+   * סיבוב המחט בלי רינדור מחדש.
+   *
+   * החיישן מדווח עשרות פעמים בשנייה. בנייה מחדש של ה-HTML בקצב הזה
+   * הורסת את הסוללה ואת הגלילה, ולכן כאן נוגעים רק בתכונה שהשתנתה.
+   */
+  function paintCompass() {
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = 0;
+      const needle = el.querySelector("[data-rt-needle]");
+      if (!needle) return;
+      const to = Number(needle.dataset.rtNeedle);
+      if (!Number.isFinite(to)) return;
+      const rel = heading === null ? to : angDiff(to, heading);
+      needle.style.transform = `rotate(${rel}deg)`;
+      const word = el.querySelector("[data-rt-turn]");
+      if (word) {
+        word.textContent = heading === null ? roseWord(to) : turnWord(rel);
+      }
+      const north = el.querySelector("[data-rt-north]");
+      if (north) north.style.transform = `rotate(${heading === null ? 0 : -heading}deg)`;
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  מצב חוץ                                                           */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * מסך אחד, גדול, לקריאה בשמש ותוך כדי הליכה.
+   *
+   * מה שנשאר: החץ, המרחק, שם התחנה וכפתור אחד — בתחתית, במקום שהאגודל
+   * מגיע אליו ביד אחת. מה שנעלם: המפה, הרשימה, הטיפים והטקסט. לא מפני
+   * שהם מיותרים, אלא מפני שבחוץ יש שנייה אחת של מבט, ובשנייה הזו דף
+   * עמוס אינו נקרא בכלל.
+   */
+  async function setOutdoor(on) {
+    outdoor = on;
+    try { localStorage.setItem("route:outdoor", on ? "1" : "0"); } catch { /* מלא */ }
+    if (on) {
+      startHeading();
+      try {
+        if (navigator.wakeLock && !wake) wake = await navigator.wakeLock.request("screen");
+      } catch { /* הדפדפן לא תומך, או שהמסך לא פעיל */ }
+    } else if (wake) {
+      try { await wake.release(); } catch { /* כבר שוחרר */ }
+      wake = null;
+    }
+    render();
+  }
+
+  /* ------------------------------------------------------------------ */
   /*  מצב                                                               */
   /* ------------------------------------------------------------------ */
 
@@ -173,6 +321,9 @@ const DayRoute = (() => {
     view = null;
     openList = false;
     showAll = false;
+    headAsk = false;
+    try { outdoor = localStorage.getItem("route:outdoor") === "1"; } catch { outdoor = false; }
+    if (outdoor) startHeading();
     el.hidden = false;
     document.body.classList.add("is-locked");
     render();
@@ -185,6 +336,8 @@ const DayRoute = (() => {
     el.hidden = true;
     document.body.classList.remove("is-locked");
     stopGeo();
+    stopHeading();
+    if (wake) { try { wake.release(); } catch { /* כבר שוחרר */ } wake = null; }
     clearInterval(tick);
     tick = null;
     st = null;
@@ -241,7 +394,16 @@ const DayRoute = (() => {
     const d = metres({ lat: pos.latitude, lng: pos.longitude }, cur);
     if (d !== null && d <= NEAR) {
       nearHits++;
-      if (nearHits >= 2) { arrive(true); nearHits = 0; }
+      if (nearHits >= 2) {
+        /*
+         * רטט בהגעה. כל הרעיון של המסך הזה הוא שלא צריך להחזיק עליו
+         * עיניים, ולכן ההודעה החשובה ביותר שלו צריכה להגיע גם בלי
+         * להסתכל. (ספארי ב-iOS מתעלם, וזה בסדר — הוא לא שובר כלום.)
+         */
+        try { navigator.vibrate?.([60, 40, 60]); } catch { /* אין רטט */ }
+        arrive(true);
+        nearHits = 0;
+      }
     } else {
       nearHits = 0;
     }
@@ -392,31 +554,83 @@ const DayRoute = (() => {
   /*  תצוגה                                                             */
   /* ------------------------------------------------------------------ */
 
-  /** שורת המיקום החי */
-  function geoHTML(cur) {
-    if (!navigator.geolocation) {
-      return `<p class="rt__geo is-off">הדפדפן הזה אינו מדווח מיקום</p>`;
-    }
-    if (geoErr) {
-      return `<p class="rt__geo is-off">📍 ${esc(geoErr)}
-        <button class="btn btn--sm" data-rt-geo>נסה שוב</button></p>`;
-    }
-    if (!pos) {
-      return `<p class="rt__geo is-wait">📍 מחפש אותך…</p>`;
-    }
-
-    const d = metres({ lat: pos.latitude, lng: pos.longitude }, cur);
+  /**
+   * החלק שנקרא בשנייה אחת: חץ, מרחק, מילה.
+   *
+   * המרחק גדול מכל דבר אחר על המסך, כי הוא מה שבודקים שוב ושוב תוך
+   * כדי הליכה. מתחתיו נקודת הציון — מאיפה הגענו — כי הנחיה שנתלית על
+   * מקום מוכר נקראת מהר יותר משם של רחוב.
+   */
+  function compassHTML(p, list, i) {
+    const me = pos ? { lat: pos.latitude, lng: pos.longitude } : null;
+    const from = me || (i > 0 ? list[i - 1] : null);
+    const d = me ? metres(me, p) : null;
     const t = travel(d);
-    if (d !== null && d <= NEAR) {
-      return `<p class="rt__geo is-here"><b>📍 אתה כאן</b>
-        <i>· ${esc(human(d))} מהתחנה</i>
-        <small>דיוק ±${Math.round(pos.accuracy)} מ'</small></p>`;
-    }
-    return `<p class="rt__geo is-on">
-      <b>📍 ${esc(human(d))}</b> לתחנה
-      ${t ? `<i>· ${esc(travelText(t))}</i>` : ""}
-      <small>דיוק ±${Math.round(pos.accuracy)} מ'</small>
-    </p>`;
+    const to = from ? bearing(from, p) : null;
+    const rel = to === null ? null : heading === null ? to : angDiff(to, heading);
+
+    const word = to === null
+      ? ""
+      : heading === null
+      ? roseWord(to)
+      : turnWord(rel);
+
+    const near = d !== null && d <= NEAR;
+
+    /* הכותרת הגדולה: או "אתה כאן", או המרחק */
+    const big = near
+      ? `<b class="rt__big is-here">אתה כאן</b>`
+      : d !== null
+      ? `<b class="rt__big">${esc(human(d))}</b>`
+      : `<b class="rt__big is-wait">—</b>`;
+
+    const sub = near
+      ? `<span class="rt__sub">בתוך ${esc(human(d))} מהתחנה</span>`
+      : d !== null && t
+      ? `<span class="rt__sub">${esc(travelText(t))}</span>`
+      : geoErr
+      ? `<span class="rt__sub">${esc(geoErr)}</span>`
+      : `<span class="rt__sub">מחפש אותך…</span>`;
+
+    /* נקודת ציון: ממה יוצאים. מוכר תמיד עדיף על נ"צ. */
+    const land = i > 0 && !me
+      ? `מ${shortName(list[i - 1].name)}`
+      : i > 0 && d !== null && d > NEAR
+      ? `אחרי ${shortName(list[i - 1].name)}`
+      : "";
+
+    return `
+      <div class="rt__compass${near ? " is-here" : ""}">
+        <div class="rt__dial" role="img"
+             aria-label="${esc(word || "אין כיוון")} אל ${esc(p.name)}">
+          <!-- בלי חיישן הדיאל הוא צפון־למעלה; עם חיישן הוא "מה שמולך
+               למעלה", והצפון נודד לאן שהוא באמת -->
+          <span class="rt__dial-n" data-rt-north
+                style="transform: rotate(${heading === null ? 0 : (-heading).toFixed(1)}deg)"
+                aria-hidden="true"><i>צ</i></span>
+          ${to === null
+            ? `<span class="rt__needle is-off" aria-hidden="true">📍</span>`
+            : `<span class="rt__needle" data-rt-needle="${to.toFixed(1)}"
+                 style="transform: rotate(${(rel ?? 0).toFixed(1)}deg)" aria-hidden="true"></span>`}
+        </div>
+        <div class="rt__read">
+          ${big}
+          ${sub}
+          ${word ? `<span class="rt__turn" data-rt-turn>${esc(word)}</span>` : ""}
+          ${land ? `<span class="rt__land">${esc(land)}</span>` : ""}
+        </div>
+      </div>
+      ${to !== null && heading === null && !headAsk && window.DeviceOrientationEvent
+        ? `<button class="rt__cta" data-rt-head>🧭 הפעל מצפן — שהחץ יצביע לכיוון שאתה עומד בו</button>`
+        : ""}
+      ${to !== null && heading === null && !headAsk && !window.DeviceOrientationEvent
+        ? `<p class="rt__land rt__land--note">אין חיישן כיוון במכשיר הזה, ולכן החץ מצביע לפי
+             מצפן העולם: צפון למעלה.</p>`
+        : ""}
+      ${headAsk
+        ? `<p class="rt__geo is-off">אין הרשאת מצפן. החץ מצביע לפי מצפן העולם (צפון למעלה).
+             <button class="btn btn--sm" data-rt-head>נסה שוב</button></p>`
+        : ""}`;
   }
 
   /**
@@ -686,6 +900,8 @@ const DayRoute = (() => {
           </div>
         </header>
 
+        ${ahead ? aheadHTML(list, i) : compassHTML(p, list, i)}
+
         ${m.text
           ? `<p class="rt__what"><b>מה יש כאן:</b> ${esc(m.text)}</p>`
           : day.summary
@@ -696,19 +912,18 @@ const DayRoute = (() => {
           ? `<ul class="rt__tips">${tips.map((x) => `<li>💡 ${esc(x)}</li>`).join("")}</ul>`
           : ""}
 
-        ${ahead ? aheadHTML(list, i) : geoHTML(p)}
-
         <div class="rt__acts">
           <a class="btn btn--primary" target="_blank" rel="noopener"
              href="${esc(navLink(p, me?.mode || "walking"))}">🧭 נווט לתחנה הזו${
                !ahead && me ? ` · ${esc(travelText(me))}` : ""
              }</a>
-          <a class="btn" target="_blank" rel="noopener"
+          ${/* במצב חוץ נשארים שני כפתורים בלבד, ואלה שני אלה: לאן, והגעתי */ ""}
+          ${outdoor ? "" : `<a class="btn" target="_blank" rel="noopener"
              href="${esc(navLink(p, me?.far ? "walking" : "driving"))}">${
                me?.far ? "🚶 ברגל" : "🚗 ברכב"
-             }</a>
-          <a class="btn" target="_blank" rel="noopener"
-             href="${esc(ctx.placeLink(p.name, p.lat, p.lng))}">ℹ️ על המקום</a>
+             }</a>`}
+          ${outdoor ? "" : `<a class="btn" target="_blank" rel="noopener"
+             href="${esc(ctx.placeLink(p.name, p.lat, p.lng))}">ℹ️ על המקום</a>`}
           ${done
             ? `<button class="btn" data-rt-undo="${i}">↩︎ לא הייתי</button>`
             : miss
@@ -716,7 +931,7 @@ const DayRoute = (() => {
             : ahead
             ? `<button class="btn" data-rt-jump="${i}">📍 אני כאן</button>`
             : `<button class="btn" data-rt-arrive>✅ הגעתי</button>`}
-          ${!ahead && !done && st.idx < list.length - 1
+          ${!ahead && !done && !outdoor && st.idx < list.length - 1
             ? `<button class="btn rt__skip" data-rt-skip
                  title="להתקדם לתחנה הבאה בלי לסמן ביקור">⤼ מדלגים</button>`
             : ""}
@@ -835,7 +1050,7 @@ const DayRoute = (() => {
     const day = ctx.day(st.n);
     const list = day ? stops(day) : [];
     const body = el.querySelector("[data-rt-body]");
-    const head = el.querySelector("[data-rt-head]");
+    const head = el.querySelector("[data-rt-head-txt]");
     const top = el.querySelector("[data-rt-top]");
 
     const rail = el.querySelector("[data-rt-rail]");
@@ -869,7 +1084,16 @@ const DayRoute = (() => {
      */
     top.innerHTML = statusHTML(day, list) + spineHTML(day, list);
     rail.innerHTML = railHTML(day, list);
-    el.querySelector(".rt").classList.add("has-rail");
+    const sheet = el.querySelector(".rt");
+    sheet.classList.add("has-rail");
+    sheet.classList.toggle("is-out", outdoor);
+
+    const toggle = el.querySelector("[data-rt-out]");
+    if (toggle) {
+      toggle.textContent = outdoor ? "⤢" : "🔆";
+      toggle.title = outdoor ? "חזרה למסך המלא" : "מצב חוץ — גדול, לקריאה בהליכה";
+      toggle.setAttribute("aria-pressed", String(outdoor));
+    }
 
     body.innerHTML =
       alertHTML() +
@@ -904,6 +1128,8 @@ const DayRoute = (() => {
 
       if (e.target.closest("[data-rt-arrive]")) return arrive(false);
       if (e.target.closest("[data-rt-skip]")) return skip();
+      if (e.target.closest("[data-rt-head]")) return startHeading();
+      if (e.target.closest("[data-rt-out]")) return setOutdoor(!outdoor);
 
       const was = e.target.closest("[data-rt-was]");
       if (was) return markDone(Number(was.dataset.rtWas));

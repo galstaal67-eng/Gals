@@ -132,8 +132,13 @@
 <div class="overlay overlay--full" id="routeOverlay" hidden>
   <div class="overlay__sheet rt" role="dialog" aria-modal="true" aria-labelledby="rtTitle">
     <div class="ov-head rt__head">
-      <h2 id="rtTitle" data-rt-head>—</h2>
-      <button class="icon-btn" data-rt-close aria-label="סגירה">✕</button>
+      <h2 id="rtTitle" data-rt-head-txt>—</h2>
+      <div class="rt__head-acts">
+        <!-- מצב חוץ: מסך אחד גדול, לקריאה בשמש ותוך כדי הליכה -->
+        <button class="icon-btn" data-rt-out aria-pressed="false"
+                title="מצב חוץ">🔆</button>
+        <button class="icon-btn" data-rt-close aria-label="סגירה">✕</button>
+      </div>
     </div>
     <!-- מבט העל: דבוק לראש המסך, לא נגלל עם התוכן -->
     <div class="rt__top" data-rt-top></div>

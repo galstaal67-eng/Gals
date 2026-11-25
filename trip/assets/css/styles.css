@@ -2728,6 +2728,154 @@ body.is-locked { overflow: hidden; }
 .rt__status-left { opacity: 0.8; }
 .rt__status-wx { margin-inline-start: auto; }
 
+/* ---------- המצפן: החלק שנקרא בשנייה אחת ---------- */
+/* מחקר על ניווט להולכי רגל מצא שממשק דליל עם נקודת ציון עובד טוב יותר
+   מממשק שמוסיף מפה, ושהנחיה שנתלית על מקום מוכר מעובדת מהר יותר משם
+   של רחוב. זו הסיבה שהחלק הזה הוא חץ, מספר ומילה — ולא מפה. */
+
+.rt__head-acts { display: flex; align-items: center; gap: 6px; }
+
+.rt__compass {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(127, 127, 127, 0.1);
+}
+.rt__compass.is-here { background: color-mix(in srgb, #6bbf7b 24%, transparent); }
+
+.rt__dial {
+  flex: 0 0 auto;
+  position: relative;
+  inline-size: 96px;
+  block-size: 96px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(127, 127, 127, 0.14), transparent 70%);
+}
+/* סמן הצפון יושב על הטבעת ומסתובב איתה */
+.rt__dial-n {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  justify-items: center;
+  transition: transform 0.18s linear;
+  pointer-events: none;
+}
+.rt__dial-n i {
+  margin-block-start: 2px;
+  font-style: normal;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+/* המחט: משולש שמצביע כלפי מעלה ב-0°, ומסתובב משם */
+.rt__needle {
+  inline-size: 0;
+  block-size: 0;
+  border-inline: 15px solid transparent;
+  border-block-end: 42px solid #6bbf7b;
+  transform-origin: 50% 70%;
+  transition: transform 0.18s linear;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+}
+.rt__needle.is-off {
+  inline-size: auto;
+  block-size: auto;
+  border: 0;
+  font-size: 1.6rem;
+  filter: none;
+}
+.rt__compass.is-here .rt__needle { border-block-end-color: #fff; }
+
+.rt__read { display: grid; gap: 1px; min-inline-size: 0; }
+.rt__big {
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.rt__big.is-here { font-size: 1.7rem; color: #6bbf7b; }
+.rt__big.is-wait { color: var(--muted); }
+.rt__sub { font-size: 0.82rem; color: var(--muted); }
+.rt__turn {
+  margin-block-start: 5px;
+  font-size: 1.12rem;
+  font-weight: 650;
+}
+.rt__land { font-size: 0.8rem; color: var(--muted); }
+
+.rt__cta {
+  inline-size: 100%;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px dashed var(--line-strong);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.84rem;
+  text-align: start;
+  cursor: pointer;
+}
+.rt__cta:hover { color: inherit; }
+
+/* ---------- מצב חוץ ---------- */
+/* בחוץ יש שנייה אחת של מבט. מה שנשאר: חץ, מרחק, שם וכפתור אחד —
+   בתחתית, שם שהאגודל מגיע ביד אחת. */
+.rt.is-out .rt__map,
+.rt.is-out .rt__list,
+.rt.is-out .rt__tips,
+.rt.is-out .rt__what,
+.rt.is-out .rt__cta,
+.rt.is-out .rt__shift,
+.rt.is-out .rt__now-kind,
+.rt.is-out .rt__peek-cue { display: none; }
+
+.rt.is-out .rt__body {
+  padding-block-end: 92px;
+  /* safe: אם התוכן גבוה מהמסך, מרכוז לא ייחתוך את ראשו */
+  align-content: safe center;
+}
+.rt.is-out .rt__now { border: 0; padding: 0; gap: 16px; }
+.rt.is-out .rt__now-head h3 { font-size: 1.6rem; line-height: 1.15; }
+.rt.is-out .rt__now-icon { font-size: 2.4rem; }
+
+.rt.is-out .rt__compass { padding: 18px 14px; gap: 18px; }
+.rt.is-out .rt__dial { inline-size: 140px; block-size: 140px; }
+.rt.is-out .rt__needle {
+  border-inline-width: 22px;
+  border-block-end-width: 62px;
+}
+.rt.is-out .rt__big { font-size: 3.4rem; }
+.rt.is-out .rt__big.is-here { font-size: 2.3rem; }
+.rt.is-out .rt__turn { font-size: 1.45rem; }
+.rt.is-out .rt__sub, .rt.is-out .rt__land { font-size: 0.95rem; }
+
+/* הפעולה הראשית יורדת לאזור האגודל ונשארת שם */
+.rt.is-out .rt__acts {
+  position: absolute;
+  inset-inline: 10px 44px;
+  inset-block-end: 10px;
+  z-index: 3;
+  gap: 8px;
+}
+.rt.is-out .rt__acts .btn {
+  min-block-size: 56px;
+  font-size: 1rem;
+  box-shadow: var(--shadow);
+}
+.rt.is-out .rt__acts .btn--primary { flex-basis: 100%; }
+.rt.is-out .rt__next { font-size: 0.95rem; }
+
+/* הניגודיות מועלית: מסך בשמש מאבד את ההפרשים העדינים */
+.rt.is-out { --muted: color-mix(in srgb, currentColor 72%, transparent); }
+.rt.is-out .rt__compass { background: rgba(127, 127, 127, 0.18); }
+
 /* ---------- הסרגל הצדי ---------- */
 /* הוא יושב בשוליים השמאליים (inline-end בעמוד RTL), לכל גובה האזור
    הנגלל, ואינו זז. הרצועה העליונה נותנת שמות ושעות ונגללת הצידה;
