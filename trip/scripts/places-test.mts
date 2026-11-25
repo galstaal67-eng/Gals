@@ -70,3 +70,61 @@ const known = await resolvePlaces(["כיכר החירות"], {
   days: [{ n: 2, points: [{ name: "כיכר החירות", lat: 41.6934, lng: 44.8015, type: "sight" }] }],
 }, { lookups: 12 });
 ok("מקום שכבר בטיול אינו עולה קריאה", nominatim.length === 0 && known.points.length === 1);
+
+/* =========================================================================
+   הערובה: לוח זמנים → מקומות.
+
+   זה החלק שמחליף כלל בפרומפט בקוד. אם העוזר לא מסר מקומות ליום שלוח
+   הזמנים שלו השתנה, הם נגזרים דרך הפונקציה הזו — ולכן מה שהיא מקבלת
+   ומה שהיא מחזירה חייבים להיות נכונים גם בלי רשת.
+   ========================================================================= */
+
+import { planPrompt, placesFromPlan } from "../netlify/lib/from-plan.mts";
+
+const day3 = {
+  n: 3,
+  title: "יום של שווקים",
+  summary: "סיבוב בשווקים של טביליסי.",
+  plan: [
+    { time: "10:00", text: "שוק דזרטירי — שוק המזון הגדול של העיר." },
+    { time: "13:00", text: "שוק הפשפשים בגשר היבש." },
+  ],
+  points: [{ name: "מבצר אנאנורי", lat: 42.16, lng: 44.7, type: "sight" }],
+  hotel: { name: "Brosse Garden" },
+};
+
+const tripDoc = {
+  meta: { title: "טביליסי", countries: ["גאורגיה"],
+          bbox: { latMin: 41.0, latMax: 42.9, lngMin: 43.4, lngMax: 46.8 } },
+  days: [{ n: 2, points: [{ name: "כיכר החירות", lat: 41.6934, lng: 44.8015, type: "sight" }] }],
+};
+
+const prompt = planPrompt(day3, tripDoc) ?? "";
+ok("הפרומפט נושא את שורות לוח הזמנים", prompt.includes("שוק דזרטירי") && prompt.includes("הפשפשים"));
+ok("הפרומפט נושא את הרשימה הקודמת", prompt.includes("מבצר אנאנורי"));
+ok("הפרומפט נושא את המקומות המוכרים", prompt.includes("כיכר החירות"));
+ok("יום בלי לוח זמנים אינו נגזר", planPrompt({ n: 4, plan: [] }, tripDoc) === null);
+
+// הקריאה עצמה, מול אותו שרת מדומה
+let sawPlan = false;
+globalThis.fetch = (async (url: string, init?: RequestInit) => {
+  if (String(url).includes("anthropic.com")) {
+    sawPlan = String(init?.body ?? "").includes("דזרטירי") ||
+              String(init?.body ?? "").includes("\\u05d3\\u05d6\\u05e8");
+    return new Response(JSON.stringify({
+      id: "m", type: "message", role: "assistant", model: "claude-opus-5-5",
+      stop_reason: "end_turn", stop_sequence: null,
+      usage: { input_tokens: 5, output_tokens: 5 },
+      content: [{ type: "text", text: JSON.stringify({
+        places: ["שוק דזרטירי", "שוק הפשפשים בגשר היבש"],
+        note: "הרשימה נבנתה מלוח הזמנים.",
+      }) }],
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }
+  return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+}) as unknown as typeof fetch;
+
+const got = await placesFromPlan(day3, tripDoc);
+ok("לוח הזמנים הגיע למודל", sawPlan);
+ok("חזרו המקומות של היום החדש", got?.places.join("|") === "שוק דזרטירי|שוק הפשפשים בגשר היבש");
+ok("הנקודה הישנה לא חזרה", !(got?.places || []).includes("מבצר אנאנורי"));

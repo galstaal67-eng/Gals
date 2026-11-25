@@ -4,6 +4,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { fail, resolveApiKey, streamJson, StreamError } from "../lib/shared.mts";
 import { resolvePlaces } from "../lib/places.mts";
+import { placesFromPlan } from "../lib/from-plan.mts";
 import { readFlight, type DocBlock, type FlightInfo } from "../lib/flight-read.mts";
 
 /**
@@ -694,29 +695,57 @@ export default async (req: Request) => {
       // לכל הימים, כדי שבקשה אחת לא תחזיק את השירות החיצוני דקה שלמה.
       // שם שלא נמצא ישירות עולה עוד קריאה אחרי התרגום, ולכן התקציב
       // גדול מכפי שנראה: הוא נמדד בקריאות ל-Nominatim ולא במקומות
-      const budget = { lookups: 10 };
+      const budget = { lookups: 12 };
       const dayChanges = [];
+
       /*
-       * יום שלוח הזמנים שלו נכתב מחדש בלי רשימת מקומות חדשה הוא יום
-       * שיראה אחרת בתכנון היומי ואחרת במבט העל. הכללים אוסרים את זה,
-       * אבל מודל יכול להחמיץ כלל — ואז עדיף שהמשתמש יידע מאשר שיגלה
-       * בעצמו יומיים אחר כך, מול עמודה שלא מסתדרת.
+       * **הערובה.** יום שלוח הזמנים שלו נכתב מחדש בלי רשימת מקומות הוא
+       * יום שייראה אחרת בתכנון היומי ואחרת במבט העל, במסלול היום, על
+       * הקו במפה, בקישור ל-Google Maps ובנקודות שיורדות.
+       *
+       * הכללים בפרומפט אוסרים את זה, וזה לא הספיק פעמיים — כי כלל הוא
+       * בקשה ולא ערובה. לכן אם המודל לא מסר מקומות ליום שלוח הזמנים
+       * שלו השתנה, הם **נגזרים כאן**, מאותו לוח זמנים, באותה קריאה
+       * שמשרתת את כפתור התיקון הידני. אין יותר מסלול שבו plan משתנה
+       * ו-points נשאר מאחור.
        */
-      const stale: number[] = [];
+      const derived: number[] = [];
       for (const change of rawDays) {
-        if (!change.places) {
-          if (change.plan) stale.push(change.n);
+        let places = change.places;
+
+        if (!places && change.plan) {
+          const day = (Array.isArray(tripDoc.days) ? tripDoc.days : []).find(
+            (d) => Number((d as Record<string, unknown>).n) === Number(change.n)
+          ) as Record<string, unknown> | undefined;
+
+          const got = await placesFromPlan(
+            {
+              n: change.n,
+              title: change.title ?? day?.title,
+              summary: change.summary ?? day?.summary,
+              plan: change.plan,
+              points: day?.points,
+              hotel: day?.hotel,
+            },
+            tripDoc
+          );
+          if (got?.places.length) {
+            places = got.places;
+            derived.push(change.n);
+          }
+        }
+
+        if (!places) {
           dayChanges.push({ ...change, points: null, unresolved: [] });
           continue;
         }
-        const { points, unresolved } = await resolvePlaces(change.places, tripDoc, budget);
+        const { points, unresolved } = await resolvePlaces(places, tripDoc, budget);
         dayChanges.push({ ...change, points, unresolved });
       }
 
-      const staleNote = stale.length
-        ? `לוח הזמנים של ${stale.length === 1 ? "יום" : "הימים"} ${stale.join(", ")} ` +
-          "התעדכן, אבל נקודות המפה של אותו יום נשארו כפי שהיו — ייתכן שמבט " +
-          "העל ומסלול היום לא יתאימו לתכנון. אפשר לבקש ממני לעדכן גם את המפה."
+      const staleNote = derived.length
+        ? `נקודות המפה של ${derived.length === 1 ? "יום" : "הימים"} ${derived.join(", ")} ` +
+          "נבנו מחדש מלוח הזמנים, כדי שמבט העל והמפה יתאימו לתכנון."
         : "";
 
       if (!withDocs) {
@@ -754,7 +783,7 @@ export default async (req: Request) => {
         }
       }
 
-      const warning = [docResult.warning, ...notes].filter(Boolean).join(" ");
+      const warning = [docResult.warning, ...notes, staleNote].filter(Boolean).join(" ");
 
       return {
         ...empty,
