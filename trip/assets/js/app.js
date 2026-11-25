@@ -1434,6 +1434,41 @@
   const timeCache = new Map();
 
   /**
+   * המילים שאפשר לתלות עליהן התאמה לשם של נקודה.
+   *
+   * שם העיר, שם המדינה ו"המלון" מופיעים בחצי מהשורות ואינם מזהים דבר —
+   * בלעדיהם "המוזיאון הלאומי של גאורגיה" היה נתלה על שורת הנחיתה, רק
+   * מפני ששתיהן מזכירות את גאורגיה.
+   */
+  function genericWords() {
+    const generic = new Set([...STOP_WORDS]);
+    [TRIP.meta?.title, ...(TRIP.meta?.countries || [])].forEach((v) => {
+      String(v || "").split(/\s+/).forEach((w) => { if (w.length >= 4) generic.add(w); });
+    });
+    return generic;
+  }
+
+  function nameWords(name) {
+    const generic = genericWords();
+    return String(name || "")
+      .split(/[^\u0590-\u05FFA-Za-z']+/)
+      .filter((w) => w.length >= 4 && !generic.has(w));
+  }
+
+  /**
+   * הטיפים של היום שמדברים על נקודה מסוימת.
+   *
+   * טיפ שנכתב ליום שלם ("קחו מזומן לרכבל") שייך לתחנה שהוא מדבר עליה,
+   * ושם הוא גם נקרא — ברשימה הכללית של היום הוא עוד שורה, ובתחנה הוא
+   * הדבר שצריך לדעת עכשיו.
+   */
+  function tipsForPoint(day, p) {
+    const words = nameWords(p?.name);
+    if (!words.length) return [];
+    return (day?.tips || []).filter((t) => words.some((w) => String(t).includes(w)));
+  }
+
+  /**
    * ההתאמה עצמה — שעה **וגם** הטקסט של השורה שהתאימה.
    *
    * הטקסט הוא מה שהופך את מסך המסלול למשהו שאפשר ללכת לפיו: "תחנה 3"
@@ -1448,15 +1483,8 @@
     const hit = timeCache.get(key);
     if (hit) return hit;
 
-    const generic = new Set([...STOP_WORDS]);
-    [TRIP.meta?.title, ...(TRIP.meta?.countries || [])].forEach((v) => {
-      String(v || "").split(/\s+/).forEach((w) => { if (w.length >= 4) generic.add(w); });
-    });
-
     const out = pts.map((p) => {
-      const words = String(p?.name || "")
-        .split(/[^\u0590-\u05FFA-Za-z']+/)
-        .filter((w) => w.length >= 4 && !generic.has(w));
+      const words = nameWords(p?.name);
       let best = null;
       for (const r of rows) {
         const text = String(r.text || "");
@@ -4398,6 +4426,21 @@ ${[marks, line].filter(Boolean).join("\n")}
       icon: (t) => TYPE_ICON[t] || "📍",
       label: (t) => TYPE_LABEL[t] || "",
       placeLink: placeMapsLink,
+      tips: tipsForPoint,
+      /** שורת מזג אוויר קצרה — מי שבחוץ כל היום צריך אותה על המסך */
+      wx: (n) => {
+        if (typeof LiveView === "undefined" || !LiveView.weatherFor) return null;
+        const d = (LiveView.weatherFor() || []).find((x) => x.n === n);
+        if (!d) return null;
+        return {
+          icon: d.icon || "🌤️",
+          now: d.tNow === null || d.tNow === undefined ? "" : `${Math.round(d.tNow)}°`,
+          span: d.tMax === null && d.tMin === null
+            ? "" : `${Math.round(d.tMax ?? 0)}°/${Math.round(d.tMin ?? 0)}°`,
+          text: d.text || "",
+          rain: d.rainChance > 0 ? `💧${d.rainChance}%` : "",
+        };
+      },
       /**
        * הזזת השעות לשעה שבה באמת יצאנו.
        *

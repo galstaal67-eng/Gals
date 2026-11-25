@@ -2689,11 +2689,219 @@ body.is-locked { overflow: hidden; }
 }
 .rt__head h2 small { font-weight: 500; font-size: 0.76rem; color: var(--muted); }
 
+/* ---------- מבט העל: דבוק לראש המסך ---------- */
+/* הוא לא נגלל עם התוכן בכוונה. "איפה אני ביום" ו"מה מולי עכשיו" הן שתי
+   שאלות שנשאלות באותו רגע, ומסך שדורש גלילה כדי לענות על אחת מהן עונה
+   בפועל רק על אחת. */
+.rt__top {
+  flex: 0 0 auto;
+  padding: 0 12px 10px;
+  border-block-end: 1px solid var(--line);
+  background: var(--ink-850);
+  display: grid;
+  gap: 8px;
+}
+[data-theme="light"] .rt__top { background: #fff; }
+
+.rt__status {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.rt__status > b {
+  font-size: 0.92rem;
+  color: inherit;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: rgba(127, 127, 127, 0.16);
+}
+.rt__status > span:first-of-type { color: var(--fg, inherit); font-weight: 600; }
+.rt__status i { font-style: normal; font-weight: 600; }
+.rt__status i.is-late { color: #e2a04a; }
+.rt__status i.is-early { color: #6fa8dc; }
+.rt__status i.is-ok { color: #6bbf7b; }
+.rt__status-left { opacity: 0.8; }
+.rt__status-wx { margin-inline-start: auto; }
+
+/* ---------- רצועת התחנות ---------- */
+.rt__spine {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.rt__spine::-webkit-scrollbar { display: none; }
+.rt__spine ol {
+  display: flex;
+  gap: 0;
+  margin: 0;
+  padding: 2px 0 0;
+  list-style: none;
+}
+.rt__spine li { flex: 0 0 auto; position: relative; }
+/* הקו שמחבר בין התחנות — אחורה בלבד, כדי שלא יבלוט מעבר לאחרונה */
+.rt__spine li + li::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 11px;
+  inset-inline-end: 50%;
+  inline-size: 100%;
+  block-size: 2px;
+  background: var(--line-strong);
+}
+/* הקו נצבע לפי התחנה שלפניו: מה שעברנו הוא מה שמאחור, ולא מה שמולנו */
+.rt__spine li.is-done + li::before { background: #6bbf7b; }
+
+.rt__spine button {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  inline-size: 78px;
+  padding: 0 2px 2px;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.rt__dot {
+  display: grid;
+  place-items: center;
+  inline-size: 22px;
+  block-size: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  background: var(--ink-850);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+[data-theme="light"] .rt__dot { background: #fff; }
+.rt__spine-time { font-size: 0.66rem; letter-spacing: 0.02em; }
+.rt__spine-name {
+  font-size: 0.7rem;
+  line-height: 1.15;
+  text-align: center;
+  max-inline-size: 76px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.rt__spine li.is-done .rt__dot { background: #6bbf7b; border-color: #6bbf7b; color: #0b1b10; }
+.rt__spine li.is-here .rt__dot {
+  border-color: #6bbf7b;
+  color: #6bbf7b;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #6bbf7b 28%, transparent);
+}
+.rt__spine li.is-here button, .rt__spine li.is-done button { color: inherit; }
+.rt__spine li.is-view button { color: inherit; font-weight: 650; }
+.rt__spine li.is-view .rt__dot { border-color: currentColor; }
+
+/* ---------- התראות ---------- */
+.rt__alert {
+  position: relative;
+  padding: 12px 38px 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  background: rgba(127, 127, 127, 0.1);
+  font-size: 0.87rem;
+  display: grid;
+  gap: 6px;
+}
+.rt__alert.is-urgent {
+  border-color: #e2a04a;
+  background: color-mix(in srgb, #e2a04a 16%, transparent);
+}
+.rt__alert ul { margin: 0; padding-inline-start: 18px; display: grid; gap: 3px; }
+.rt__alert small { color: var(--muted); }
+.rt__alert time { color: var(--muted); font-size: 0.78rem; margin-inline-end: 4px; }
+.rt__alert-x {
+  position: absolute;
+  inset-block-start: 6px;
+  inset-inline-end: 6px;
+  inline-size: 28px;
+  block-size: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.rt__bell {
+  justify-self: start;
+  padding: 5px 11px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+/* ---------- הצצה קדימה ---------- */
+.rt__now.is-peek { border-style: dashed; }
+.rt__peekbar {
+  margin: -4px 0 2px;
+  padding: 7px 11px;
+  border-radius: 9px;
+  border: 0;
+  background: color-mix(in srgb, #6fa8dc 20%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: start;
+  cursor: pointer;
+}
+.rt__now.is-done .rt__now-head h3 { color: var(--muted); }
+
+.rt__tips {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 5px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.rt__tips li {
+  padding: 7px 10px;
+  border-radius: 9px;
+  background: rgba(127, 127, 127, 0.1);
+}
+
+/* ---------- הרשימה המלאה, מתקפלת ---------- */
+.rt__list-head {
+  inline-size: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 2px;
+  background: none;
+  border: 0;
+  border-block-end: 1px solid var(--line);
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.rt__chev { color: var(--muted); }
+
 .rt__body {
   flex: 1 1 auto;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 0 16px 24px;
+  padding: 14px 16px 24px;
   display: grid;
   gap: 14px;
   align-content: start;
@@ -2701,7 +2909,7 @@ body.is-locked { overflow: hidden; }
 .rt__empty { padding: 20px 0; display: grid; gap: 10px; }
 .rt__empty p { margin: 0; font-size: 0.9rem; line-height: 1.55; }
 
-/* ---------- פס ההתקדמות ---------- */
+/* ---------- פס ההתקדמות (שרידי; מבט העל החליף אותו) ---------- */
 .rt__bar {
   block-size: 6px;
   border-radius: 99px;
@@ -2783,6 +2991,21 @@ body.is-locked { overflow: hidden; }
   border-radius: 10px;
   border: 1px solid var(--line);
   font-size: 0.87rem;
+  inline-size: 100%;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+  position: relative;
+}
+button.rt__next:hover { background: rgba(127, 127, 127, 0.08); }
+.rt__peek-cue {
+  position: absolute;
+  inset-block-start: 10px;
+  inset-inline-end: 12px;
+  font-size: 0.72rem;
+  color: var(--muted);
 }
 .rt__next-tag {
   font-size: 0.7rem;

@@ -40,6 +40,18 @@ const DayRoute = (() => {
   let nearHits = 0;                  // קריאות רצופות בתוך הרדיוס
   let askShift = false;              // האם ההצעה להזיז את היום פתוחה
   let tick = null;
+  let openList = false;              // האם הרשימה המלאה פרושה
+  let showAll = false;               // האם רשימת ההתראות שנסגרו פתוחה
+
+  /**
+   * **איפה אני** ו**במה אני מסתכל** הם שני דברים.
+   *
+   * `st.idx` הוא המקום שבו אני באמת עומד. `view` הוא התחנה שהכרטיס
+   * הגדול מציג. מי שרוצה לראות מה מחכה בתחנה הרביעית לא אמור לשלם על
+   * זה בכך שהמסך "ישכח" איפה הוא — ולכן הצצה קדימה אינה מזיזה את
+   * המיקום, ויש פס שמזכיר שזו לא התחנה שלך ומחזיר אליה בלחיצה.
+   */
+  let view = null;                   // null = עוקב אחרי st.idx
 
   const esc = (s) =>
     String(s ?? "").replace(/[&<>"']/g, (c) =>
@@ -158,6 +170,9 @@ const DayRoute = (() => {
     const from = firstStopTime(day);
     askShift = Boolean(from) && Math.abs(ctx.min(from) - nowMin()) >= 20;
 
+    view = null;
+    openList = false;
+    showAll = false;
     el.hidden = false;
     document.body.classList.add("is-locked");
     render();
@@ -236,6 +251,11 @@ const DayRoute = (() => {
   /*  התקדמות                                                           */
   /* ------------------------------------------------------------------ */
 
+  const viewIdx = (list) => {
+    const i = view === null ? st.idx : view;
+    return Math.max(0, Math.min(i, list.length - 1));
+  };
+
   function arrive(auto) {
     const day = ctx.day(st.n);
     const list = stops(day);
@@ -243,12 +263,22 @@ const DayRoute = (() => {
     if (!st.done.includes(st.idx)) st.done.push(st.idx);
     if (st.idx < list.length - 1) st.idx++;
     st.auto = Boolean(auto);
+    view = null;                       // הגעה מחזירה את המבט למקום שבו אני
     save();
     render();
   }
 
-  function goTo(i) {
+  /** הצצה בתחנה — מזיזה את המבט בלבד */
+  function peek(i) {
+    view = i === st.idx ? null : i;
+    render();
+  }
+
+  /** "אני כאן" — הזזה של המיקום עצמו, מתוך הפס העליון */
+  function jump(i) {
     st.idx = i;
+    st.done = st.done.filter((x) => x < i);
+    view = null;
     save();
     render();
   }
@@ -256,6 +286,7 @@ const DayRoute = (() => {
   function undo(i) {
     st.done = st.done.filter((x) => x !== i);
     st.idx = i;
+    view = null;
     save();
     render();
   }
@@ -378,47 +409,203 @@ const DayRoute = (() => {
     </div>`;
   }
 
-  /** התחנה הנוכחית — החלק הגדול של המסך */
-  function currentHTML(day, list) {
-    const i = Math.min(st.idx, list.length - 1);
-    const p = list[i];
-    const next = list[i + 1] || null;
-    const match = ctx.stopMatch(day)[(day.points || []).indexOf(p)] || {};
-    const legs = metres(p, next);
-    const t = travel(legs);
+  /* ------------------------------------------------------------------ */
+  /*  מבט על — הפס העליון                                               */
+  /* ------------------------------------------------------------------ */
 
-    // המרחק ממני לתחנה — הוא שקובע איזו דרך מוצעת ראשונה
-    const me = pos
-      ? travel(metres({ lat: pos.latitude, lng: pos.longitude }, p))
-      : null;
-
-    const left = list.length - 1 - i;
+  /**
+   * רצועת היום: כל התחנות, תמיד על המסך.
+   *
+   * זה החצי שחסר לכרטיס הגדול. כרטיס לבדו עונה "לאן עכשיו" ומשאיר את
+   * השאלה "איפה אני בתוך היום" בלי תשובה — וזו בדיוק השאלה שעולה אחרי
+   * התחנה השנייה. הרצועה עונה עליה במבט: מה מאחור, איפה אני, מה לפניי,
+   * וכמה עוד נשאר.
+   *
+   * לחיצה על תחנה היא **הצצה** ולא קפיצה: המבט זז, המיקום נשאר.
+   */
+  function spineHTML(day, list) {
+    const match = ctx.stopMatch(day);
+    const pts = day.points || [];
+    const vi = viewIdx(list);
 
     return `
-      <section class="rt__now">
+      <div class="rt__spine" data-rt-spine>
+        <ol>
+          ${list
+            .map((p, i) => {
+              const m = match[pts.indexOf(p)] || {};
+              const done = st.done.includes(i);
+              const here = i === st.idx;
+              const cls = [
+                done ? "is-done" : "",
+                here ? "is-here" : "",
+                i === vi ? "is-view" : "",
+                !done && !here ? "is-todo" : "",
+              ].filter(Boolean).join(" ");
+              return `<li class="${cls}">
+                <button data-rt-peek="${i}" title="${esc(p.name)}">
+                  <span class="rt__dot" aria-hidden="true">${done ? "✓" : here ? "●" : i + 1}</span>
+                  <span class="rt__spine-time">${m.time ? esc(m.time) : "—"}</span>
+                  <span class="rt__spine-name">${esc(shortName(p.name))}</span>
+                </button>
+              </li>`;
+            })
+            .join("")}
+        </ol>
+      </div>`;
+  }
+
+  /** "פארק ריקה — תחנת רכבל" ברצועה צרה הוא שלוש שורות; זה השם הקצר */
+  const shortName = (n) =>
+    String(n || "").split(/\s[—–-]\s/)[0].replace(/\s*\(.*$/, "").trim();
+
+  /**
+   * שורת המצב: איפה אני ביום, ביחס לשעון ולמזג האוויר.
+   *
+   * "מאחרים ב-40 דקות" אינו נזיפה אלא מידע שמשנה החלטות — אפשר לוותר
+   * על תחנה, אפשר לקצר, ואפשר להזיז את היום. בלעדיו מגלים את זה בחוץ,
+   * בחשכה, ליד האתר שנסגר.
+   */
+  function statusHTML(day, list) {
+    const match = ctx.stopMatch(day);
+    const pts = day.points || [];
+    const here = list[st.idx];
+    const m = match[pts.indexOf(here)] || {};
+    const left = list.length - st.idx - (st.done.includes(st.idx) ? 0 : 1);
+
+    /*
+     * כשההצעה להזיז את היום עוד פתוחה, "מאחרים ב-155 דקות" הוא לא
+     * אמת אלא תקלה בניסוח: התוכנית פשוט כתובה לשעה אחרת, ועוד לא
+     * הוכרע מה עושים עם זה. הפיגור נאמר רק אחרי שהוכרע.
+     */
+    let drift = "";
+    if (m.time && !askShift) {
+      const d = nowMin() - ctx.min(m.time);
+      if (Math.abs(d) >= 25) {
+        drift = d > 0
+          ? `<i class="is-late">מאחרים ב-${Math.round(d / 5) * 5} דק'</i>`
+          : `<i class="is-early">מקדימים ב-${Math.round(-d / 5) * 5} דק'</i>`;
+      } else {
+        drift = `<i class="is-ok">בזמן</i>`;
+      }
+    }
+
+    const wx = ctx.wx ? ctx.wx(day.n) : null;
+
+    return `
+      <p class="rt__status">
+        <b>${st.done.length}/${list.length}</b>
+        <span>${
+          st.done.includes(st.idx) && st.idx === list.length - 1
+            ? "סיימנו את היום"
+            : `עכשיו: ${esc(shortName(here.name))}`
+        }</span>
+        ${drift}
+        ${left > 0 ? `<span class="rt__status-left">נשארו ${left}</span>` : ""}
+        ${wx
+          ? `<span class="rt__status-wx">${esc(wx.icon)} ${esc(wx.now)}${
+              wx.span ? ` · ${esc(wx.span)}` : ""
+            }${wx.rain ? ` · ${esc(wx.rain)}` : ""}</span>`
+          : ""}
+      </p>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  התראות                                                            */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * מה שהליווי הפעיל מצא, כאן ולא רק בקוביה.
+   *
+   * אתר שנסגר היום, כביש חסום, גשם שמתחיל בארבע — זה מידע שנוגע לתחנה
+   * הבאה, ומי שעומד ברחוב עם המסך הזה פתוח לא אמור לצאת ממנו כדי
+   * לראות אותו.
+   */
+  function alertHTML() {
+    if (typeof TripWatch === "undefined") return "";
+    const f = TripWatch.unseen();
+    if (!f) {
+      const all = TripWatch.found();
+      if (!all.length) return "";
+      if (!showAll) {
+        return `<button class="rt__bell" data-rt-bell>⚠️ ${all.length} התראות שהיו</button>`;
+      }
+      return `<div class="rt__alert is-list">
+        <button class="rt__alert-x" data-rt-bell aria-label="סגירה">✕</button>
+        <b>ההתראות שהיו</b>
+        <ul>${all
+          .map((x) => `<li><time>${new Date(x.at).toLocaleTimeString("he-IL", {
+            hour: "2-digit", minute: "2-digit",
+          })}</time> ${x.alert ? "⚠️ " : ""}${esc(x.headline)}</li>`)
+          .join("")}</ul>
+      </div>`;
+    }
+    return `
+      <div class="rt__alert${f.alert ? " is-urgent" : ""}">
+        <button class="rt__alert-x" data-rt-seen="${esc(f.id)}" aria-label="סגירה">✕</button>
+        <b>${f.alert ? "⚠️ " : "💡 "}${esc(f.headline)}</b>
+        ${(f.bullets || []).length
+          ? `<ul>${f.bullets.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
+          : ""}
+        ${f.caution ? `<small>${esc(f.caution)}</small>` : ""}
+      </div>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  מבט נקודתי — התחנה הגדולה                                         */
+  /* ------------------------------------------------------------------ */
+
+  function stopHTML(day, list) {
+    const i = viewIdx(list);
+    const p = list[i];
+    const next = list[i + 1] || null;
+    const match = ctx.stopMatch(day);
+    const pts = day.points || [];
+    const m = match[pts.indexOf(p)] || {};
+    const legs = metres(p, next);
+    const t = travel(legs);
+    const done = st.done.includes(i);
+    const ahead = i !== st.idx;
+
+    // המרחק ממני לתחנה — הוא שקובע איזו דרך מוצעת ראשונה
+    const me = pos ? travel(metres({ lat: pos.latitude, lng: pos.longitude }, p)) : null;
+    const tips = ctx.tips ? ctx.tips(day, p) : [];
+
+    return `
+      <section class="rt__now${ahead ? " is-peek" : ""}${done ? " is-done" : ""}">
+        ${ahead
+          ? `<button class="rt__peekbar" data-rt-peek="${st.idx}">
+               👀 מציצים קדימה · חזרה לתחנה שלי (${st.idx + 1})
+             </button>`
+          : ""}
+
         <header class="rt__now-head">
-          <span class="rt__now-icon" aria-hidden="true">${ctx.icon(p.type)}</span>
+          <span class="rt__now-icon" aria-hidden="true">${done ? "✅" : ctx.icon(p.type)}</span>
           <div>
             <span class="rt__now-tag">תחנה ${i + 1} מתוך ${list.length}${
-              match.time ? ` · ${esc(match.time)}` : ""
-            }</span>
+              m.time ? ` · ${esc(m.time)}` : ""
+            }${done ? " · היינו" : ""}</span>
             <h3>${esc(p.name)}</h3>
             <span class="rt__now-kind">${esc(ctx.label(p.type) || "")}</span>
           </div>
         </header>
 
-        ${match.text
-          ? `<p class="rt__what"><b>מה עושים כאן:</b> ${esc(match.text)}</p>`
+        ${m.text
+          ? `<p class="rt__what"><b>מה יש כאן:</b> ${esc(m.text)}</p>`
           : day.summary
           ? `<p class="rt__what">${esc(day.summary)}</p>`
           : ""}
 
-        ${geoHTML(p)}
+        ${tips.length
+          ? `<ul class="rt__tips">${tips.map((x) => `<li>💡 ${esc(x)}</li>`).join("")}</ul>`
+          : ""}
+
+        ${ahead ? aheadHTML(list, i) : geoHTML(p)}
 
         <div class="rt__acts">
           <a class="btn btn--primary" target="_blank" rel="noopener"
              href="${esc(navLink(p, me?.mode || "walking"))}">🧭 נווט לתחנה הזו${
-               me ? ` · ${esc(travelText(me))}` : ""
+               !ahead && me ? ` · ${esc(travelText(me))}` : ""
              }</a>
           <a class="btn" target="_blank" rel="noopener"
              href="${esc(navLink(p, me?.far ? "walking" : "driving"))}">${
@@ -426,37 +613,51 @@ const DayRoute = (() => {
              }</a>
           <a class="btn" target="_blank" rel="noopener"
              href="${esc(ctx.placeLink(p.name, p.lat, p.lng))}">ℹ️ על המקום</a>
-          <button class="btn" data-rt-arrive>✅ הגעתי</button>
+          ${done
+            ? `<button class="btn" data-rt-undo="${i}">↩︎ לא הייתי</button>`
+            : ahead
+            ? `<button class="btn" data-rt-jump="${i}">📍 אני כאן</button>`
+            : `<button class="btn" data-rt-arrive>✅ הגעתי</button>`}
         </div>
 
         ${next
-          ? `<div class="rt__next">
-               <span class="rt__next-tag">אחר כך</span>
+          ? `<button class="rt__next" data-rt-peek="${i + 1}">
+               <span class="rt__next-tag">התחנה הבאה</span>
                <b>${ctx.icon(next.type)} ${esc(next.name)}</b>
-               <span>${
-                 (() => {
-                   const nm = ctx.stopMatch(day)[(day.points || []).indexOf(next)] || {};
-                   return nm.time ? `${esc(nm.time)} · ` : "";
-                 })()
-               }${esc(human(legs))}${t ? ` · ${esc(travelText(t))}` : ""}</span>
-               <a class="btn btn--sm" target="_blank" rel="noopener"
-                  href="${esc(navLink(next, t?.mode || "walking"))}">נווט לשם</a>
-             </div>`
+               <span>${(() => {
+                 const nm = match[pts.indexOf(next)] || {};
+                 return nm.time ? `${esc(nm.time)} · ` : "";
+               })()}${esc(human(legs))}${t ? ` · ${esc(travelText(t))}` : ""}</span>
+               <span class="rt__peek-cue">להציץ</span>
+             </button>`
           : `<p class="rt__next is-last">זו התחנה האחרונה של היום.
                ${day.hotel?.name ? `אחריה חוזרים ל-${esc(day.hotel.name)}.` : ""}</p>`}
-
-        ${left > 0 ? `<p class="rt__left">נשארו עוד ${left} תחנות אחרי זו.</p>` : ""}
       </section>`;
   }
 
-  /** המפה */
+  /** בהצצה קדימה אין "כמה נשאר לי" אלא "כמה זה מהמקום שבו אני עומד" */
+  function aheadHTML(list, i) {
+    const from = list[st.idx];
+    const to = list[i];
+    const d = metres(from, to);
+    const t = travel(d);
+    return `<p class="rt__geo is-wait">
+      מהתחנה שלך (${esc(shortName(from.name))}) · ${esc(human(d))}${
+        t ? ` · ${esc(travelText(t))}` : ""
+      }</p>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  מפה ורשימה                                                        */
+  /* ------------------------------------------------------------------ */
+
   function mapHTML(day, list) {
-    const p = list[Math.min(st.idx, list.length - 1)];
+    const p = list[viewIdx(list)];
     const key = (localStorage.getItem(GKEY) || "").trim();
     return `
       <section class="rt__map">
         <div class="rt__map-head">
-          <h4>🗺️ המסלול לתחנה</h4>
+          <h4>🗺️ ${esc(shortName(p.name))}</h4>
           <a class="btn btn--sm" target="_blank" rel="noopener"
              href="${esc(navLink(p, "walking"))}">פתח באפליקציה</a>
         </div>
@@ -472,15 +673,24 @@ const DayRoute = (() => {
       </section>`;
   }
 
-  /** רשימת כל התחנות, עם מה שנעשה ומה שלא */
+  /**
+   * הרשימה המלאה — פרושה רק כשמבקשים.
+   *
+   * הרצועה למעלה כבר נותנת את מבט העל, והרשימה היא הגרסה המפורטת שלו:
+   * מרחקים בין תחנות, שעות, וניווט מכל שורה. שתיהן פתוחות תמיד היו
+   * אותו מידע פעמיים, ולכן זו נפתחת בלחיצה.
+   */
   function listHTML(day, list) {
     const match = ctx.stopMatch(day);
     const pts = day.points || [];
 
     return `
       <section class="rt__list">
-        <h4>כל התחנות של היום</h4>
-        <ol>
+        <button class="rt__list-head" data-rt-list aria-expanded="${openList}">
+          <span>כל התחנות של היום</span>
+          <span class="rt__chev" aria-hidden="true">${openList ? "⌃" : "⌄"}</span>
+        </button>
+        ${!openList ? "" : `<ol>
           ${list
             .map((p, i) => {
               const m = match[pts.indexOf(p)] || {};
@@ -489,7 +699,7 @@ const DayRoute = (() => {
               const cls = done ? "is-done" : cur ? "is-cur" : "";
               const gap = i > 0 ? metres(list[i - 1], p) : null;
               return `<li class="${cls}">
-                <button class="rt__row" data-rt-go="${i}">
+                <button class="rt__row" data-rt-peek="${i}">
                   <span class="rt__row-mark" aria-hidden="true">${done ? "✅" : cur ? "▶️" : ctx.icon(p.type)}</span>
                   <span class="rt__row-txt">
                     <b>${esc(p.name)}</b>
@@ -505,9 +715,13 @@ const DayRoute = (() => {
               </li>`;
             })
             .join("")}
-        </ol>
+        </ol>`}
       </section>`;
   }
+
+  /* ------------------------------------------------------------------ */
+  /*  הרכבה                                                             */
+  /* ------------------------------------------------------------------ */
 
   function render() {
     if (!st) return;
@@ -515,9 +729,11 @@ const DayRoute = (() => {
     const list = day ? stops(day) : [];
     const body = el.querySelector("[data-rt-body]");
     const head = el.querySelector("[data-rt-head]");
+    const top = el.querySelector("[data-rt-top]");
 
     if (!day || !list.length) {
       head.textContent = "מסלול היום";
+      top.innerHTML = "";
       body.innerHTML = `<div class="rt__empty">
         <p>ליום הזה אין תחנות שהולכים אליהן — מה שיש בו הוא טיסה, לינה,
         או נקודות בלי מיקום.</p>
@@ -534,16 +750,31 @@ const DayRoute = (() => {
       ? new Date(st.startedAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })
       : "";
     head.innerHTML = `יום ${day.n} · ${esc(day.title)}
-      <small>${st.done.length}/${list.length} תחנות${started ? ` · יצאנו ב-${esc(started)}` : ""}</small>`;
+      <small>${esc(day.dow || "")}${started ? ` · יצאנו ב-${esc(started)}` : ""}</small>`;
 
-    const pct = Math.round((st.done.length / list.length) * 100);
+    /*
+     * מבט העל דבוק לראש המסך ואינו נגלל איתו. זו כל הנקודה: בכל רגע,
+     * ובלי לגלול, רואים גם איפה אני ביום וגם את התחנה שמולי.
+     */
+    top.innerHTML = statusHTML(day, list) + spineHTML(day, list);
 
     body.innerHTML =
-      `<div class="rt__bar"><span style="inline-size:${pct}%"></span></div>` +
+      alertHTML() +
       shiftHTML(day) +
-      currentHTML(day, list) +
+      stopHTML(day, list) +
       mapHTML(day, list) +
       listHTML(day, list);
+
+    centreSpine();
+  }
+
+  /** הרצועה נגללת לבד לתחנה שמוצגת — אחרת היא נכונה ולא נראית */
+  function centreSpine() {
+    const spine = el.querySelector("[data-rt-spine]");
+    const mark = spine?.querySelector("li.is-view");
+    if (!spine || !mark) return;
+    const off = mark.offsetLeft - (spine.clientWidth - mark.clientWidth) / 2;
+    spine.scrollTo({ left: Math.max(0, off), behavior: "smooth" });
   }
 
   /* ------------------------------------------------------------------ */
@@ -560,9 +791,21 @@ const DayRoute = (() => {
 
       if (e.target.closest("[data-rt-arrive]")) return arrive(false);
       if (e.target.closest("[data-rt-geo]")) { stopGeo(); startGeo(); return render(); }
+      if (e.target.closest("[data-rt-list]")) { openList = !openList; return render(); }
+      if (e.target.closest("[data-rt-bell]")) { showAll = !showAll; return render(); }
 
-      const go = e.target.closest("[data-rt-go]");
-      if (go) return goTo(Number(go.dataset.rtGo));
+      const seen = e.target.closest("[data-rt-seen]");
+      if (seen) {
+        if (typeof TripWatch !== "undefined") TripWatch.dismiss(seen.dataset.rtSeen);
+        ctx.changed();
+        return render();
+      }
+
+      const pk = e.target.closest("[data-rt-peek]");
+      if (pk) return peek(Number(pk.dataset.rtPeek));
+
+      const jp = e.target.closest("[data-rt-jump]");
+      if (jp) return jump(Number(jp.dataset.rtJump));
 
       const un = e.target.closest("[data-rt-undo]");
       if (un) return undo(Number(un.dataset.rtUndo));
