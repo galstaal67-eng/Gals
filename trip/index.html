@@ -811,6 +811,23 @@
     location.protocol === "https:" ||
     ["localhost", "127.0.0.1"].includes(location.hostname);
   if ("serviceWorker" in navigator && secure) {
+    /*
+     * טעינה מחדש כש-Service Worker חדש משתלט.
+     *
+     * הדף שרץ עכשיו קיבל את הנכסים שלו מה-SW הקודם. אם בינתיים נפרסה
+     * גרסה חדשה, הקוד שבידו שייך לפריסה שכבר אינה — ודף חצי מעודכן
+     * יכול להיות שבור ולא רק מיושן. טעינה אחת מביאה אותו ליישור קו.
+     *
+     * `had` נמדד לפני הרישום בכוונה: בהתקנה ראשונה אין SW קודם,
+     * controllerchange נורה ממילא, וטעינה מחדש שם הייתה לולאה.
+     */
+    const had = Boolean(navigator.serviceWorker.controller);
+    let going = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!had || going) return;
+      going = true;
+      location.reload();
+    });
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("sw.js").catch(() => {
         /* דפדפן שחוסם, או פתיחה מקובץ מקומי — האפליקציה עובדת בלעדיו */
