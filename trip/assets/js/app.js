@@ -689,6 +689,24 @@
    */
   let startEdit = null;        // מספר היום שהעורך פתוח עליו
 
+  /**
+   * הזזה של **חלק** מהיום: כל שורה מ-`fromMin` והלאה.
+   *
+   * ביום טיסה אסור להזיז את כל היום. התוכנית פותחת ב-06:00 בנתב"ג,
+   * וכשיוצאים לסיור ב-11:14 ההמראה לא זזה לאחר הצהריים — היא קרתה.
+   * מה שזז הוא מה שעוד לא קרה, ומשם והלאה ההפרשים נשמרים.
+   */
+  function shiftFrom(day, fromMin, toMin) {
+    const rows = (day.plan || []).filter(
+      (p) => MIN(p.time) !== null && MIN(p.time) >= fromMin
+    );
+    if (!rows.length) return 0;
+    const delta = toMin - MIN(rows[0].time);
+    if (!delta) return 0;
+    rows.forEach((row) => { row.time = hhmm(MIN(row.time) + delta); });
+    return delta;
+  }
+
   function shiftPlan(day, toMin) {
     const rows = (day.plan || []).filter((p) => MIN(p.time) !== null);
     if (!rows.length) return 0;
@@ -1122,6 +1140,8 @@
         ${card.status ? `<a class="btn btn--sm" target="_blank" rel="noopener"
              title="סטטוס הטיסה, עיכובים ושער — נפתח בחיפוש"
              href="${esc(statusLink(card.status))}">🔄 סטטוס</a>` : ""}
+        ${card.day ? `<button class="btn btn--sm btn--primary" data-route-day="${card.day}"
+             title="מסך המסלול: תחנה־תחנה, עם ניווט לכל אחת">🚶 יוצאים למסלול</button>` : ""}
         ${card.day ? `<button class="btn btn--sm" data-start-day="${card.day}">🕐 שעת התחלה</button>` : ""}
         ${card.day ? `<button class="btn btn--sm" data-add-exp>➕ הוצאה</button>` : ""}
         ${card.day ? `<button class="btn btn--sm" data-ov-open="${card.day}">היום המלא</button>` : ""}
@@ -1413,7 +1433,15 @@
 
   const timeCache = new Map();
 
-  function stopTimes(day) {
+  /**
+   * ההתאמה עצמה — שעה **וגם** הטקסט של השורה שהתאימה.
+   *
+   * הטקסט הוא מה שהופך את מסך המסלול למשהו שאפשר ללכת לפיו: "תחנה 3"
+   * אינו אומר דבר, ו"סיור בעיר העתיקה, כולל המרחצאות הגופריתיים" אומר
+   * לאן אנחנו הולכים ולמה. זה אותו חיפוש שנתן את השעה, ולכן אין כאן
+   * מקור שני שיכול לסתור.
+   */
+  function stopMatch(day) {
     const rows = (day?.plan || []).filter((r) => MIN(r.time) !== null);
     const pts = day?.points || [];
     const key = `${day?.n}|${rows.map((r) => r.time).join()}|${pts.length}`;
@@ -1433,18 +1461,20 @@
       for (const r of rows) {
         const text = String(r.text || "");
         for (const w of words) {
-          if (text.includes(w) && (!best || w.length > best.len)) best = { time: r.time, len: w.length };
+          if (text.includes(w) && (!best || w.length > best.len)) {
+            best = { time: r.time, text: r.text || "", len: w.length };
+          }
         }
       }
-      return best ? best.time : "";
+      return best ? { time: best.time, text: best.text } : { time: "", text: "" };
     });
 
     // סדר עולה: עצירה שקיבלה שעה מוקדמת מקודמתה התאימה לשורה הלא נכונה
     let floor = -1;
     for (let i = 0; i < out.length; i++) {
-      if (!out[i]) continue;
-      const m = MIN(out[i]);
-      if (m < floor) out[i] = "";
+      if (!out[i].time) continue;
+      const m = MIN(out[i].time);
+      if (m < floor) out[i] = { time: "", text: "" };
       else floor = m;
     }
 
@@ -1452,6 +1482,8 @@
     if (timeCache.size > 40) timeCache.clear();
     return out;
   }
+
+  const stopTimes = (day) => stopMatch(day).map((x) => x.time);
 
   const pointTime = (day, p) => {
     const i = (day?.points || []).indexOf(p);
@@ -1778,10 +1810,41 @@
       tap: false,
     });
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 18,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(map);
+    /*
+     * שתי שכבות רקע, ובורר ביניהן.
+     *
+     * OSM כותב שמות בכתב המקומי, ובטביליסי זה כתב גאורגי — מפה שאי
+     * אפשר לקרוא אותה אינה מפה. Esri World Street Map מתעתק שמות
+     * לאותיות לטיניות, וזה מה שאפשר לקרוא. הבחירה היא של העין שמסתכלת
+     * ולא שלנו, ולכן היא בורר ולא החלפה — והיא נזכרת.
+     *
+     * מסך המסלול היומי אינו מושפע מכאן: שם המפה היא Google Maps
+     * אמיתית, עם תוויות בעברית.
+     */
+    const bases = {
+      "לטינית (Esri)": L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+        {
+          maxZoom: 19,
+          attribution:
+            'Tiles &copy; <a href="https://www.esri.com/" rel="noopener">Esri</a> — Esri, DeLorme, NAVTEQ',
+        }
+      ),
+      "כתב מקומי (OSM)": L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      }),
+    };
+
+    const BASE_KEY = "map:base";
+    let pick = null;
+    try { pick = localStorage.getItem(BASE_KEY); } catch { /* לא קריטי */ }
+    const start = bases[pick] ? pick : "לטינית (Esri)";
+    bases[start].addTo(map);
+    L.control.layers(bases, null, { position: "topleft" }).addTo(map);
+    map.on("baselayerchange", (e) => {
+      try { localStorage.setItem(BASE_KEY, e.name); } catch { /* לא קריטי */ }
+    });
 
     map.on("click", () => map.scrollWheelZoom.enable());
     map.on("mouseout", () => map.scrollWheelZoom.disable());
@@ -2380,6 +2443,8 @@ ${[marks, line].filter(Boolean).join("\n")}
       <!-- המסמכים נקראים מ-IndexedDB ולכן נכנסים לכאן אחרי הרינדור -->
       <div class="day__docs" data-docs="${day.n}" hidden></div>
       <div class="day__actions">
+        <button class="btn btn--sm btn--primary" data-route-day="${day.n}"
+          title="תחנה־תחנה, עם ניווט לכל תחנה בנפרד">🚶 יוצאים למסלול</button>
         <button class="btn btn--sm" data-focus="${day.n}">🗺️ הצג את היום על המפה</button>
         ${dirLink
           ? `<a class="btn btn--sm" target="_blank" rel="noopener" href="${dirLink}"
@@ -4318,6 +4383,51 @@ ${[marks, line].filter(Boolean).join("\n")}
 
     // המרת מטבע. אותם שערים של הלשוניות, ולכן אין כאן מקור אמת שני.
     Converter.init({ getRates: () => state.rates, getTrip: () => TRIP });
+
+    /*
+     * מסך המסלול היומי.
+     *
+     * הוא מקבל **פונקציות** ולא נתונים: הטיול מתחלף (יצירה, ייבוא,
+     * עריכה), והמסך צריך לראות את מה שיש עכשיו ולא תצלום משעת האתחול.
+     */
+    DayRoute.init({
+      day: (n) => TRIP.days.find((d) => String(d.n) === String(n)) || null,
+      stopMatch,
+      inDest: inDestination,
+      min: MIN,
+      icon: (t) => TYPE_ICON[t] || "📍",
+      label: (t) => TYPE_LABEL[t] || "",
+      placeLink: placeMapsLink,
+      /**
+       * הזזת השעות לשעה שבה באמת יצאנו.
+       *
+       * `from` היא השורה שממנה מזיזים — השורה של התחנה הראשונה במסלול,
+       * ולא השורה הראשונה של היום. ביום טיסה זה ההבדל בין "הסיור זז
+       * בחמש שעות" לבין "ההמראה זזה בחמש שעות".
+       */
+      shiftDay: (n, from, to) => {
+        const day = TRIP.days.find((d) => String(d.n) === String(n));
+        const a = MIN(from);
+        const b = MIN(to);
+        if (!day || a === null || b === null) return;
+        if (shiftFrom(day, a, b)) {
+          TRIP = TripStore.save(TRIP);
+          renderTrip();
+        }
+      },
+      changed: () => renderNow(),
+    });
+
+    /*
+     * כפתור "יוצאים למסלול" מופיע בשלושה מקומות — הקוביה, כרטיס היום
+     * וחלון היום — ולכן מאזין אחד על המסמך, ולא שלושה שיתפצלו.
+     */
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-route-day]");
+      if (!b) return;
+      if (!$("#dayOverlay").hidden) closeDayModal();
+      DayRoute.open(Number(b.dataset.routeDay));
+    });
 
     // ההצעה להתקין במסך הבית, לפי מה שהדפדפן הזה מאפשר
     InstallApp.init();

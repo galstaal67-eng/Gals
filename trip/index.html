@@ -127,6 +127,18 @@
   </div>
 </div>
 
+<!-- ============================================== DAY ROUTE ========= -->
+<!-- מסך המסלול היומי. נפתח ביציאה מהמלון, ומוביל תחנה־תחנה. -->
+<div class="overlay overlay--full" id="routeOverlay" hidden>
+  <div class="overlay__sheet rt" role="dialog" aria-modal="true" aria-labelledby="rtTitle">
+    <div class="ov-head rt__head">
+      <h2 id="rtTitle" data-rt-head>—</h2>
+      <button class="icon-btn" data-rt-close aria-label="סגירה">✕</button>
+    </div>
+    <div class="rt__body" data-rt-body></div>
+  </div>
+</div>
+
 <!-- ============================================== MAIL IMPORT ======== -->
 <!-- הקריאה מתבצעת בדפדפן מול Google; שום מייל אינו עובר דרך השרת. -->
 <div class="overlay" id="mailOverlay" hidden>
@@ -764,6 +776,7 @@
 <script src="assets/js/money.js"></script>
 <script src="assets/js/install.js"></script>
 <script src="assets/js/watch.js"></script>
+<script src="assets/js/route.js"></script>
 <script src="assets/js/live.js"></script>
 <script src="assets/js/app.js"></script>
 

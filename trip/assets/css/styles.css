@@ -2652,6 +2652,233 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
   z-index: 10;
 }
 
+
+/* ====================================================== DAY ROUTE ==== */
+/* מסך המסלול היומי. הוא לא חלונית אלא **מסך**: מי שמחזיק טלפון ביד
+   ברחוב צריך תחנה אחת גדולה, לא דף שצריך לחפש בו. */
+
+.overlay--full { padding: 0; }
+.overlay--full .overlay__sheet {
+  width: 100%;
+  max-width: 680px;
+  max-height: 100%;
+  block-size: 100%;
+  border-radius: 0;
+  border-inline: 0;
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 720px) {
+  .overlay--full { padding: 16px; }
+  .overlay--full .overlay__sheet {
+    block-size: auto;
+    max-height: min(92vh, 900px);
+    border-radius: var(--radius);
+    border-inline: 1px solid var(--line-strong);
+  }
+}
+
+body.is-locked { overflow: hidden; }
+
+.rt__head h2 {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+.rt__head h2 small { font-weight: 500; font-size: 0.76rem; color: var(--muted); }
+
+.rt__body {
+  flex: 1 1 auto;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0 16px 24px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+.rt__empty { padding: 20px 0; display: grid; gap: 10px; }
+.rt__empty p { margin: 0; font-size: 0.9rem; line-height: 1.55; }
+
+/* ---------- פס ההתקדמות ---------- */
+.rt__bar {
+  block-size: 6px;
+  border-radius: 99px;
+  background: var(--line);
+  overflow: hidden;
+}
+.rt__bar span {
+  display: block;
+  block-size: 100%;
+  background: linear-gradient(90deg, var(--moss, #5f8f5f), var(--sky, #4b7fa8));
+  transition: inline-size 0.35s ease;
+}
+
+/* ---------- ההצעה להזיז את היום ---------- */
+.rt__shift {
+  padding: 12px 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--gold, #b08b3a) 12%, transparent);
+}
+.rt__shift p { margin: 0 0 8px; font-size: 0.88rem; }
+.rt__shift-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- התחנה הנוכחית ---------- */
+.rt__now {
+  padding: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  background: var(--ink-900, rgba(255, 255, 255, 0.03));
+  display: grid;
+  gap: 12px;
+}
+.rt__now-head { display: flex; gap: 12px; align-items: flex-start; }
+.rt__now-icon { font-size: 2rem; line-height: 1; }
+.rt__now-head h3 { margin: 2px 0; font-size: 1.22rem; line-height: 1.2; }
+.rt__now-tag {
+  display: block;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-transform: none;
+}
+.rt__now-kind { font-size: 0.78rem; color: var(--muted); }
+
+.rt__what { margin: 0; font-size: 0.93rem; line-height: 1.55; }
+.rt__what b { font-weight: 650; }
+
+/* ---------- המיקום החי ---------- */
+.rt__geo {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  background: rgba(127, 127, 127, 0.1);
+}
+.rt__geo.is-on { background: color-mix(in srgb, var(--moss, #5f8f5f) 18%, transparent); }
+.rt__geo.is-here {
+  background: color-mix(in srgb, var(--moss, #5f8f5f) 32%, transparent);
+  font-weight: 600;
+}
+.rt__geo.is-off, .rt__geo.is-wait { color: var(--muted); }
+.rt__geo i { font-style: normal; color: var(--muted); }
+.rt__geo small { margin-inline-start: auto; font-size: 0.72rem; color: var(--muted); }
+
+/* ---------- הכפתורים ---------- */
+.rt__acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.rt__acts .btn { flex: 1 1 auto; justify-content: center; text-align: center; }
+.rt__acts .btn--primary { flex-basis: 100%; }
+
+/* ---------- מה הבא ---------- */
+.rt__next {
+  display: grid;
+  gap: 4px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  font-size: 0.87rem;
+}
+.rt__next-tag {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.rt__next b { font-size: 0.98rem; }
+.rt__next span { color: var(--muted); }
+.rt__next .btn { justify-self: start; margin-block-start: 4px; }
+.rt__next.is-last { color: var(--muted); border-style: dashed; }
+.rt__left { margin: 0; font-size: 0.78rem; color: var(--muted); }
+
+/* ---------- המפה ---------- */
+.rt__map { display: grid; gap: 8px; }
+.rt__map-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.rt__map-head h4 { margin: 0; font-size: 0.95rem; }
+.rt__frame {
+  inline-size: 100%;
+  block-size: 300px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  /* הכתוב בתוך המפה הוא של גוגל ו-LTR; בלי זה ה-iframe יורש RTL */
+  direction: ltr;
+}
+.rt__map-note {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--muted);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ---------- רשימת התחנות ---------- */
+.rt__list h4 { margin: 0 0 8px; font-size: 0.95rem; }
+.rt__list ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.rt__list li {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.rt__list li.is-cur { border-color: var(--line-strong); background: rgba(127, 127, 127, 0.08); }
+.rt__list li.is-done .rt__row-txt b { text-decoration: line-through; color: var(--muted); }
+
+.rt__row {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 11px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.rt__row-mark { font-size: 1.05rem; flex: 0 0 auto; }
+.rt__row-txt { display: grid; min-width: 0; }
+.rt__row-txt b {
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rt__row-txt small { font-size: 0.74rem; color: var(--muted); }
+
+.rt__row-nav, .rt__undo {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  background: rgba(127, 127, 127, 0.08);
+  border: 0;
+  border-inline-start: 1px solid var(--line);
+  color: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+.rt__row-nav:hover, .rt__undo:hover { background: rgba(127, 127, 127, 0.18); }
+
+[data-theme="light"] .rt__now { background: #fbfaf8; }
+[data-theme="light"] .overlay--full .overlay__sheet { background: #fff; }
+
 /* =========================================================== PRINT === */
 /* הגוש הזה יושב בסוף הקובץ בכוונה: כלל הדפסה חייב לבוא אחרי הכלל
    שהוא מבטל, אחרת כלל מאוחר באותה ספציפיות גובר עליו. */
