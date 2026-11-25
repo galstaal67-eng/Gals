@@ -43,6 +43,9 @@ const DayRoute = (() => {
   let openList = false;              // האם הרשימה המלאה פרושה
   let showAll = false;               // האם רשימת ההתראות שנסגרו פתוחה
   let showMiss = false;              // האם לוח התחנות שפוספסו פתוח
+  let keyEdit = false;               // האם שדה מפתח המפה פתוח
+  let mapFrame = null;               // ה-iframe חי מעבר לרינדורים
+  let mapShown = "";                 // מה הוא מציג כרגע
   let heading = null;                 // לאן הטלפון מופנה, מעלות מצפון
   let headOn = false;                 // האם חיישן הכיוון מאזין
   let headAsk = false;                // האם צריך אישור מפורש (iOS)
@@ -209,6 +212,59 @@ const DayRoute = (() => {
   }
 
   /**
+   * עדכון המרחק והכיוון בלי לבנות את המסך מחדש.
+   *
+   * `watchPosition` מדווח כל כמה שניות. רינדור מלא בכל דיווח מהבהב,
+   * מאבד גלילה, וטוען את המפה מחדש. כאן מתחלפים מספר, שתי מילים,
+   * וזווית.
+   */
+  function paintGeo() {
+    if (!st) return;
+    const day = ctx.day(st.n);
+    const list = day ? stops(day) : [];
+    const p = list[viewIdx(list)];
+    const box = el.querySelector(".rt__compass");
+    if (!p || !box) return;
+
+    // בהצצה קדימה המדידה היא מהתחנה שלי אליה, ולא ממני — והיא לא זזה
+    if (viewIdx(list) !== st.idx) return;
+
+    const me = pos ? { lat: pos.latitude, lng: pos.longitude } : null;
+    const d = me ? metres(me, p) : null;
+    const t = travel(d);
+    const near = d !== null && d <= NEAR;
+
+    const big = el.querySelector(".rt__big");
+    if (big) {
+      big.textContent = near ? "אתה כאן" : d !== null ? human(d) : "—";
+      big.className = `rt__big${near ? " is-here" : ""}${d === null ? " is-wait" : ""}`;
+    }
+    const sub = el.querySelector(".rt__sub");
+    if (sub) {
+      sub.textContent = near
+        ? `בתוך ${human(d)} מהתחנה`
+        : t
+        ? travelText(t)
+        : geoErr || "מחפש אותך…";
+    }
+    box.classList.toggle("is-here", near);
+
+    // המחט מצביעה מהמקום שבו אני עומד עכשיו
+    const needle = el.querySelector("[data-rt-needle]");
+    if (needle && me) needle.dataset.rtNeedle = bearing(me, p).toFixed(1);
+
+    // הכפתור הראשי: הדרך המתאימה למרחק שהשתנה
+    const nav = el.querySelector(".rt__acts .btn--primary");
+    if (nav && nav.tagName === "A") {
+      nav.href = navLink(p, t?.mode || "walking");
+      nav.textContent = `🧭 נווט לתחנה הזו${t ? ` · ${travelText(t)}` : ""}`;
+    }
+
+    mountMap(p);
+    paintCompass();
+  }
+
+  /**
    * סיבוב המחט בלי רינדור מחדש.
    *
    * החיישן מדווח עשרות פעמים בשנייה. בנייה מחדש של ה-HTML בקצב הזה
@@ -323,6 +379,7 @@ const DayRoute = (() => {
     openList = false;
     showAll = false;
     showMiss = false;
+    keyEdit = false;
     headAsk = false;
     try { outdoor = localStorage.getItem("route:outdoor") === "1"; } catch { outdoor = false; }
     if (outdoor) startHeading();
@@ -332,7 +389,8 @@ const DayRoute = (() => {
     render();
     startGeo();
     clearInterval(tick);
-    tick = setInterval(render, 30000);
+    // רענון תקופתי — אבל לא בזמן שמקלידים מפתח לתוך שדה
+    tick = setInterval(() => { if (!keyEdit) render(); }, 30000);
   }
 
   function close() {
@@ -340,6 +398,8 @@ const DayRoute = (() => {
     document.body.classList.remove("is-locked");
     stopGeo();
     stopHeading();
+    mapFrame = null;
+    mapShown = "";
     if (wake) { try { wake.release(); } catch { /* כבר שוחרר */ } wake = null; }
     clearInterval(tick);
     tick = null;
@@ -359,15 +419,15 @@ const DayRoute = (() => {
       (p) => {
         pos = p.coords;
         geoErr = "";
-        autoArrive();
-        render();
+        autoArrive();        // הגעה היא שינוי מצב, והיא כן בונה מחדש
+        paintGeo();
       },
       (e) => {
         geoErr =
           e.code === 1 ? "אין הרשאת מיקום"
           : e.code === 3 ? "המיקום לא נקלט"
           : "שגיאת מיקום";
-        render();
+        paintGeo();
       },
       { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
     );
@@ -1015,26 +1075,97 @@ const DayRoute = (() => {
   /*  מפה ורשימה                                                        */
   /* ------------------------------------------------------------------ */
 
-  function mapHTML(day, list) {
-    const p = list[viewIdx(list)];
+  /**
+   * הזהות של מה שהמפה מציגה.
+   *
+   * זה מה שמונע את הקפיצות. ה-iframe נטען מחדש בכל פעם שה-`src` שלו
+   * משתנה, והמיקום מהחיישן משתנה כל כמה שניות — כך שמפה שנבנית מחדש
+   * עם כל קריאה נטענת מחדש בלי סוף. כאן המיקום מעוגל לשלוש ספרות
+   * אחרי הנקודה, כלומר לכ-100 מטר: רעידות ה-GPS לא נחשבות שינוי,
+   * והליכה אמיתית כן.
+   */
+  function mapKey(p) {
+    const me = pos
+      ? `${pos.latitude.toFixed(3)},${pos.longitude.toFixed(3)}`
+      : "";
+    const t = pos ? travel(metres({ lat: pos.latitude, lng: pos.longitude }, p)) : null;
+    return `${p.lat},${p.lng}|${me}|${t?.far ? "d" : "w"}|${(localStorage.getItem(GKEY) || "").trim()}`;
+  }
+
+  /**
+   * ה-iframe נוצר פעם אחת ו**עובר** בין הרינדורים.
+   *
+   * בניית ה-HTML מחדש יוצרת אלמנט חדש, ואלמנט חדש הוא טעינה חדשה של
+   * המפה — הבהוב, קפיצה חזרה לזום ההתחלתי, ואיבוד הגרירה של המשתמש.
+   * לכן אותו אלמנט בדיוק מועבר למקומו החדש, ו-`src` נכתב רק כשהזהות
+   * שלמעלה באמת השתנתה.
+   */
+  function mountMap(p) {
+    const sec = el.querySelector("[data-rt-map]");
+    const slot = el.querySelector("[data-rt-frame]");
+    if (!sec || !slot) return;
+
+    sec.hidden = !p;
+    if (!p) return;
+
+    /*
+     * ה-iframe נוצר פעם אחת ונשאר בדיוק במקומו.
+     *
+     * הניסיון הקודם היה להעביר אותו אל ה-DOM החדש בכל רינדור — וזו
+     * בדיוק הפעולה שטוענת iframe מחדש. לכן הגוף מחולק: מה שמשתנה
+     * נבנה מחדש מסביב למפה, והמפה עצמה לא נוגעים בה.
+     */
+    if (!mapFrame) {
+      mapFrame = document.createElement("iframe");
+      mapFrame.className = "rt__frame";
+      mapFrame.loading = "lazy";
+      mapFrame.referrerPolicy = "no-referrer-when-downgrade";
+      slot.appendChild(mapFrame);
+    }
+
+    // הכותרת וההערה כן מתחלפות — הן טקסט, לא מסגרת
+    const head = el.querySelector("[data-rt-map-head]");
+    if (head) {
+      head.innerHTML =
+        `<h4>🗺️ ${esc(shortName(p.name))}</h4>
+         <a class="btn btn--sm" target="_blank" rel="noopener"
+            href="${esc(navLink(p, "walking"))}">פתח באפליקציה</a>`;
+    }
+    const note = el.querySelector("[data-rt-map-note]");
+    if (note) note.innerHTML = keyHTML();
+
+    const want = mapKey(p);
+    if (want === mapShown) return;
+    mapShown = want;
+    mapFrame.title = `מפת Google לתחנה ${p.name}`;
+    mapFrame.src = mapSrc(p);
+  }
+
+  /** שדה המפתח — בתוך המסך, ולא חלונית של הדפדפן */
+  function keyHTML() {
     const key = (localStorage.getItem(GKEY) || "").trim();
+    if (!keyEdit) {
+      return `<p class="rt__map-note">
+        ${key
+          ? "מפה רשמית של Google Maps, עם המסלול מצויר."
+          : "מפת Google בעברית. מפתח Embed API יצייר גם את המסלול עצמו על המפה."}
+        <button class="btn btn--sm" data-rt-key>${key ? "שנה מפתח" : "הזן מפתח"}</button>
+      </p>`;
+    }
     return `
-      <section class="rt__map">
-        <div class="rt__map-head">
-          <h4>🗺️ ${esc(shortName(p.name))}</h4>
-          <a class="btn btn--sm" target="_blank" rel="noopener"
-             href="${esc(navLink(p, "walking"))}">פתח באפליקציה</a>
+      <form class="rt__key" data-rt-key-form>
+        <label for="rtKeyInput">מפתח Google Maps Embed API</label>
+        <input id="rtKeyInput" type="text" dir="ltr" spellcheck="false"
+               autocomplete="off" autocapitalize="off" placeholder="AIza…"
+               value="${esc(key)}" />
+        <div class="rt__key-acts">
+          <button type="submit" class="btn btn--sm btn--primary">שמור</button>
+          <button type="button" class="btn btn--sm" data-rt-key-cancel>ביטול</button>
+          ${key ? `<button type="button" class="btn btn--sm" data-rt-key-clear>הסר מפתח</button>` : ""}
         </div>
-        <iframe class="rt__frame" src="${esc(mapSrc(p))}"
-                loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-                title="מפת Google לתחנה ${esc(p.name)}"></iframe>
-        <p class="rt__map-note">
-          ${key
-            ? "מפה רשמית של Google Maps, עם המסלול מצויר."
-            : "מפת Google בעברית. אפשר להזין מפתח Embed API כדי שהמסלול עצמו ייוצר על המפה."}
-          <button class="btn btn--sm" data-rt-key>${key ? "שנה מפתח" : "הזן מפתח"}</button>
-        </p>
-      </section>`;
+        <small>נשמר במכשיר הזה בלבד ואינו נשלח לשום שרת.
+          השימוש ב-Maps Embed API אצל Google חינמי וללא הגבלה.</small>
+      </form>`;
   }
 
   /**
@@ -1096,7 +1227,8 @@ const DayRoute = (() => {
     if (!st) return;
     const day = ctx.day(st.n);
     const list = day ? stops(day) : [];
-    const body = el.querySelector("[data-rt-body]");
+    const flow = el.querySelector("[data-rt-flow]");
+    const tail = el.querySelector("[data-rt-tail]");
     const head = el.querySelector("[data-rt-head-txt]");
     const top = el.querySelector("[data-rt-top]");
 
@@ -1106,8 +1238,10 @@ const DayRoute = (() => {
       head.textContent = "מסלול היום";
       top.innerHTML = "";
       rail.innerHTML = "";
+      tail.innerHTML = "";
+      mountMap(null);
       el.querySelector(".rt").classList.remove("has-rail");
-      body.innerHTML = `<div class="rt__empty">
+      flow.innerHTML = `<div class="rt__empty">
         <p>ליום הזה אין תחנות שהולכים אליהן — מה שיש בו הוא טיסה, לינה,
         או נקודות בלי מיקום.</p>
         <p class="muted">שדות תעופה והמלון אינם תחנות במסלול: המלון הוא
@@ -1142,13 +1276,14 @@ const DayRoute = (() => {
       toggle.setAttribute("aria-pressed", String(outdoor));
     }
 
-    body.innerHTML =
+    flow.innerHTML =
       missedHTML(day, list) +
       alertHTML() +
       shiftHTML(day) +
-      stopHTML(day, list) +
-      mapHTML(day, list) +
-      listHTML(day, list);
+      stopHTML(day, list);
+    tail.innerHTML = listHTML(day, list);
+
+    mountMap(list[viewIdx(list)]);
 
     // גלילה חלקה רק כשבאמת עברנו תחנה; ברענון התקופתי — בלי תנועה
     const vi = viewIdx(list);
@@ -1245,25 +1380,41 @@ const DayRoute = (() => {
       if (e.target.closest("[data-rt-shift-no]")) { askShift = false; return render(); }
 
       if (e.target.closest("[data-rt-key]")) {
-        const cur = localStorage.getItem(GKEY) || "";
-        const v = window.prompt(
-          "מפתח Google Maps Embed API (נשמר במכשיר בלבד).\n" +
-            "ריק = מפה בלי מפתח.",
-          cur
-        );
-        if (v !== null) {
-          try {
-            if (v.trim()) localStorage.setItem(GKEY, v.trim());
-            else localStorage.removeItem(GKEY);
-          } catch { /* מלא */ }
-          render();
-        }
+        keyEdit = true;
+        render();
+        el.querySelector("#rtKeyInput")?.focus();
         return;
+      }
+      if (e.target.closest("[data-rt-key-cancel]")) {
+        keyEdit = false;
+        return render();
+      }
+      if (e.target.closest("[data-rt-key-clear]")) {
+        try { localStorage.removeItem(GKEY); } catch { /* מלא */ }
+        keyEdit = false;
+        mapShown = "";                 // המפה נטענת מחדש, הפעם בלי מפתח
+        return render();
       }
     });
 
+    el.addEventListener("submit", (e) => {
+      if (!e.target.closest("[data-rt-key-form]")) return;
+      e.preventDefault();
+      const v = (el.querySelector("#rtKeyInput")?.value || "").trim();
+      try {
+        if (v) localStorage.setItem(GKEY, v);
+        else localStorage.removeItem(GKEY);
+      } catch { /* אחסון מלא */ }
+      keyEdit = false;
+      mapShown = "";                   // המפתח השתנה — המפה נטענת מחדש
+      render();
+    });
+
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && isOpen()) close();
+      // Escape סוגר קודם את השדה, ורק אחר כך את המסך
+      if (e.key !== "Escape" || !isOpen()) return;
+      if (keyEdit) { keyEdit = false; return render(); }
+      close();
     });
   }
 

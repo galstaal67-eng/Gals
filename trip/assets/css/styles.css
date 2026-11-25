@@ -3500,6 +3500,16 @@ body.is-locked { overflow: hidden; }
 .rt__list li,
 .rt__now > * { min-inline-size: 0; }
 
+/* הגוף מחולק לשלושה: מה שמתרענן, המפה הקבועה, והרשימה. שלושתם
+   חולקים את אותו מרווח, כך שהחלוקה אינה נראית. */
+.rt__flow {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-inline-size: 0;
+}
+.rt__flow:empty { display: none; }
+
 .rt__empty { padding: 20px 0; display: grid; gap: 10px; }
 .rt__empty p { margin: 0; font-size: 0.9rem; line-height: 1.55; }
 
@@ -3624,7 +3634,17 @@ button.rt__next:hover { background: rgba(127, 127, 127, 0.08); }
   gap: 10px;
 }
 .rt__map-head h4 { margin: 0; font-size: 0.95rem; }
+/* מסגרת קבועה למפה: גם לפני שהיא נטענה, כדי שהפריסה לא תקפוץ */
+.rt__frame-slot {
+  inline-size: 100%;
+  block-size: 300px;
+  border-radius: 12px;
+  background: rgba(127, 127, 127, 0.08);
+  overflow: hidden;
+}
+
 .rt__frame {
+  display: block;
   inline-size: 100%;
   block-size: 300px;
   border: 1px solid var(--line-strong);
@@ -3632,6 +3652,34 @@ button.rt__next:hover { background: rgba(127, 127, 127, 0.08); }
   /* הכתוב בתוך המפה הוא של גוגל ו-LTR; בלי זה ה-iframe יורש RTL */
   direction: ltr;
 }
+/* שדה המפתח — בתוך המסך. חלונית prompt של הדפדפן חסומה לגמרי
+   בחלק מהדפדפנים במצב אפליקציה מותקנת. */
+.rt__key {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  background: rgba(127, 127, 127, 0.08);
+}
+.rt__key label { font-size: 0.8rem; font-weight: 600; }
+.rt__key input {
+  inline-size: 100%;
+  min-inline-size: 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--line-strong);
+  background: var(--ink-900);
+  color: var(--txt);
+  font: inherit;
+  font-size: 0.9rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+[data-theme="light"] .rt__key input { background: #fff; }
+.rt__key input:focus-visible { outline: 2px solid var(--sky); outline-offset: 1px; }
+.rt__key-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.rt__key small { color: var(--muted); font-size: 0.74rem; line-height: 1.5; }
+
 .rt__map-note {
   margin: 0;
   font-size: 0.76rem;

@@ -144,7 +144,18 @@
     <!-- מבט העל: דבוק לראש המסך, לא נגלל עם התוכן -->
     <div class="rt__top" data-rt-top></div>
     <div class="rt__main">
-      <div class="rt__body" data-rt-body></div>
+      <div class="rt__body" data-rt-body>
+        <!-- מה שנבנה מחדש בכל רינדור -->
+        <div class="rt__flow" data-rt-flow></div>
+        <!-- המפה: ה-iframe הזה אינו נוגע ב-DOM שוב. העברה של iframe
+             למקום אחר בעץ טוענת אותו מחדש, וזו הייתה הקפיצה. -->
+        <section class="rt__map" data-rt-map hidden>
+          <div class="rt__map-head" data-rt-map-head></div>
+          <div class="rt__frame-slot" data-rt-frame></div>
+          <div data-rt-map-note></div>
+        </section>
+        <div class="rt__flow" data-rt-tail></div>
+      </div>
       <!-- הסרגל הצדי: כל היום כמד אחד, בשולי המסך -->
       <div class="rt__rail-slot" data-rt-rail></div>
     </div>
