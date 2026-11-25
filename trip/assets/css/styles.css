@@ -1606,12 +1606,20 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 }
 .ov-seg.is-on { outline: 2px solid var(--txt); outline-offset: -2px; }
 
-.ov-seg--moss     { background: color-mix(in srgb, var(--moss) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--moss) 45%, var(--line)); }
-.ov-seg--heather  { background: color-mix(in srgb, var(--heather) 16%, var(--ink-700));  border-color: color-mix(in srgb, var(--heather) 45%, var(--line)); }
-.ov-seg--rose     { background: color-mix(in srgb, var(--rose) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--rose) 45%, var(--line)); }
-.ov-seg--gold     { background: color-mix(in srgb, var(--gold) 16%, var(--ink-700));     border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); }
-.ov-seg--sky      { background: color-mix(in srgb, var(--sky) 16%, var(--ink-700));      border-color: color-mix(in srgb, var(--sky) 45%, var(--line)); }
-.ov-seg--mute     { background: var(--ink-700); }
+/* הגוון של סוג העצירה — מוגדר פעם אחת ומשמש גם את הקוביה ברצועה וגם
+   את הכרטיס שנפתח מתחתיה. לחיצה על קוביה ירוקה פותחת כרטיס ירוק, וזה
+   מה שקושר ביניהם; שתי נוסחאות נפרדות היו נפרדות גם בפועל. */
+.ov-seg--moss,    .ov-pick--moss    { --ov-tone: var(--moss); }
+.ov-seg--heather, .ov-pick--heather { --ov-tone: var(--heather); }
+.ov-seg--rose,    .ov-pick--rose    { --ov-tone: var(--rose); }
+.ov-seg--gold,    .ov-pick--gold    { --ov-tone: var(--gold); }
+.ov-seg--sky,     .ov-pick--sky     { --ov-tone: var(--sky); }
+.ov-seg--mute,    .ov-pick--mute    { --ov-tone: var(--ink-700); }
+
+.ov-seg[class*="ov-seg--"] {
+  background: color-mix(in srgb, var(--ov-tone) 16%, var(--ink-700));
+  border-color: color-mix(in srgb, var(--ov-tone) 45%, var(--line));
+}
 
 /* ---------- מקטע טיסה ---------- */
 
@@ -1694,22 +1702,18 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 }
 .overview__hint[hidden] { display: none; }
 
+/* הכרטיס שנפתח מלחיצה על עצירה — באותו גוון בדיוק של העצירה שנלחצה */
 .ov-pick {
+  /* ברירת המחדל יושבת ב-var() ולא כהצהרה נפרדת: הצהרה כאן הייתה
+     מנצחת את .ov-pick--moss, שספציפיותו זהה והוא מוגדר קודם בקובץ. */
   display: flex; align-items: center; gap: 11px;
   margin: 10px 0 0; padding: 9px 12px;
-  background: var(--ink-800);
-  border: 1px solid var(--line-strong);
-  border-inline-start: 3px solid var(--line-strong);
+  background: color-mix(in srgb, var(--ov-tone, var(--ink-700)) 16%, var(--ink-700));
+  border: 1px solid color-mix(in srgb, var(--ov-tone, var(--ink-700)) 45%, var(--line));
+  border-inline-start: 3px solid var(--ov-tone, var(--line-strong));
   border-radius: var(--radius-sm);
 }
-[data-theme="light"] .ov-pick { background: #fff; }
 .ov-pick[hidden] { display: none; }
-
-.ov-pick--moss    { border-inline-start-color: var(--moss); }
-.ov-pick--heather { border-inline-start-color: var(--heather); }
-.ov-pick--rose    { border-inline-start-color: var(--rose); }
-.ov-pick--gold    { border-inline-start-color: var(--gold); }
-.ov-pick--sky     { border-inline-start-color: var(--sky); }
 
 /* תמונת המקום כשיש, ואייקון הסוג כשאין — אותו ריבוע בדיוק */
 .ov-pick__thumb {
@@ -1717,12 +1721,12 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
   width: 38px; height: 38px;
   display: grid; place-items: center;
   overflow: hidden;
-  background: var(--ink-700);
-  border: 1px solid var(--line);
+  /* מעט כהה/בהיר יותר מהכרטיס, כדי שהריבוע ייראה גם על רקע מגוון */
+  background: color-mix(in srgb, var(--ov-tone, var(--ink-700)) 30%, var(--ink-700));
+  border: 1px solid color-mix(in srgb, var(--ov-tone, var(--ink-700)) 45%, var(--line));
   border-radius: 9px;
   font-size: 1.15rem; line-height: 1;
 }
-[data-theme="light"] .ov-pick__thumb { background: #eef2f8; }
 .ov-pick__thumb img { width: 100%; height: 100%; object-fit: cover; }
 
 .ov-pick__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
