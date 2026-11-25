@@ -61,6 +61,16 @@ html[data-theme="light"] {
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;   /* אייפון לא ינפח טקסט בסיבוב מסך */
+  /*
+   * גלישה אופקית נחתכת **בשורש**, ולא רק ב-body.
+   *
+   * ב-body זה כבר היה, וכרום אינו מעביר `clip` מה-body אל ה-viewport.
+   * ובנייד המחיר של גלישה אופקית אינו פס גלילה: הדפדפן מרחיב את
+   * חלון הפריסה כדי להכיל אותה, וכל מה שממוקם fixed נמתח איתו —
+   * כלומר יוצא מהמסך בצד אחד. בעמוד RTL הצד הזה הוא שמאל, וזה מה
+   * שחתך את הסרגל של המסלול היומי במכשירים צרים.
+   */
+  overflow-x: clip;
 }
 
 body {
@@ -2361,7 +2371,16 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 
 .now.is-arrive { border-inline-start-color: var(--moss); }
 
-.now__acts { flex: 0 0 auto; display: grid; gap: 6px; align-content: start; }
+/* min-inline-size: 0 — בלעדיו העמודה נפתחת לרוחב הכפתור הארוך ביותר
+   ומוציאה את הקוביה מהמסך במכשירים צרים */
+.now__acts {
+  flex: 0 0 auto;
+  min-inline-size: 0;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.now__acts > * { min-inline-size: 0; }
 
 /* ---------- המצבים ---------- */
 
@@ -2869,7 +2888,11 @@ body.is-locked { overflow: hidden; }
 .rt__top {
   flex: 0 0 auto;
   min-inline-size: 0;
+  /* clip ולא hidden: קופסת hidden היא קופסת גלילה לכל דבר מבחינת
+     סקריפט, ו-scrollIntoView על משהו בתוכה היה מזיז אותה. clip חותך
+     בלי לאפשר גלילה בכלל. */
   overflow: hidden;
+  overflow: clip;
   padding: 0 12px 10px;
   border-block-end: 1px solid var(--line);
   background: var(--ink-850);
@@ -3060,6 +3083,7 @@ body.is-locked { overflow: hidden; }
   min-block-size: 0;
   min-inline-size: 0;
   display: flex;
+  overflow-x: clip;
 }
 /* הסרגל אחרון בסדר הפריסה, ולכן בשוליים השמאליים של עמוד RTL */
 .rt__rail-slot {
@@ -3359,13 +3383,23 @@ body.is-locked { overflow: hidden; }
   order: 1;
   flex: 1 1 auto;
   min-inline-size: 0;
-  overflow: auto;
+  /* לרוחב אין מה לגלול — תוכן שגולש נחתך ואינו מזיז את המסך */
+  overflow-x: clip;
+  overflow-y: auto;
   overscroll-behavior: contain;
   padding: 14px 16px 24px;
   display: grid;
   gap: 14px;
   align-content: start;
 }
+/* כל ילד ישיר של הגוף הוא פריט grid, ולכן min-width: auto — כלומר
+   "אל תתכווץ מתחת לתוכן". זה מה שמנפח את העמודה כשיש שם שורה ארוכה.
+   אותו דבר בכל שרשרת ה-grid שבתוך הרשימה. */
+.rt__body > *,
+.rt__list ol,
+.rt__list li,
+.rt__now > * { min-inline-size: 0; }
+
 .rt__empty { padding: 20px 0; display: grid; gap: 10px; }
 .rt__empty p { margin: 0; font-size: 0.9rem; line-height: 1.55; }
 

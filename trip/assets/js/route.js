@@ -324,6 +324,7 @@ const DayRoute = (() => {
     headAsk = false;
     try { outdoor = localStorage.getItem("route:outdoor") === "1"; } catch { outdoor = false; }
     if (outdoor) startHeading();
+    centred = null;
     el.hidden = false;
     document.body.classList.add("is-locked");
     render();
@@ -1102,19 +1103,40 @@ const DayRoute = (() => {
       mapHTML(day, list) +
       listHTML(day, list);
 
-    centreSpine();
+    // גלילה חלקה רק כשבאמת עברנו תחנה; ברענון התקופתי — בלי תנועה
+    const vi = viewIdx(list);
+    centreSpine(centred !== null && centred !== vi);
+    centred = vi;
   }
 
+  let centred = null;        // איזו תחנה כבר ממורכזת ברצועה
+
   /**
-   * הרצועה נגללת לבד לתחנה שמוצגת — אחרת היא נכונה ולא נראית.
+   * מרכוז הרצועה על התחנה שמוצגת.
    *
-   * `scrollIntoView` ולא חשבון של offsetLeft: בגולל RTL הדפדפנים אינם
-   * מסכימים על מה `scrollLeft` אומר (אפס בהתחלה? שלילי?), והחשבון שיוצא
-   * נכון בכיוון אחד מקפיץ את הרצועה לקצה בכיוון השני.
+   * **לא `scrollIntoView`.** הוא נראה הפתרון הנקי, והוא גולל *כל* אב
+   * שאפשר לגלול — כולל קופסאות `overflow: hidden`, שהן קופסאות גלילה
+   * לכל דבר מבחינת סקריפט. זה מה שהזיז את כל הגיליון כמה פיקסלים
+   * שמאלה, ודחף את הסרגל הצדי אל מחוץ למסך.
+   *
+   * במקומו: הפרש בין מרכז הסימון למרכז הרצועה, ו-`scrollLeft +=`. זה
+   * נכון בלי לדעת מה מוסכמת ה-RTL של הדפדפן (אפס בהתחלה? שלילי?), כי
+   * מודדים מלבנים אמיתיים ומזיזים יחסית — ונוגעים **רק** ברצועה.
+   *
+   * והוא לא רץ כשאין מה לעשות: הקוביה מתרעננת כל חצי דקה, וגלילה חלקה
+   * בכל רענון היא רצועה שקופצת בלי סיבה.
    */
-  function centreSpine() {
-    const mark = el.querySelector("[data-rt-spine] li.is-view");
-    mark?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  function centreSpine(smooth) {
+    const spine = el.querySelector("[data-rt-spine]");
+    const mark = spine?.querySelector("li.is-view");
+    if (!spine || !mark) return;
+
+    const sb = spine.getBoundingClientRect();
+    const mb = mark.getBoundingClientRect();
+    const delta = Math.round(mb.left + mb.width / 2 - (sb.left + sb.width / 2));
+    if (Math.abs(delta) <= 2) return;       // כבר במרכז
+
+    spine.scrollTo({ left: spine.scrollLeft + delta, behavior: smooth ? "smooth" : "auto" });
   }
 
   /* ------------------------------------------------------------------ */
