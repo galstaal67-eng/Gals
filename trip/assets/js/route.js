@@ -1376,7 +1376,30 @@ const DayRoute = (() => {
     });
   }
 
-  return { init, open, close, isOpen, started: (date) => {
+  /**
+   * מה כבר נעשה היום, לפי שם התחנה.
+   *
+   * מבט העל צובע את התרשים שלו מכאן, ולא מחשבון משלו: המצב נשמר
+   * במסך המסלול, וסימון "היינו שם" שם חייב להיראות גם כאן. ההתאמה
+   * לפי שם ולא לפי אינדקס, כי `stops()` מסנן את המלון ואת שדה
+   * התעופה — ושני המספרים אינם אותו מספר.
+   */
+  function progress(day) {
+    const out = {};
+    if (!day || !ctx || typeof ctx.inDest !== "function") return out;
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem(SKEY(day.date)) || "null"); } catch { return out; }
+    if (!s || s.n !== day.n || !s.startedAt) return out;
+    const list = stops(day);
+    const done = Array.isArray(s.done) ? s.done : [];
+    list.forEach((p, i) => {
+      if (done.includes(i)) out[p.name] = "done";
+      else if (i === s.idx) out[p.name] = "now";
+    });
+    return out;
+  }
+
+  return { init, open, close, isOpen, progress, started: (date) => {
     try {
       const s = JSON.parse(localStorage.getItem(SKEY(date)) || "null");
       return s?.startedAt || null;

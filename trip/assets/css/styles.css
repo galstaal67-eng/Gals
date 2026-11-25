@@ -1514,163 +1514,292 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 
 .overview[hidden] { display: none; }
 
-.overview__track {
-  /* --ov-cols נקבע מהטווח: כמה עמודות ממלאות את הרוחב. שאר הימים
-     קיימים תמיד ונמצאים במרחק גלילה הצידה. */
-  --ov-cols: 6;
-  --ov-gap: 8px;
-  display: flex; gap: var(--ov-gap);
+/* ---------- בוחר הימים ---------- */
+
+/* קודם הייתה כאן עמודה לכל יום, ובה קוביה לכל עצירה. זו הייתה רשימה
+   שמחופשת לתמונה: יום הליכה בעיר העתיקה, יום נסיעה בכביש הררי ויום
+   טיסה נראו בה זהים, ונבדלו רק בטקסט שבתוך הקוביות. עכשיו למעלה יש
+   רק בחירת יום — מספר, יום בשבוע ותאריך — והיום שנבחר מצויר מתחתיה. */
+.overview__days {
+  display: flex; gap: 6px;
+  min-inline-size: 0;
   overflow-x: auto;
   padding-bottom: 4px;
   scrollbar-width: thin;
   scroll-snap-type: x proximity;
   overscroll-behavior-x: contain;
 }
-.overview__empty { margin: 0; color: var(--txt-dim); font-size: .86rem; }
+.overview__empty { margin: 0; padding: 18px 14px; color: var(--txt-dim); font-size: .86rem; }
 
-.ov-day {
-  flex: 0 0 calc((100% - (var(--ov-cols) - 1) * var(--ov-gap)) / var(--ov-cols));
-  scroll-snap-align: start;
-  display: flex; flex-direction: column; gap: 6px;
-  /* מה שנכנס לעמודה תלוי ברוחב **שלה**, לא ברוחב המסך: שלושה ימים
-     בטלפון הם עמודות רחבות שיש בהן מקום לשמות, וששה ימים במסך רחב
-     הם עמודות צרות שאין */
-  container-type: inline-size;
-}
-
-@container (max-width: 104px) {
-  /* סלקטור צאצא ולא מחלקה בודדת: כלל ה-display של הכותרת מוגדר מאוחר
-     יותר בקובץ, ובלי העלאת ספציפיות הוא היה גובר על זה */
-  .ov-day .ov-day__profile { display: none; }
-  /* "יום 1 · שלישי" אינו נכנס לעמודה צרה; "יום 1 · ג׳" כן */
-  .ov-day .ov-day__dow { display: none; }
-  .ov-day .ov-day__dow-s { display: inline; }
-  .ov-seg { justify-content: center; padding: 0 3px; }
-  .ov-seg__name { display: none; }
-  .ov-chip i { display: none; }
-  .ov-day__chips { gap: 3px; }
-  .ov-chip { padding: 1px 5px; }
-}
-
-.ov-day__head {
-  display: flex; flex-direction: column; gap: 1px;
-  padding: 5px 7px;
-  background: transparent;
-  border: 1px solid transparent; border-radius: var(--radius-sm);
-  color: var(--txt); font: inherit; text-align: start;
+/* flex-grow כשכולם נכנסים למסך, ורוחב מינימום קבוע כשלא — טיול של
+   שישה ימים ממלא את הרוחב, וטיול של שבועיים נגלל */
+.ovd {
+  flex: 1 0 auto; min-inline-size: 54px;
+  scroll-snap-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 7px 8px;
+  background: var(--ink-800);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  color: var(--txt-dim); font: inherit; line-height: 1.25;
   cursor: pointer;
 }
-.ov-day__head:hover { border-color: var(--moss); }
-.ov-day__head b { font-size: .84rem; }
-.ov-day__head span { font-size: .72rem; color: var(--txt-mute); }
-.ov-day__when i { font-style: normal; }
-/* יום השבוע יושב ליד מספר היום: "יום 1 · שלישי". בעמודה צרה הוא מתקצר
-   ל-"ג׳" במקום להיעלם — מה יום זה אחד הדברים שמחפשים במבט על */
-.ov-day__dow, .ov-day__dow-s {
-  font-style: normal; font-weight: 600; color: var(--txt-mute);
+[data-theme="light"] .ovd { background: #f2f5fa; }
+.ovd b { font-size: .82rem; font-weight: 700; color: var(--txt); }
+.ovd i { font-style: normal; font-size: .67rem; white-space: nowrap; }
+.ovd__date { direction: ltr; font-variant-numeric: tabular-nums; }
+.ovd:hover { border-color: var(--moss); }
+.ovd.is-past { opacity: .6; }
+.ovd.is-now { border-color: var(--gold); }
+.ovd.is-on {
+  background: color-mix(in srgb, var(--moss) 18%, var(--ink-800));
+  border-color: var(--moss); color: var(--txt);
 }
-.ov-day__dow::before, .ov-day__dow-s::before { content: " · "; }
-.ov-day__dow-s { display: none; }
+.ovd.is-on b { color: var(--moss); }
+.ovd.is-on, .ovd.is-on.is-past { opacity: 1; }
 
-/* הגובה נגזר ממספר המשבצות של היום העמוס ביותר */
-.ov-bar {
-  --ov-seg-h: 27px;
-  height: calc(var(--ov-slots) * 30px);
-  display: flex; flex-direction: column; gap: 3px;
-  padding: 3px;
-  background: var(--ink-800);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-}
-[data-theme="light"] .ov-bar { background: #eef2f8; }
+/* ---------- התרשים של היום ---------- */
 
-.ov-seg {
-  flex: 0 0 auto; height: var(--ov-seg-h);
-  display: flex; align-items: center; gap: 5px;
-  min-width: 0; padding: 0 6px;
-  border: 1px solid var(--line); border-radius: 6px;
-  background: var(--ink-700);
-  color: var(--txt); font: inherit; font-size: .72rem;
-  text-align: start; cursor: pointer;
+/* ה-SVG נושא מבנה בלבד; הצבעים כולם כאן. לכן אותו תרשים בדיוק עובד
+   במצב כהה ובמצב בהיר, ושינוי נושא אינו דורש ציור מחדש. */
+.ovs {
+  --sc-sky: var(--ink-850);
+  --sc-far: var(--ink-800);
+  --sc-near: var(--ink-700);
+  --sc-line: color-mix(in srgb, var(--txt) 12%, transparent);
+  --sc-band: #5b6b80;
+  --sc-edge: color-mix(in srgb, #000 35%, #5b6b80);
+  --sc-mark: rgba(255, 255, 255, .5);
+  --sc-mark-w: 2px;
+  --sc-mark-dash: 7 7;
+  --sc-disc: var(--ink-900);
+  --sc-ring: var(--sky);
+  --sc-ink: var(--txt);
+  --sc-accent: var(--sky);
+
+  margin-top: 10px;
+  min-inline-size: 0;
+  background: var(--ink-850);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden;
 }
-.ov-seg__icon { flex: 0 0 auto; font-size: .8rem; line-height: 1; }
-/* השעה של העצירה, לפי שורת התוכנית שמדברת עליה */
-.ov-seg__time {
-  flex: 0 0 auto; font-size: .64rem; font-weight: 700;
-  color: var(--txt-mute); font-variant-numeric: tabular-nums;
-  direction: ltr;
+[data-theme="light"] .ovs { background: #fff; }
+
+.ovs__head, .ovs__foot {
+  display: flex; align-items: center; gap: 8px;
+  min-inline-size: 0;
+  padding: 8px 12px;
+  background: var(--ink-900);
 }
-.ov-seg__name {
-  flex: 1; min-width: 0;
+[data-theme="light"] .ovs__head,
+[data-theme="light"] .ovs__foot { background: #f2f5fa; }
+.ovs__head { justify-content: space-between; border-bottom: 1px solid var(--line); }
+.ovs__foot { justify-content: space-between; flex-wrap: wrap; border-top: 1px solid var(--line); }
+.ovs__head b {
+  min-inline-size: 0; font-size: .86rem;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ov-seg.is-on { outline: 2px solid var(--txt); outline-offset: -2px; }
+.ovs__head span { flex: 0 0 auto; font-size: .7rem; color: var(--txt-mute); white-space: nowrap; }
+.ovs__foot { font-size: .71rem; color: var(--txt-mute); }
+.ovs__meta i { font-style: normal; direction: ltr; font-variant-numeric: tabular-nums; }
 
-/* הגוון של סוג העצירה — מוגדר פעם אחת ומשמש גם את הקוביה ברצועה וגם
-   את הכרטיס שנפתח מתחתיה. לחיצה על קוביה ירוקה פותחת כרטיס ירוק, וזה
-   מה שקושר ביניהם; שתי נוסחאות נפרדות היו נפרדות גם בפועל. */
-.ov-seg--moss,    .ov-pick--moss    { --ov-tone: var(--moss); }
-.ov-seg--heather, .ov-pick--heather { --ov-tone: var(--heather); }
-.ov-seg--rose,    .ov-pick--rose    { --ov-tone: var(--rose); }
-.ov-seg--gold,    .ov-pick--gold    { --ov-tone: var(--gold); }
-.ov-seg--sky,     .ov-pick--sky     { --ov-tone: var(--sky); }
-.ov-seg--mute,    .ov-pick--mute    { --ov-tone: var(--ink-700); }
+/* ה-viewBox הוא 360 רחב. בלי תקרה הוא היה נמתח לרוחב מסך מחשב,
+   והמדליונים היו נהיים ענקיים */
+.ovs__art { max-inline-size: 560px; margin-inline: auto; }
+.ovs__svg { display: block; inline-size: 100%; block-size: auto; }
 
-.ov-seg[class*="ov-seg--"] {
-  background: color-mix(in srgb, var(--ov-tone) 16%, var(--ink-700));
-  border-color: color-mix(in srgb, var(--ov-tone) 45%, var(--line));
+/* ---------- הנוף ---------- */
+
+.sc-sky { fill: var(--sc-sky); }
+.sc-far { fill: var(--sc-far); }
+.sc-near { fill: var(--sc-near); }
+.sc-line { fill: none; stroke: var(--sc-line); stroke-width: 1.2; }
+.sc-snow { fill: color-mix(in srgb, var(--txt) 72%, transparent); }
+.sc-awn { fill: color-mix(in srgb, var(--sc-accent) 45%, var(--sc-far)); }
+.sc-cloud { fill: var(--sc-far); }
+.sc-tree { fill: color-mix(in srgb, var(--moss) 42%, var(--sc-far)); }
+.sc-trunk { fill: none; stroke: color-mix(in srgb, #7a5a38 70%, var(--sc-far)); stroke-width: 3; }
+.sc-furrow { fill: none; stroke: color-mix(in srgb, var(--moss) 26%, transparent); stroke-width: 1.6; }
+
+/* ---------- הדרך ---------- */
+
+/* שלוש שכבות על אותה עקומה: שוליים, גוף, וסימון. מה שמבדיל ריצוף
+   אבן מכביש אספלט משביל עפר הוא רק הסימון — עובי, מקווקו וצבע. */
+.sc-band-edge, .sc-band, .sc-band-mark {
+  fill: none; stroke-linecap: round; stroke-linejoin: round;
+}
+.sc-band-edge { stroke: var(--sc-edge); stroke-width: 28; }
+.sc-band { stroke: var(--sc-band); stroke-width: 24; }
+/* קצה חתוך, לא מעוגל. עיגול על קו ברוחב 23 פיקסלים מאריך כל קו
+   ב-11.5 לכל צד ובולע את הרווחים — הריצוף פשוט נעלם. */
+.sc-band-mark {
+  stroke: var(--sc-mark);
+  stroke-width: var(--sc-mark-w);
+  stroke-dasharray: var(--sc-mark-dash);
+  stroke-linecap: butt;
 }
 
-/* ---------- מקטע טיסה ---------- */
+/* ---------- התחנות ---------- */
 
-/* שלוש משבצות: שתיים עבור הנקודות שהמקטע מחליף, ואחת כדי שלקו
-   המקווקו יהיה אורך שרואים אותו */
-.ov-fly {
-  position: relative;
-  flex: 0 0 auto;
-  height: calc(var(--ov-seg-h) * 3 + 6px);
-  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+.ovs__stop { cursor: pointer; }
+.sc-halo { fill: none; }
+.sc-disc { fill: var(--sc-disc); stroke: var(--sc-ring); stroke-width: 2; }
+.sc-g {
+  fill: none; stroke: var(--sc-ink);
+  stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
 }
-/* הקו המקווקו בין ההמראה לנחיתה */
-.ov-fly::before {
-  content: "";
-  position: absolute; top: 20px; bottom: 20px; left: calc(50% - 1px);
-  border-left: 2px dashed color-mix(in srgb, var(--rose) 65%, transparent);
+/* השם עובר מעל הדרך, מעל הבתים ומעל העננים. קו מתאר בצבע הרקע,
+   מצויר **לפני** המילוי, הוא מה שמשאיר אותו קריא על כל אחד מהם. */
+.sc-label {
+  fill: var(--txt); font: 600 10.5px/1 inherit;
+  text-anchor: middle; direction: rtl;
+  paint-order: stroke;
+  stroke: var(--sc-sky); stroke-width: 3.2px; stroke-linejoin: round;
+}
+.sc-when rect { fill: var(--ink-900); stroke: var(--line); stroke-width: 1; }
+[data-theme="light"] .sc-when rect { fill: #fff; }
+.sc-time {
+  fill: var(--txt-mute); font: 700 9.5px/1 inherit;
+  text-anchor: middle; direction: ltr;
+}
+.sc-ok circle { fill: var(--moss); }
+.sc-ok path { fill: none; stroke: var(--ink-900); stroke-width: 2; stroke-linecap: round; }
+[data-theme="light"] .sc-ok path { stroke: #fff; }
+
+/* טבעת המדליון בגוון של סוג העצירה — אותו גוון שהכרטיס שנפתח
+   מלחיצה עליה לובש. אחרת היה נראה שלחצנו על ירוק וקיבלנו זהב. */
+.sc-tone--moss    { --sc-ring: var(--moss); }
+.sc-tone--heather { --sc-ring: var(--heather); }
+.sc-tone--rose    { --sc-ring: var(--rose); }
+.sc-tone--gold    { --sc-ring: var(--gold); }
+.sc-tone--sky     { --sc-ring: var(--sky); }
+.sc-tone--mute    { --sc-ring: var(--line-strong); }
+
+.ovs__stop:hover .sc-disc { stroke-width: 3; }
+.ovs__stop:focus-visible { outline: none; }
+.ovs__stop:focus-visible .sc-disc,
+.ovs__stop.is-on .sc-disc { stroke: var(--txt); stroke-width: 3; }
+
+/* נעשה: המדליון נסוג ומקבל וי. מה שכבר מאחורינו לא צריך למשוך עין. */
+.ovs__stop.is-done .sc-disc { opacity: .5; }
+.ovs__stop.is-done .sc-g { opacity: .55; }
+.ovs__stop.is-done .sc-label { opacity: .6; }
+
+/* כאן אנחנו עכשיו */
+.ovs__stop.is-now .sc-halo { fill: color-mix(in srgb, var(--sc-accent) 26%, transparent); }
+.ovs__stop.is-now .sc-disc { stroke: var(--sc-accent); stroke-width: 3; }
+@media (prefers-reduced-motion: no-preference) {
+  .ovs__stop.is-now .sc-halo { animation: sc-pulse 2.4s ease-in-out infinite; }
+}
+@keyframes sc-pulse {
+  0%, 100% { opacity: .35; }
+  50%      { opacity: 1; }
 }
 
-.ov-fly__end {
-  flex: 0 0 auto;
-  display: grid; place-items: center;
-  width: 26px; height: 22px;
-  padding: 0; background: transparent; border: 0;
-  font-size: 1.05rem; line-height: 1;
-  cursor: pointer;
+/* סוף המסלול: ה-i שפותח את הפירוט המלא של היום */
+.ovs__end .sc-disc { fill: var(--ink-800); stroke: var(--line-strong); stroke-dasharray: 4 4; }
+[data-theme="light"] .ovs__end .sc-disc { fill: #eef2f8; }
+.ovs__end .sc-g { stroke: var(--txt-mute); stroke-width: 2.2; }
+.ovs__end .sc-label { fill: var(--txt-mute); }
+.ovs__end:hover .sc-disc { stroke: var(--moss); stroke-dasharray: none; }
+.ovs__end:hover .sc-g { stroke: var(--moss); }
+
+/* ---------- ששת הנופים ---------- */
+
+/* עיר עתיקה: ריצוף אבן. הסימון הוא קו ברוחב הדרך כולה עם מקווקו קצר,
+   וזה מה שקורא כנדבכי אבן לרוחב הסמטה ולא כפס אמצע. */
+.ovs--oldtown, .ovs--market {
+  --sc-sky: color-mix(in srgb, #8a6a46 9%, var(--ink-850));
+  --sc-far: color-mix(in srgb, #8a6a46 24%, var(--ink-800));
+  --sc-near: color-mix(in srgb, #8a6a46 32%, var(--ink-800));
+  --sc-band: #8d7355;
+  --sc-edge: #5d4a35;
+  --sc-mark: rgba(255, 255, 255, .13);
+  --sc-mark-w: 23px;
+  --sc-mark-dash: 3 7;
+  --sc-ring: var(--gold);
+  --sc-accent: var(--gold);
 }
-.ov-fly__end.is-on {
-  background: color-mix(in srgb, var(--rose) 22%, transparent);
-  border-radius: 6px;
+[data-theme="light"] .ovs--oldtown,
+[data-theme="light"] .ovs--market {
+  --sc-sky: #faf5ec;
+  --sc-far: #e4d6c0;
+  --sc-near: #d8c6aa;
+  --sc-band: #c0a37c;
+  --sc-edge: #94795a;
+  --sc-mark: rgba(0, 0, 0, .15);
+}
+.ovs--market { --sc-accent: var(--rose); --sc-ring: var(--rose); }
+
+/* עיר: מדרכה. פס אמצע דק ומקווקו, ובתים מודרניים ברקע. */
+.ovs--city {
+  --sc-sky: color-mix(in srgb, var(--sky) 7%, var(--ink-850));
+  --sc-far: color-mix(in srgb, var(--sky) 15%, var(--ink-800));
+  --sc-near: color-mix(in srgb, var(--sky) 22%, var(--ink-800));
+  --sc-band: #5f6f85;
+  --sc-edge: #3c4756;
+  --sc-mark: rgba(255, 255, 255, .45);
+  --sc-mark-w: 2px;
+  --sc-mark-dash: 8 8;
+  --sc-ring: var(--sky);
+  --sc-accent: var(--sky);
+}
+[data-theme="light"] .ovs--city {
+  --sc-sky: #f4f7fc; --sc-far: #dde5f0; --sc-near: #ccd8e8;
+  --sc-band: #93a3b8; --sc-edge: #6d7d92;
 }
 
-/* משך הטיסה יושב על הקו, עם רקע שחותך אותו */
-.ov-fly__dur {
-  position: relative; z-index: 1;
-  padding: 0 4px;
-  background: var(--ink-800);
-  color: var(--rose);
-  font-size: .62rem; font-variant-numeric: tabular-nums; direction: ltr;
+/* נסיעה: אספלט עם פס צהוב באמצע, רכס מושלג ברקע. */
+.ovs--road {
+  --sc-sky: color-mix(in srgb, var(--moss) 6%, var(--ink-850));
+  --sc-far: #38434f;
+  --sc-near: color-mix(in srgb, var(--moss) 22%, var(--ink-800));
+  --sc-band: #4c525b;
+  --sc-edge: #2b2f35;
+  --sc-mark: #e8c45c;
+  --sc-mark-w: 2.4px;
+  --sc-mark-dash: 13 11;
+  --sc-ring: var(--moss);
+  --sc-accent: var(--moss);
 }
-[data-theme="light"] .ov-fly__dur { background: #eef2f8; }
-.ov-fly__dur:empty { display: none; }
-
-.ov-seg--more {
-  justify-content: center;
-  color: var(--txt-mute); font-size: .7rem;
-  background: transparent; border-style: dashed; cursor: default;
+[data-theme="light"] .ovs--road {
+  --sc-sky: #f3f7f5; --sc-far: #b9c6d2; --sc-near: #cfe0d4;
+  --sc-band: #7d848e; --sc-edge: #5a6069;
 }
 
-.ov-day__foot {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
-  font-size: .71rem; color: var(--txt-mute);
+/* טבע: שביל עפר על תלמי שדה. המקווקו הצפוף הוא חצץ, לא פס. */
+.ovs--trail {
+  --sc-sky: color-mix(in srgb, var(--moss) 8%, var(--ink-850));
+  --sc-far: color-mix(in srgb, var(--moss) 18%, var(--ink-800));
+  --sc-near: color-mix(in srgb, var(--moss) 30%, var(--ink-800));
+  --sc-band: #8a6e4a;
+  --sc-edge: #5c4830;
+  --sc-mark: rgba(255, 255, 255, .3);
+  --sc-mark-w: 2.2px;
+  --sc-mark-dash: 1 8;
+  --sc-ring: var(--moss);
+  --sc-accent: var(--moss);
+}
+[data-theme="light"] .ovs--trail {
+  --sc-sky: #f4f9f3; --sc-far: #dcead7; --sc-near: #c6ddbf;
+  --sc-band: #c3a378; --sc-edge: #9b7e55;
+  --sc-mark: rgba(0, 0, 0, .3);
+}
+
+/* טיסה: אין דרך על הקרקע, ולכן אין גוף — רק קו מקווקו בין העננים. */
+.ovs--air {
+  --sc-sky: color-mix(in srgb, var(--sky) 11%, var(--ink-850));
+  --sc-far: color-mix(in srgb, var(--sky) 17%, var(--ink-800));
+  --sc-near: color-mix(in srgb, var(--sky) 24%, var(--ink-800));
+  --sc-band: transparent;
+  --sc-edge: transparent;
+  --sc-mark: color-mix(in srgb, var(--rose) 80%, transparent);
+  --sc-mark-w: 2.6px;
+  --sc-mark-dash: 9 8;
+  --sc-ring: var(--rose);
+  --sc-accent: var(--rose);
+}
+[data-theme="light"] .ovs--air {
+  --sc-sky: #f3f7fd; --sc-far: #dbe7f7; --sc-near: #c9dbf2;
 }
 
 /* ארבעת הדברים שרוצים לראות על יום בלי לפתוח אותו */
@@ -1691,8 +1820,6 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 }
 /* טמפרטורה היא ביטוי LTR: בלי זה מעלות שליליות מוצגות הפוך */
 .ov-chip[data-jwx] { direction: ltr; unicode-bidi: isolate; }
-/* טווח שעות הוא ביטוי LTR: בלי זה "04:15–19:00" מוצג הפוך בדף RTL */
-.ov-day__time { direction: ltr; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ---------- הנקודה שנבחרה ---------- */
 
@@ -1702,7 +1829,15 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 }
 .overview__hint[hidden] { display: none; }
 
-/* הכרטיס שנפתח מלחיצה על עצירה — באותו גוון בדיוק של העצירה שנלחצה */
+/* הגוון של סוג העצירה. הכרטיס שנפתח מלחיצה על מדליון בתרשים לובש
+   אותו, וכך רואים על מה נלחץ. */
+.ov-pick--moss    { --ov-tone: var(--moss); }
+.ov-pick--heather { --ov-tone: var(--heather); }
+.ov-pick--rose    { --ov-tone: var(--rose); }
+.ov-pick--gold    { --ov-tone: var(--gold); }
+.ov-pick--sky     { --ov-tone: var(--sky); }
+.ov-pick--mute    { --ov-tone: var(--ink-700); }
+
 .ov-pick {
   /* ברירת המחדל יושבת ב-var() ולא כהצהרה נפרדת: הצהרה כאן הייתה
      מנצחת את .ov-pick--moss, שספציפיותו זהה והוא מוגדר קודם בקובץ. */
@@ -1778,14 +1913,6 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
   color: var(--txt-dim) !important; line-height: 1.3;
 }
 
-/* אותם מצבים של כרטיסי הימים שמתחת, כדי שהרצועה תספר אותו סיפור */
-.ov-day.is-past { opacity: .55; }
-.ov-day.is-past:hover { opacity: 1; }
-.ov-day.is-now .ov-bar {
-  border-color: var(--moss);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--moss) 30%, transparent);
-}
-.ov-day.is-now .ov-day__head b { color: var(--moss); }
 
 
 /* =====================================================================
@@ -3769,7 +3896,7 @@ button.rt__next:hover { background: rgba(127, 127, 127, 0.08); }
 
   /* צבע שנושא מידע — פס היום, תגיות החומרה, הפסים בגרף — חייב לצאת
      גם כשהדפדפן מכבה רקעים כברירת מחדל. */
-  .ov-seg, .ov-chip, .chip, .bar__fill, .sev, .psheet th, .psheet tr.walk td {
+  .ovd, .ovs, .ov-chip, .chip, .bar__fill, .sev, .psheet th, .psheet tr.walk td {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -3827,9 +3954,9 @@ button.rt__next:hover { background: rgba(127, 127, 127, 0.08); }
     gap: 10px 8px;
     overflow: visible;
   }
-  .ov-day { flex: none; width: auto; break-inside: avoid; }
-  .ov-seg { justify-content: flex-start; }
-  .ov-seg__name, .ov-chip i {
+  .ovd { flex: none; break-inside: avoid; }
+  .ovs { break-inside: avoid; }
+  .ov-chip i {
     display: inline; overflow: visible; white-space: normal; text-overflow: clip;
   }
   .ov-chip { max-width: none; }
@@ -3838,7 +3965,7 @@ button.rt__next:hover { background: rgba(127, 127, 127, 0.08); }
   /* רק יחידות קטנות נשמרות שלמות. כרטיס יום שלם גבוה מעמוד, ולכן
      "לא לשבור" עליו פירושו עמוד כמעט ריק לפניו — וזה בדיוק מה
      שקרה: 13 עמודים שרובם אוויר. */
-  tr, li, .ov-day, .psheet__box, .kv, .panel, .imp { break-inside: avoid; }
+  tr, li, .ovd, .psheet__box, .kv, .panel, .imp { break-inside: avoid; }
   h2, h3, .day__head { break-after: avoid; }
   .card, .day, .imp, .panel { box-shadow: none; }
 

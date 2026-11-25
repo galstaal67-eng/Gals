@@ -1186,18 +1186,10 @@
      יום פותחת **חלון** של אותו יום בלבד, ולא מנווטת ללשונית אחרת —
      המסלול היומי המלא ממשיך לחיות בלשונית שלו.
 
-     הטווח אינו מסנן ימים אלא קובע **כמה נכנסים למסך**: שלושה ימים הם
-     שלוש עמודות רחבות עם שמות המקומות, ושאר הטיול במרחק גלילה הצידה.
+     בוחר הטווח ירד. הוא קבע כמה עמודות נכנסות לרוחב המסך, ואין יותר
+     עמודות: הבוחר מראה את כל ימי הטיול, והמסך מראה יום אחד בכל פעם.
+     בטיול של שישה ימים הוא ממילא הסתיר ימים בלי להרוויח דבר.
      ===================================================================== */
-
-  const RANGES = [
-    { key: "all", label: "כל הטיול" },
-    { key: "week", label: "השבוע", days: 7 },
-    { key: "next3", label: "3 ימים", days: 3 },
-    { key: "today", label: "היום", days: 1 },
-  ];
-  const RANGE_KEY = "journey:range";
-  let journeyRange = "all";
 
   /** צבע לכל סוג נקודה. אותם טוקנים ששאר האפליקציה משתמשת בהם. */
   const OV_TONE = {
@@ -1215,9 +1207,6 @@
     pass: "מעבר הרים", city: "עיר",
   };
 
-  /** מעל זה העמודה נהיית בלתי קריאה, והשאר נספר ב-"ועוד" */
-  const OV_MAX = 8;
-
   /**
    * תאריך היום לפי השעון של המכשיר.
    *
@@ -1231,6 +1220,7 @@
     ).padStart(2, "0")}`;
   };
   const ovShortDate = (iso) => (iso ? `${+iso.slice(8, 10)}.${+iso.slice(5, 7)}` : "");
+  const ovSlashDate = (iso) => (iso ? `${+iso.slice(8, 10)}/${+iso.slice(5, 7)}` : "");
 
   /** היום שאליו גוללים: הנוכחי אם הטיול רץ, אחרת קצה הטיול */
   function anchorIndex() {
@@ -1238,18 +1228,6 @@
     const i = TRIP.days.findIndex((d) => d.date === t);
     if (i >= 0) return i;
     return TRIP.days[0] && t < TRIP.days[0].date ? 0 : Math.max(TRIP.days.length - 1, 0);
-  }
-
-  /** בתוך הטיול רוצים לראות את הימים הקרובים; לפניו ואחריו — את כולו */
-  function defaultRange() {
-    return TRIP.days.some((d) => d.date === todayISO()) ? "next3" : "all";
-  }
-
-  /** כמה עמודות נכנסות למסך. אף יום לא מוסתר — השאר במרחק גלילה. */
-  function rangeCols() {
-    const r = RANGES.find((x) => x.key === journeyRange) || RANGES[0];
-    const n = TRIP.days.length || 1;
-    return Math.max(1, Math.min(r.days || n, n));
   }
 
   function dayStatus(day) {
@@ -1320,95 +1298,142 @@
   /*  הרצועה                                                             */
   /* ------------------------------------------------------------------ */
 
+  /**
+   * היום שמוצג בתרשים. `null` עד הציור הראשון, שבוחר את היום הנוכחי.
+   */
+  let ovDay = null;
+
+  /* ------------------------------------------------------------------ */
+  /*  בוחר הימים + התרשים של היום הנבחר                                  */
+  /* ------------------------------------------------------------------ */
+  /**
+   * קודם היה כאן בר לכל יום: עמודה של קוביות אפורות. זו הייתה רשימה
+   * שמחופשת לתמונה — יום הליכה בעיר העתיקה, יום נסיעה בכביש הררי ויום
+   * טיסה נראו בה אותו דבר בדיוק, ונבדלו רק בטקסט שבתוך הקוביות.
+   *
+   * עכשיו למעלה יש שורת ימים — מספר, יום בשבוע ותאריך — ומתחתיה היום
+   * שנבחר **מצויר**: מסלול מתפתל בין התחנות על רקע שמתאים לאופי היום.
+   * הציור עצמו חי ב-scene.js; כאן רק מרכיבים לו את הנתונים.
+   */
   function renderOverview() {
-    const track = $("#ovTrack");
-    if (!track) return;
-    const days = TRIP.days || [];
+    const strip = $("#ovDays");
+    const scene = $("#ovScene");
+    if (!strip || !scene) return;
 
-    const counts = days.map((d) => (d.points || []).filter((p) => p && p.name).length);
-    // מקטע טיסה תופס שלוש משבצות במקום שתיים — בלי המשבצת השלישית הקו
-    // המקווקו בין ההמראה לנחיתה קצר מכדי להיראות
-    const slots = days.map((d, i) => counts[i] + flightPairs(d));
-    const most = Math.min(Math.max(...slots, 1), OV_MAX);
-
-    if (!counts.some(Boolean)) {
-      track.innerHTML =
+    const all = TRIP.days || [];
+    if (!all.some((d) => (d.points || []).some((q) => q && q.name))) {
+      strip.innerHTML = "";
+      scene.className = "ovs";
+      scene.innerHTML =
         '<p class="overview__empty">לטיול הזה עדיין אין נקודות על המפה. ' +
         'הוסיפו אותן בעריכת היום או דרך העוזר, והן יופיעו כאן.</p>';
       return;
     }
 
-    track.style.setProperty("--ov-cols", rangeCols());
+    const days = all;
+    if (ovDay === null) {
+      const anchor = (all[anchorIndex()] || {}).n;
+      ovDay = days.some((d) => d.n === anchor) ? anchor : days[0].n;
+    } else if (!days.some((d) => d.n === ovDay)) {
+      ovDay = days[0].n;
+    }
 
-    track.innerHTML = days
+    strip.innerHTML = days
       .map((day) => {
-        const pts = (day.points || []).filter((p) => p && p.name);
-        const shown = pts.slice(0, OV_MAX);
-        const extra = pts.length - shown.length;
-        const mode = TRIP.modes[day.mode] || {};
-
-        const times = (day.plan || [])
-          .map((p) => String(p.time || "").trim())
-          .filter((t) => /^\d/.test(t));
-        const span = times.length > 1 ? `${times[0]}–${times[times.length - 1]}` : times[0] || "";
-
-        // זוג שדות תעופה סמוכים הוא טיסה אחת, לא שתי עצירות: במקום שתי
-        // קוביות מצוירים המראה ונחיתה וקו מקווקו ביניהם עם משך הטיסה.
-        const leg = flightOfDay(day);
-        const segs = [];
-        for (let i = 0; i < shown.length; i++) {
-          const p = shown[i];
-          const q = shown[i + 1];
-          if (p.type === "airport" && q && q.type === "airport") {
-            segs.push(flightSeg(day, leg, p, q, i, pts.length));
-            i++;
-            continue;
-          }
-          segs.push(pointSeg(day, p, i, pts.length));
-        }
-
-        const km = day.drive?.km
-          ? `${mode.icon || "🚗"} ${nfNum.format(day.drive.km)} ק"מ`
-          : `${mode.icon || ""} ${esc(mode.label || "")}`.trim();
-
-        return `<article class="ov-day is-${dayStatus(day)}" data-ov-col="${day.n}">
-          <button type="button" class="ov-day__head" data-ov-open="${day.n}"
-                  title="${esc(day.title || "")}">
-            <b>יום ${day.n}<i class="ov-day__dow">${esc(day.dow || "")}</i><i
-               class="ov-day__dow-s">${esc(dowShort(day))}</i></b>
-            <span class="ov-day__when">
-              <i class="ov-day__date">${ovShortDate(day.date)}</i>
-            </span>
-            <span class="ov-day__profile">${esc(day.profile || day.title || "")}</span>
-          </button>
-          <div class="ov-bar" style="--ov-slots:${most}">
-            ${segs.join("")}${extra > 0 ? `<span class="ov-seg ov-seg--more">+${extra}</span>` : ""}
-          </div>
-          <div class="ov-day__foot">
-            <span>${km}</span>
-            ${span ? `<span class="ov-day__time">${esc(span)}</span>` : ""}
-          </div>
-          <div class="ov-day__chips">
-            ${ovChip("🌤️", "", `data-jwx="${day.n}"`)}
-            ${day.hotel?.name ? ovChip("🛏️", day.hotel.name) : ""}
-            ${ovChip("📎", "", `data-jdocs="${day.n}"`)}
-            ${ovChip("💸", dayMoney(day), `data-jmoney="${day.n}"`)}
-          </div>
-        </article>`;
+        const on = day.n === ovDay;
+        return `<button type="button" role="tab" aria-selected="${on}"
+            class="ovd is-${dayStatus(day)}${on ? " is-on" : ""}"
+            data-ov-day-pick="${day.n}" title="${esc(day.title || "")}">
+            <b>יום ${day.n}</b>
+            <i class="ovd__dow">יום ${esc(dowShort(day))}</i>
+            <i class="ovd__date">${ovSlashDate(day.date)}</i>
+          </button>`;
       })
       .join("");
 
-    scrollToAnchor();
+    paintScene();
+    scrollToDay();
   }
 
-  /** כמה מקטעי טיסה יש ביום — זוגות של שדות תעופה סמוכים */
-  function flightPairs(day) {
-    const pts = (day.points || []).filter((p) => p && p.name);
-    let n = 0;
-    for (let i = 0; i < pts.length - 1; i++) {
-      if (pts[i].type === "airport" && pts[i + 1].type === "airport") { n++; i++; }
+  /** התרשים של היום הנבחר, והשורה שמתחתיו */
+  function paintScene() {
+    const scene = $("#ovScene");
+    const day = (TRIP.days || []).find((d) => d.n === ovDay);
+    if (!scene || !day || typeof DayScene === "undefined") return;
+
+    const pts = (day.points || []).filter((q) => q && q.name);
+    // מה כבר נעשה היום — נקרא ממסך המסלול, לא מחושב כאן מחדש
+    /* `const DayRoute` בקובץ סקריפט רגיל אינו נכס של window — הוא קיים
+       כשם בלבד. בדיקה דרך window הייתה תמיד שקרית, והסימונים לא הופיעו. */
+    const marks =
+      (typeof DayRoute !== "undefined" && DayRoute.progress ? DayRoute.progress(day) : {}) || {};
+    const leg = flightOfDay(day);
+    const firstAir = pts.findIndex((q) => q.type === "airport");
+
+    /* קצה טיסה נושא את פרטי ההמראה או הנחיתה, וכך הכרטיס שנפתח עליו
+       הוא כרטיס העלייה למטוס ולא קישור למפה של שדה תעופה */
+    const attrs = (q, i, total) => {
+      let extra = "";
+      if (q.type === "airport" && leg) {
+        const no = leg.flightNo ? esc(leg.flightNo) + " · " : "";
+        const term = leg.terminal ? ` · טרמינל ${esc(leg.terminal)}` : "";
+        extra =
+          i === firstAir
+            ? `data-ov-icon="🛫" ${leg.dep ? `data-ov-detail="${no}המראה ${esc(leg.dep)}${term}"` : ""}`
+            : `data-ov-icon="🛬" ${leg.arr ? `data-ov-detail="${no}נחיתה ${esc(leg.arr)}"` : ""}`;
+      }
+      return segData(day, q, i, total, extra);
+    };
+
+    const mode = TRIP.modes[day.mode] || {};
+    const km = day.drive?.km
+      ? `${mode.icon || "🚗"} ${nfNum.format(day.drive.km)} ק"מ`
+      : `${mode.icon || ""} ${esc(mode.label || "")}`.trim();
+    const hhmm = (day.plan || [])
+      .map((x) => String(x.time || "").trim())
+      .filter((t) => /^\d/.test(t));
+    const span = hhmm.length > 1 ? `${hhmm[0]}–${hhmm[hhmm.length - 1]}` : hhmm[0] || "";
+
+    scene.className = `ovs ovs--${DayScene.sceneOf(day)} is-${dayStatus(day)}`;
+    scene.innerHTML = `
+      <div class="ovs__head">
+        <b>${esc(day.profile || day.title || "")}</b>
+        <span>${esc(DayScene.sceneLabel(day))} · ${pts.length} תחנות</span>
+      </div>
+      <div class="ovs__art">${DayScene.svg(day, {
+        times: pts.map((q) => pointTime(day, q)),
+        state: pts.map((q) => marks[q.name] || ""),
+        tone: pts.map((q) => OV_TONE[q.type] || "mute"),
+        data: attrs,
+      })}</div>
+      <div class="ovs__foot">
+        <span class="ovs__meta">${km}${span ? ` · <i>${esc(span)}</i>` : ""}</span>
+        <span class="ov-day__chips">
+          ${ovChip("🌤️", "", `data-jwx="${day.n}"`)}
+          ${day.hotel?.name ? ovChip("🛏️", day.hotel.name) : ""}
+          ${ovChip("📎", "", `data-jdocs="${day.n}"`)}
+          ${ovChip("💸", dayMoney(day), `data-jmoney="${day.n}"`)}
+        </span>
+      </div>`;
+  }
+
+  /**
+   * גלילת הבוחר אל היום הנבחר.
+   *
+   * חישוב הפרש מלבנים ולא scrollIntoView: הוא גולל **כל** אב שאפשר
+   * לגלול, כולל תיבות overflow:hidden שהן מבחינת הדפדפן מיכלי גלילה,
+   * ובטלפון זה מה שגרם לרצועה לקפוץ.
+   */
+  function scrollToDay() {
+    const strip = $("#ovDays");
+    const btn = strip?.querySelector(".ovd.is-on");
+    if (!strip || !btn) return;
+    const a = strip.getBoundingClientRect();
+    const b = btn.getBoundingClientRect();
+    const delta = b.left + b.width / 2 - (a.left + a.width / 2);
+    if (Math.abs(delta) > 2) {
+      strip.scrollTo({ left: strip.scrollLeft + delta, behavior: "smooth" });
     }
-    return n;
   }
 
   /** התכונות שהנקודה נושאת איתה אל הכרטיס שמתחת לרצועה */
@@ -1616,61 +1641,10 @@
       : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(at)}`;
   }
 
-  function pointSeg(day, p, i, total) {
-    const at = pointTime(day, p);
-    return `<button type="button" class="ov-seg ov-seg--${OV_TONE[p.type] || "mute"}"
-         ${segData(day, p, i, total)} title="${esc(at ? at + " · " : "")}${esc(p.name)}">
-         <span class="ov-seg__icon" aria-hidden="true">${TYPE_ICON[p.type] || "📍"}</span>
-         ${at ? `<span class="ov-seg__time">${esc(at)}</span>` : ""}
-         <span class="ov-seg__name">${esc(p.name)}</span>
-       </button>`;
-  }
-
-  /**
-   * מקטע טיסה: 🛫 למעלה, 🛬 למטה, וקו מקווקו ביניהם שנושא את משך הטיסה.
-   *
-   * הגובה הוא בדיוק שתי משבצות — שתי הנקודות שהוא מחליף — ולכן שאר
-   * העמודות נשארות מיושרות אליו.
-   */
-  function flightSeg(day, leg, from, to, i, total) {
-    const dur = leg?.duration ? esc(leg.duration) : "";
-    const no = leg?.flightNo ? esc(leg.flightNo) + " · " : "";
-    const dep = leg?.dep ? `${no}המראה ${esc(leg.dep)}${leg.terminal ? ` · טרמינל ${esc(leg.terminal)}` : ""}` : "";
-    const arr = leg?.arr ? `${no}נחיתה ${esc(leg.arr)}` : "";
-
-    return `<div class="ov-fly">
-      <button type="button" class="ov-fly__end" title="${esc(from.name)}"
-        ${segData(day, from, i, total, `data-ov-icon="🛫" ${dep ? `data-ov-detail="${dep}"` : ""}`)}>
-        <span aria-hidden="true">🛫</span>
-      </button>
-      <span class="ov-fly__dur">${dur}</span>
-      <button type="button" class="ov-fly__end" title="${esc(to.name)}"
-        ${segData(day, to, i + 1, total, `data-ov-icon="🛬" ${arr ? `data-ov-detail="${arr}"` : ""}`)}>
-        <span aria-hidden="true">🛬</span>
-      </button>
-    </div>`;
-  }
-
-  /** הטווח אינו מסתיר ימים, ולכן אחרי שינוי שלו גוללים אל היום הרלוונטי */
-  function scrollToAnchor() {
-    const track = $("#ovTrack");
-    const col = track?.children[anchorIndex()];
-    if (!col) return;
-    track.scrollLeft = 0;
-    col.scrollIntoView({ block: "nearest", inline: "start" });
-  }
-
   function renderJourney() {
     renderOverview();
 
-    $("#journeyRange").innerHTML = RANGES.map(
-      (r) =>
-        `<button type="button" data-range="${r.key}" class="${
-          r.key === journeyRange ? "is-on" : ""
-        }" aria-pressed="${r.key === journeyRange}">${esc(r.label)}</button>`
-    ).join("");
-
-    // הבחירה שייכת לרצועה שהייתה; רצועה חדשה מתחילה בלי נקודה נבחרת
+    // הבחירה שייכת לתרשים שהיה; תרשים חדש מתחיל בלי תחנה נבחרת
     if ($("#ovPick")) { $("#ovPick").hidden = true; $("#ovHint").hidden = false; }
     paintJourneyChips();
   }
@@ -1818,23 +1792,25 @@
 
   function bindJourney() {
     $("#journey").addEventListener("click", (e) => {
-      const range = e.target.closest("[data-range]");
-      if (range) {
-        journeyRange = range.dataset.range;
-        try { localStorage.setItem(RANGE_KEY, journeyRange); } catch { /* לא קריטי */ }
-        renderJourney();
+      // לחיצה על יום בבוחר מציירת אותו; הפירוט המלא נפתח מה-i שבסוף המסלול
+      const pick = e.target.closest("[data-ov-day-pick]");
+      if (pick) {
+        ovDay = Number(pick.dataset.ovDayPick);
+        $("#ovPick").hidden = true;
+        $("#ovHint").hidden = false;
+        renderOverview();
+        paintJourneyChips();
+        renderTripDocs();
         return;
       }
 
-      // עמודה פותחת את היום שלה כחלון
-      const col = e.target.closest("[data-ov-open]");
-      if (col) return openDayModal(col.dataset.ovOpen);
+      const info = e.target.closest("[data-ov-info]");
+      if (info) return openDayModal(info.dataset.ovInfo);
 
-      // השם המלא אינו נכנס לסגמנט, ובטלפון גם אין ריחוף שיציג אותו
+      // השם המלא אינו נכנס למדליון, ובטלפון גם אין ריחוף שיציג אותו
       const seg = e.target.closest("[data-ov-name]");
       if (seg) {
-        // גם מקטע טיסה ניתן לבחירה, והוא אינו .ov-seg
-        $$("#ovTrack .is-on").forEach((el) => el.classList.toggle("is-on", false));
+        $$("#ovScene .is-on").forEach((el) => el.classList.toggle("is-on", false));
         seg.classList.add("is-on");
         showPick(seg);
         return;
@@ -1848,6 +1824,15 @@
         selectTab($("#tab-map"));
         focusDay(focus.dataset.focus);
       }
+    });
+
+    // צומת ב-SVG אינו כפתור, ולכן Enter ורווח אינם מפעילים אותו לבד
+    $("#journey").addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const node = e.target.closest?.("[data-ov-name],[data-ov-info]");
+      if (!node) return;
+      e.preventDefault();
+      node.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     $("#dayOverlay").addEventListener("click", (e) => {
@@ -1879,10 +1864,6 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !$("#dayOverlay").hidden) closeDayModal();
     });
-
-    let stored = null;
-    try { stored = localStorage.getItem(RANGE_KEY); } catch { /* לא קריטי */ }
-    journeyRange = RANGES.some((r) => r.key === stored) ? stored : defaultRange();
   }
 
   function initMap() {
@@ -4795,8 +4776,15 @@ ${[marks, line].filter(Boolean).join("\n")}
           renderTrip();
         }
       },
-      changed: () => renderNow(),
+      /* סימון תחנה במסלול משנה גם את התרשים במבט העל — אותו מצב בדיוק
+         מצויר בשני המסכים, ושניהם צריכים לדעת שהוא השתנה */
+      changed: () => { renderNow(); paintScene(); },
     });
+
+    /* הציור הראשון רץ לפני השורה הזו, וקרא ל-DayRoute.progress בזמן
+       שהמודול עוד לא קיבל הקשר. עכשיו הוא קיבל — ציור שני מביא את
+       הסימונים של "היינו שם". */
+    paintScene();
 
     /*
      * כפתור "יוצאים למסלול" מופיע בשלושה מקומות — הקוביה, כרטיס היום

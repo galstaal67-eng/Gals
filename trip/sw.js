@@ -18,7 +18,7 @@
    הישנים נמחקים בהפעלה.
    ========================================================================= */
 
-const CACHE = "trip-v3";
+const CACHE = "trip-v4";
 
 /** מה שנשמר כבר בהתקנה, כדי שהפתיחה הראשונה בלי רשת תעבוד */
 const SHELL = [
@@ -37,6 +37,7 @@ const SHELL = [
   "./assets/js/install.js",
   "./assets/js/watch.js",
   "./assets/js/route.js",
+  "./assets/js/scene.js",
   "./assets/js/live.js",
   "./assets/js/app.js",
   "./assets/vendor/leaflet/leaflet.js",
