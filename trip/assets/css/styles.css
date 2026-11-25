@@ -2056,6 +2056,17 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 .now__body { flex: 1 1 0; min-width: 0; }
 
 .now__title { font-size: .76rem; color: var(--txt-mute); font-weight: 700; }
+/* מזג האוויר של היום, מתחת לכותרת ומעל הכול — גם בשדה התעופה ההחלטה
+   מה ללבוש כשיוצאים מהטרמינל היא החלטה */
+.now__wx {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px;
+  margin: 3px 0 5px;
+  font-size: .82rem; color: var(--txt-dim);
+}
+.now__wx b { font-size: 1rem; color: var(--sky); font-weight: 800; }
+.now__wx i { font-style: normal; color: var(--txt-mute); }
+.now__wx small { color: var(--txt-mute); font-size: .7rem; }
+
 .now__main { margin: 2px 0 0; font-size: 1.02rem; font-weight: 700; line-height: 1.35; }
 .now__sub { margin: 3px 0 0; font-size: .84rem; color: var(--txt-dim); }
 
@@ -2141,6 +2152,21 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
   border-radius: var(--radius-sm);
   font-size: .8rem; color: var(--txt-dim); line-height: 1.5;
 }
+
+/* מתי מתחילים את היום */
+.now__start {
+  margin: 9px 0 0; padding: 9px 11px;
+  background: var(--ink-900); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+.now__start label { display: block; font-size: .78rem; color: var(--txt-dim); }
+.now__start input {
+  display: block; width: auto; margin-top: 5px; padding: 6px 9px;
+  background: var(--ink-800); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); color: var(--txt); font: inherit;
+}
+.now__start-note { margin: 8px 0 0; font-size: .78rem; color: var(--gold); }
+.now__start-acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 9px; }
 
 /* בחירת אופן ההגעה מהשדה ללינה */
 .now__ways { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }

@@ -678,6 +678,66 @@
   const statusLink = (flightNo) =>
     `https://www.google.com/search?q=${encodeURIComponent(String(flightNo) + " flight status")}`;
 
+  /* ---------- מתי מתחילים את היום ---------- */
+
+  /**
+   * הזזה של כל שעות היום, כך שהשורה הראשונה נופלת בשעה שנבחרה.
+   *
+   * לא "להתעלם ממה שעבר": תוכנית שכתוב בה 08:30 ומתחילים אותה ב-11:00
+   * שקרית בכל שורה ממנה והלאה. ההפרשים בין הסעיפים נשמרים — הם מה
+   * שבאמת תוכנן — והשעות זזות יחד.
+   */
+  let startEdit = null;        // מספר היום שהעורך פתוח עליו
+
+  function shiftPlan(day, toMin) {
+    const rows = (day.plan || []).filter((p) => MIN(p.time) !== null);
+    if (!rows.length) return 0;
+    const delta = toMin - MIN(rows[0].time);
+    if (!delta) return 0;
+    rows.forEach((row) => { row.time = hhmm(MIN(row.time) + delta); });
+    return delta;
+  }
+
+  function startEditHTML(card) {
+    if (startEdit !== card.day) return "";
+    const day = TRIP.days.find((d) => d.n === card.day);
+    const rows = (day?.plan || []).filter((p) => MIN(p.time) !== null);
+    if (!rows.length) return "";
+    const first = rows[0].time;
+    const last = rows[rows.length - 1].time;
+    return `
+      <div class="now__start">
+        <label>מתחילים את היום ב־
+          <input type="time" data-start-at value="${esc(first)}" />
+        </label>
+        <p class="now__start-note" data-start-note>היום מתחיל עכשיו ב-${esc(first)} ונגמר ב-${esc(last)}.</p>
+        <div class="now__start-acts">
+          <button class="btn btn--sm" data-start-cancel>ביטול</button>
+          <button class="btn btn--sm btn--primary" data-start-save>הזז את היום</button>
+        </div>
+      </div>`;
+  }
+
+  /** התיאור שמתחת לשדה, שמתעדכן עם כל שינוי */
+  function startPreview() {
+    const box = $("#nowBox");
+    const input = $("[data-start-at]", box);
+    const note = $("[data-start-note]", box);
+    if (!input || !note) return;
+
+    const day = TRIP.days.find((d) => d.n === startEdit);
+    const rows = (day?.plan || []).filter((p) => MIN(p.time) !== null);
+    const to = MIN(input.value);
+    if (!rows.length || to === null) return;
+
+    const delta = to - MIN(rows[0].time);
+    const last = hhmm(MIN(rows[rows.length - 1].time) + delta);
+    note.textContent = !delta
+      ? `זו כבר שעת ההתחלה של היום.`
+      : `${rows.length} שעות יזוזו ב-${Math.abs(Math.round(delta))} דקות ` +
+        `${delta > 0 ? "קדימה" : "אחורה"}. היום ייגמר ב-${last}.`;
+  }
+
   /* ---------- השלב הבא ---------- */
 
   /**
@@ -903,6 +963,36 @@
       </div>`;
   }
 
+  /**
+   * שורת מזג האוויר שבראש הקוביה.
+   *
+   * היא מופיעה בכל מצב ולא רק ביום טיולים: גם בשדה התעופה ההחלטה מה
+   * ללבוש כשיוצאים מהטרמינל היא החלטה, וגם בלילה מה לקחת למחר.
+   * הטמפרטורה של עכשיו קודמת לטווח, והטווח נשאר לצידה — "9° עכשיו,
+   * 11°/2° היום" זה מה שבאמת שואלים.
+   */
+  function wxLine(dayN) {
+    if (typeof LiveView === "undefined" || !LiveView.weatherFor) return "";
+    const wx = LiveView.weatherFor() || [];
+    const d = wx.find((x) => x.n === dayN) || wx.find((x) => x.date === todayISO());
+    if (!d) return "";
+
+    const now =
+      d.tNow !== null && d.tNow !== undefined ? `<b>${Math.round(d.tNow)}°</b>` : "";
+    const span =
+      d.tMax === null && d.tMin === null
+        ? ""
+        : `${Math.round(d.tMax ?? 0)}° / ${Math.round(d.tMin ?? 0)}°`;
+    const rain = d.rainChance > 0 ? `💧 ${d.rainChance}%` : "";
+
+    return `<p class="now__wx">
+      <span aria-hidden="true">${esc(d.icon || "🌤️")}</span>
+      ${now}${now && span ? ' <i>·</i> ' : ""}${esc(span)}
+      <i>${esc(d.text || "")}</i>${rain ? ` <i>${esc(rain)}</i>` : ""}
+      <small>${esc(d.place || "")}</small>
+    </p>`;
+  }
+
   // האם רשימת ההתראות שנסגרו פתוחה
   let showFound = false;
 
@@ -1004,8 +1094,10 @@
         <button class="now__who" data-now-settings
                 title="רמת הליווי ונושאי העניין">חבר/ה מלווה ⚙︎</button>
         <b class="now__title">${esc(card.title)}</b>
+        ${wxLine(card.day)}
         <p class="now__main">${esc(card.main)}</p>
         ${cardGuts(card)}
+        ${startEditHTML(card)}
         ${card.next
           ? `<button class="now__next" data-now-peek aria-expanded="${peeking}">
                ${esc(card.next)}
@@ -1030,6 +1122,7 @@
         ${card.status ? `<a class="btn btn--sm" target="_blank" rel="noopener"
              title="סטטוס הטיסה, עיכובים ושער — נפתח בחיפוש"
              href="${esc(statusLink(card.status))}">🔄 סטטוס</a>` : ""}
+        ${card.day ? `<button class="btn btn--sm" data-start-day="${card.day}">🕐 שעת התחלה</button>` : ""}
         ${card.day ? `<button class="btn btn--sm" data-add-exp>➕ הוצאה</button>` : ""}
         ${card.day ? `<button class="btn btn--sm" data-ov-open="${card.day}">היום המלא</button>` : ""}
         ${wantsBell ? '<button class="btn btn--sm" data-now-bell title="התראה בשעת העלייה למטוס, כל עוד האפליקציה פתוחה">🔔</button>' : ""}
@@ -1426,6 +1519,7 @@
       el.title = `${d.text} ב${d.place}`;
     });
     renderClocks();          // הרצועה מציגה את הטמפרטורה של היום
+    renderNow();             // והקוביה את מזג האוויר של היום
   }
 
   /* ------------------------------------------------------------------ */
@@ -4040,6 +4134,10 @@ ${[marks, line].filter(Boolean).join("\n")}
     setInterval(tickCountdown, 60_000);
     // חצי דקה: שעת עלייה למטוס היא רגע שרוצים לראות בלי לרענן
     setInterval(() => { renderNow(); renderClocks(); }, 30_000);
+    $("#nowBox").addEventListener("input", (e) => {
+      if (e.target.closest("[data-start-at]")) startPreview();
+    });
+
     $("#nowBox").addEventListener("submit", (e) => {
       const form = e.target.closest("[data-now-more]");
       if (!form) return;
@@ -4097,6 +4195,30 @@ ${[marks, line].filter(Boolean).join("\n")}
 
       const pass = e.target.closest("[data-pass-leg]");
       if (pass) return BoardingPass.open({ leg: pass.dataset.passLeg });
+
+      const startBtn = e.target.closest("[data-start-day]");
+      if (startBtn) {
+        const n = Number(startBtn.dataset.startDay);
+        startEdit = startEdit === n ? null : n;
+        return renderNow();
+      }
+      if (e.target.closest("[data-start-cancel]")) {
+        startEdit = null;
+        return renderNow();
+      }
+      if (e.target.closest("[data-start-save]")) {
+        const day = TRIP.days.find((d) => d.n === startEdit);
+        const to = MIN($("[data-start-at]", $("#nowBox")).value);
+        if (day && to !== null) {
+          const delta = shiftPlan(day, to);
+          if (delta) {
+            TRIP = TripStore.save(TRIP);
+            renderTrip();
+          }
+        }
+        startEdit = null;
+        return renderNow();
+      }
 
       if (e.target.closest("[data-add-exp]")) {
         // רישום הוצאה הוא פעולה של שתי שניות, ולכן הטופס נפתח מוכן:
