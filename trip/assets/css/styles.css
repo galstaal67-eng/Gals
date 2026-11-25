@@ -1413,6 +1413,12 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
   text-align: start; cursor: pointer;
 }
 .ov-seg__icon { flex: 0 0 auto; font-size: .8rem; line-height: 1; }
+/* השעה של העצירה, לפי שורת התוכנית שמדברת עליה */
+.ov-seg__time {
+  flex: 0 0 auto; font-size: .64rem; font-weight: 700;
+  color: var(--txt-mute); font-variant-numeric: tabular-nums;
+  direction: ltr;
+}
 .ov-seg__name {
   flex: 1; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

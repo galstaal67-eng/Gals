@@ -1392,12 +1392,80 @@
   }
 
   /** התכונות שהנקודה נושאת איתה אל הכרטיס שמתחת לרצועה */
+  /**
+   * השעות של עצירות היום, לפי שורות התוכנית שמדברות עליהן.
+   *
+   * הנקודות עצמן אינן נושאות שעה — השעות חיות בתוכנית היומית, וזה
+   * המקום הנכון להן: הן נערכות שם, הן מוזזות שם כששעת ההתחלה משתנה,
+   * ואין שני מקומות שיכולים לסתור זה את זה.
+   *
+   * ההתאמה היא טקסטואלית, ולכן היא גם יכולה לטעות — ושעה שגויה על
+   * עצירה גרועה מעצירה בלי שעה. שלושה מסננים מחזיקים אותה ישרה:
+   *
+   * 1. מילים כלליות (שם העיר, המדינה, "המלון") אינן נחשבות התאמה.
+   *    בלעדיהן "המוזיאון הלאומי של גאורגיה" נתלה על שורת הנחיתה,
+   *    רק מפני ששתיהן מזכירות את גאורגיה.
+   * 2. כששורות אחדות מתאימות, מנצחת זו עם המילה המשותפת הארוכה ביותר.
+   * 3. הזמנים חייבים לעלות לפי סדר העצירות. עצירה שמקבלת שעה מוקדמת
+   *    משקודמתה — ההתאמה שלה שגויה, והיא נשארת בלי שעה.
+   */
+  const STOP_WORDS = new Set(["המלון", "מלון", "העיר", "העתיקה", "מרכז", "רחוב", "כיכר"]);
+
+  const timeCache = new Map();
+
+  function stopTimes(day) {
+    const rows = (day?.plan || []).filter((r) => MIN(r.time) !== null);
+    const pts = day?.points || [];
+    const key = `${day?.n}|${rows.map((r) => r.time).join()}|${pts.length}`;
+    const hit = timeCache.get(key);
+    if (hit) return hit;
+
+    const generic = new Set([...STOP_WORDS]);
+    [TRIP.meta?.title, ...(TRIP.meta?.countries || [])].forEach((v) => {
+      String(v || "").split(/\s+/).forEach((w) => { if (w.length >= 4) generic.add(w); });
+    });
+
+    const out = pts.map((p) => {
+      const words = String(p?.name || "")
+        .split(/[^\u0590-\u05FFA-Za-z']+/)
+        .filter((w) => w.length >= 4 && !generic.has(w));
+      let best = null;
+      for (const r of rows) {
+        const text = String(r.text || "");
+        for (const w of words) {
+          if (text.includes(w) && (!best || w.length > best.len)) best = { time: r.time, len: w.length };
+        }
+      }
+      return best ? best.time : "";
+    });
+
+    // סדר עולה: עצירה שקיבלה שעה מוקדמת מקודמתה התאימה לשורה הלא נכונה
+    let floor = -1;
+    for (let i = 0; i < out.length; i++) {
+      if (!out[i]) continue;
+      const m = MIN(out[i]);
+      if (m < floor) out[i] = "";
+      else floor = m;
+    }
+
+    timeCache.set(key, out);
+    if (timeCache.size > 40) timeCache.clear();
+    return out;
+  }
+
+  const pointTime = (day, p) => {
+    const i = (day?.points || []).indexOf(p);
+    return i < 0 ? "" : stopTimes(day)[i] || "";
+  };
+
   function segData(day, p, i, total, extra = "") {
     const geo = Number.isFinite(p.lat) && Number.isFinite(p.lng)
       ? `data-ov-lat="${p.lat}" data-ov-lng="${p.lng}"`
       : "";
+    const at = pointTime(day, p);
     return `data-ov-name="${esc(p.name)}" data-ov-type="${esc(p.type || "")}"
       data-ov-day="${day.n}" data-ov-i="${i + 1}" data-ov-total="${total}"
+      ${at ? `data-ov-time="${esc(at)}"` : ""}
       ${p.img ? `data-ov-img="${esc(p.img)}"` : ""} ${geo} ${extra}`;
   }
 
@@ -1431,9 +1499,11 @@
   }
 
   function pointSeg(day, p, i, total) {
+    const at = pointTime(day, p);
     return `<button type="button" class="ov-seg ov-seg--${OV_TONE[p.type] || "mute"}"
-         ${segData(day, p, i, total)} title="${esc(p.name)}">
+         ${segData(day, p, i, total)} title="${esc(at ? at + " · " : "")}${esc(p.name)}">
          <span class="ov-seg__icon" aria-hidden="true">${TYPE_ICON[p.type] || "📍"}</span>
+         ${at ? `<span class="ov-seg__time">${esc(at)}</span>` : ""}
          <span class="ov-seg__name">${esc(p.name)}</span>
        </button>`;
   }
@@ -1551,7 +1621,7 @@
     // מקטע טיסה נושא את פרטי ההמראה או הנחיתה; שאר הנקודות את מיקומן ביום
     const sub = d.ovDetail
       ? `${d.ovDetail} · יום ${d.ovDay}`
-      : `${label} · יום ${d.ovDay} · עצירה ${d.ovI} מתוך ${d.ovTotal}`;
+      : `${d.ovTime ? d.ovTime + " · " : ""}${label} · יום ${d.ovDay} · עצירה ${d.ovI} מתוך ${d.ovTotal}`;
 
     box.className = `ov-pick ov-pick--${OV_TONE[d.ovType] || "mute"}`;
     box.innerHTML = `
