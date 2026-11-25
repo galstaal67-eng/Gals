@@ -159,7 +159,7 @@ export default async (req: Request) => {
 
     // תקציב קטן: יום אחד, ורוב השמות אמורים להימצא במסמך עצמו
     const { points, unresolved } = await resolvePlaces(parsed.places, trip, {
-      lookups: 8,
+      lookups: 12,
     });
 
     return {
