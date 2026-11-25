@@ -3749,6 +3749,26 @@ button.rt__next:hover { background: rgba(127, 127, 127, 0.08); }
 [data-theme="light"] .rt__now { background: #fbfaf8; }
 [data-theme="light"] .overlay--full .overlay__sheet { background: #fff; }
 
+/* ============================================== DAY DRIFT ========= */
+/* יום שנקודות המפה שלו כבר לא מתארות את לוח הזמנים שלו. זה לא קישוט:
+   חמישה מסכים נבנים מהרשימה הזו, וכשהיא שגויה כולם שגויים יחד. */
+.day-drift {
+  margin-block: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--gold);
+  background: color-mix(in srgb, var(--gold) 10%, transparent);
+  display: grid;
+  gap: 7px;
+  justify-items: start;
+}
+.day-drift b { font-size: 0.92rem; }
+.day-drift p { margin: 0; font-size: 0.84rem; line-height: 1.55; color: var(--txt-mute); }
+.day-drift.is-done { border-style: solid; border-color: var(--moss);
+  background: color-mix(in srgb, var(--moss) 10%, transparent); }
+.day-drift.is-bad { border-style: solid; border-color: var(--rose);
+  background: color-mix(in srgb, var(--rose) 10%, transparent); }
+
 /* =========================================================== PRINT === */
 /* הגוש הזה יושב בסוף הקובץ בכוונה: כלל הדפסה חייב לבוא אחרי הכלל
    שהוא מבטל, אחרת כלל מאוחר באותה ספציפיות גובר עליו. */

@@ -1456,6 +1456,64 @@
   }
 
   /**
+   * האם נקודות המפה של היום עדיין מתארות את לוח הזמנים שלו.
+   *
+   * ליום יש שני ייצוגים — `plan` שאנשים קוראים ו-`points` שמהם נבנים
+   * מבט העל, מסלול היום, הקו על המפה, הקישור ל-Google Maps וקובץ
+   * הנקודות שיורד. כשהם נסחפים, חמישה מסכים מראים יום אחר מזה שבתכנון.
+   *
+   * הסימן אינו "השתנה משהו" אלא **כמה מהנקודות אינן מוזכרות בלוח הזמנים
+   * בכלל**. שם של נקודה שאינו מופיע באף שורה הוא מקום שאיש כבר לא הולך
+   * אליו. שדה תעופה והמלון אינם נספרים — הם לעולם אינם מוזכרים כתחנה,
+   * וזה תקין.
+   */
+  function daySync(day) {
+    const pts = (day?.points || []).filter(
+      (p) => p && p.name && p.type !== "airport" && p.type !== "hotel"
+    );
+    const rows = (day?.plan || []).filter((r) => String(r.text || "").trim());
+    if (pts.length < 2 || rows.length < 2) return { ok: true, lost: [], total: pts.length };
+
+    const text = rows.map((r) => r.text).join(" | ");
+    const lost = pts.filter((p) => {
+      const words = nameWords(p.name);
+      return words.length ? !words.some((w) => text.includes(w)) : false;
+    });
+
+    /*
+     * שדה נוסף שנסחף יחד עם היום: ק"מ הנסיעה. יום שהפך לעירוני ונשאר
+     * עם 310 ק"מ מציג מספר שגוי בכרטיס, במבט העל ובאריחי העלות. זה
+     * נבדק מהעובדות ולא מניחוש: אם כל נקודות היום בטווח קטן, אי אפשר
+     * שנסעו בו מאות קילומטרים.
+     */
+    let far = 0;
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const d = kmBetween(pts[i], pts[j]);
+        if (d > far) far = d;
+      }
+    }
+    const km = Number(day?.drive?.km) || 0;
+    const drive = pts.length >= 2 && far < 25 && km > 50 ? { km, far: Math.round(far) } : null;
+
+    // עד שליש "אבוד" זה רעש של ניסוח; מעבר לזה היום באמת התחלף
+    return { ok: lost.length <= pts.length / 3 && !drive, lost, drive, total: pts.length };
+  }
+
+  /** ק"מ אוויריים בין שתי נקודות */
+  function kmBetween(a, b) {
+    const p = Math.PI / 180;
+    const s =
+      Math.sin(((b.lat - a.lat) * p) / 2) ** 2 +
+      Math.cos(a.lat * p) * Math.cos(b.lat * p) * Math.sin(((b.lng - a.lng) * p) / 2) ** 2;
+    return 2 * 6371 * Math.asin(Math.sqrt(s));
+  }
+
+  /** תוצאת ההתאמה האחרונה, מוצגת בכרטיס היום שבו היא נעשתה */
+  let syncNote = null;      // { n, text, bad }
+  let syncing = 0;
+
+  /**
    * הטיפים של היום שמדברים על נקודה מסוימת.
    *
    * טיפ שנכתב ליום שלם ("קחו מזומן לרכבל") שייך לתחנה שהוא מדבר עליה,
@@ -1803,6 +1861,13 @@
         focusDay(focus.dataset.focus);
         return;
       }
+      const syncBtn = e.target.closest("[data-sync-day]");
+      if (syncBtn) {
+        closeDayModal();
+        selectTab($("#tab-route"));
+        return syncDayPoints(Number(syncBtn.dataset.syncDay));
+      }
+
       const route = e.target.closest("[data-open-route]");
       if (route) {
         closeDayModal();
@@ -2470,6 +2535,7 @@ ${[marks, line].filter(Boolean).join("\n")}
       </div>
       <!-- המסמכים נקראים מ-IndexedDB ולכן נכנסים לכאן אחרי הרינדור -->
       <div class="day__docs" data-docs="${day.n}" hidden></div>
+      ${syncPanel(day)}
       <div class="day__actions">
         <button class="btn btn--sm btn--primary" data-route-day="${day.n}"
           title="תחנה־תחנה, עם ניווט לכל תחנה בנפרד">🚶 יוצאים למסלול</button>
@@ -2482,11 +2548,129 @@ ${[marks, line].filter(Boolean).join("\n")}
           ? `<button class="btn btn--sm" data-kml-day="${day.n}"
                title="קובץ KML לייבוא ל-Google My Maps">⬇️ הורדת נקודות היום</button>`
           : ""}
+        <button class="btn btn--sm" data-sync-day="${day.n}"
+          title="בונה מחדש את נקודות המפה מתוך לוח הזמנים של היום">🗺️ התאם נקודות</button>
         ${full
           ? `<button class="btn btn--sm" data-edit="${day.n}">✏️ ערוך את היום</button>`
           : `<button class="btn btn--sm" data-open-route="${day.n}">✏️ ערוך במסלול היומי</button>`}
       </div>
       ${full ? `<div class="day-edit" data-editor="${day.n}" hidden></div>` : ""}`;
+  }
+
+  /** האזהרה על יום שנסחף, או תוצאת ההתאמה האחרונה */
+  function syncPanel(day) {
+    if (syncNote && syncNote.n === day.n) {
+      return `<div class="day-drift${syncNote.bad ? " is-bad" : " is-done"}">
+        <b>${syncNote.bad ? "⚠️ ההתאמה נכשלה" : "✅ הנקודות הותאמו"}</b>
+        <p>${esc(syncNote.text)}</p>
+      </div>`;
+    }
+
+    const sync = daySync(day);
+    if (sync.ok) return "";
+
+    const drifted = sync.lost.length > sync.total / 3;
+    return `<div class="day-drift">
+      <b>⚠️ היום הזה לא מסתדר עם עצמו</b>
+      ${drifted
+        ? `<p>${sync.lost.length} מתוך ${sync.total} הנקודות אינן מוזכרות בתוכנית:
+             ${esc(sync.lost.map((p) => p.name).join(", "))}.
+             מבט העל, מסלול היום, הקו על המפה והנקודות שיורדות ל-Google Maps
+             נבנים כולם מהרשימה הזו.</p>`
+        : ""}
+      ${sync.drive
+        ? `<p>היום מסומן ${nfNum.format(sync.drive.km)} ק"מ נסיעה, אבל כל נקודותיו
+             בטווח ${sync.drive.far} ק"מ זו מזו. את זה מתקנים בבקשה לעוזר —
+             "יום 3 הוא יום עירוני בלי נסיעה".</p>`
+        : ""}
+      ${drifted
+        ? `<button class="btn btn--sm btn--primary" data-sync-day="${day.n}">
+             🗺️ התאם את הנקודות ללוח הזמנים
+           </button>`
+        : ""}
+    </div>`;
+  }
+
+  /**
+   * בניית נקודות המפה של יום מתוך לוח הזמנים שלו.
+   *
+   * זו הדרך לתקן יום שנסחף, ולא "לנסח נכון את הבקשה לעוזר". השמות
+   * נקבעים על ידי המודל, הקואורדינטות נפתרות בשרת מתוך הטיול עצמו,
+   * והקו על המפה נגזר מהנקודות — בדיוק כמו בכל שינוי אחר. כך כל חמשת
+   * המסכים שקוראים את `points` מתעדכנים בבת אחת.
+   */
+  async function syncDayPoints(n) {
+    const day = TRIP.days.find((d) => String(d.n) === String(n));
+    if (!day || syncing) return;
+    syncing = n;
+    syncNote = null;
+
+    const btns = $$(`[data-sync-day="${n}"]`);
+    btns.forEach((b) => { b.disabled = true; b.textContent = "בונה את הרשימה…"; });
+
+    try {
+      const res = await fetch(TripAPI.tripUrl("/api/places"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          code: localStorage.getItem("ai:code") || "",
+          trip: TRIP,
+          day: {
+            n: day.n,
+            title: day.title,
+            summary: day.summary,
+            plan: day.plan || [],
+            points: day.points || [],
+            hotel: day.hotel || null,
+          },
+        }),
+      });
+      const out = await TripAPI.readJson(res);
+      if (!res.ok || !out || out.error) {
+        throw new Error(out?.error || `השרת החזיר ${res.status}`);
+      }
+
+      const pts = (out.points || []).filter(
+        (p) => Number.isFinite(p.lat) && Number.isFinite(p.lng)
+      );
+      if (!pts.length) {
+        syncNote = {
+          n,
+          bad: true,
+          text: "לא נמצא אף מקום שאפשר למקם על המפה. " + (out.note || ""),
+        };
+      } else {
+        day.points = pts.map((p) => ({
+          name: String(p.name || "").trim(),
+          lat: p.lat,
+          lng: p.lng,
+          type: String(p.type || "sight"),
+        }));
+        day.path = day.points.length > 1 ? day.points.map((p) => [p.lat, p.lng]) : [];
+        TRIP = TripStore.save(TRIP);
+
+        const missed = (out.unresolved || []).length
+          ? ` לא נמצאו על המפה ולכן הושמטו: ${out.unresolved.join(", ")}.`
+          : "";
+        syncNote = {
+          n,
+          bad: false,
+          text: `${day.points.length} נקודות, לפי סדר הביקור. ${out.note || ""}${missed}`,
+        };
+      }
+    } catch (err) {
+      syncNote = { n, bad: true, text: err?.message || "שגיאה לא ידועה" };
+    } finally {
+      syncing = 0;
+      renderTrip();
+      // renderTrip בונה את הרשימה מחדש וסוגר כרטיסים; מחזירים את זה שנפתח
+      const card = $(`.day[data-day="${n}"]`);
+      if (card) {
+        card.classList.add("is-open");
+        $(".day__head", card)?.setAttribute("aria-expanded", "true");
+        card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
   }
 
   function renderDays() {
@@ -2620,6 +2804,9 @@ ${[marks, line].filter(Boolean).join("\n")}
         head.setAttribute("aria-expanded", String(open));
         return;
       }
+
+      const syncBtn = e.target.closest("[data-sync-day]");
+      if (syncBtn) return syncDayPoints(Number(syncBtn.dataset.syncDay));
 
       const focusBtn = e.target.closest("[data-focus]");
       if (focusBtn) {
