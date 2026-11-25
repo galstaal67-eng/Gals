@@ -2894,6 +2894,25 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 }
 
 /* התג: שתי מילים שאומרות באיזה חלון אנחנו, בלי לקחת שורה */
+/* ---------- הראש הקבוע ---------- */
+/* הוא לא נגלל, ולכן הוא גם לא אמור להיראות כמו עוד כרטיס ברשימה.
+   גוון כהה יותר אומר "זו המסגרת, מה שמתחת הוא התוכן", והצל מתחתיו
+   אומר שהתוכן עובר מאחוריו. שני הכללים כאן מנצחים את הרקע הכללי של
+   .ov-head בזכות ספציפיות, ולא בזכות סדר. */
+.rt { --rt-chrome: #060b12; }
+[data-theme="light"] .rt { --rt-chrome: #eef2f7; }
+
+.rt .rt__head,
+.rt .rt__top {
+  background: var(--rt-chrome);
+}
+.rt .rt__top {
+  border-block-end: 1px solid var(--line-strong);
+  box-shadow: 0 8px 16px -12px rgba(0, 0, 0, 0.8);
+}
+/* הסרגל בתוך הראש יושב על הגוון הכהה, ולכן הנקודות צריכות אותו */
+.rt .rt__dot { background: var(--rt-chrome); }
+
 .rt__badge {
   position: absolute;
   inset-block-start: 6px;
@@ -2907,7 +2926,10 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
-.rt__head { position: relative; padding-block-start: 26px; }
+.rt__head {
+  position: relative;
+  padding-block-start: 26px;
+}
 
 body.is-locked { overflow: hidden; }
 
@@ -2924,6 +2946,12 @@ body.is-locked { overflow: hidden; }
 /* הוא לא נגלל עם התוכן בכוונה. "איפה אני ביום" ו"מה מולי עכשיו" הן שתי
    שאלות שנשאלות באותו רגע, ומסך שדורש גלילה כדי לענות על אחת מהן עונה
    בפועל רק על אחת. */
+/* הראש הקבוע כהה מהתוכן שמתחתיו.
+
+   הוא לא נגלל, והוא גם לא אמור להיראות כמו עוד כרטיס ברשימה: גוון
+   אחד אחורה (--ink-900 מול --ink-850 של הגיליון) אומר "זה המסגרת,
+   מה שמתחת הוא התוכן", והצל מתחתיו אומר שהתוכן עובר מאחוריו. אותם
+   טוקנים משרתים גם את המצב הבהיר, שם הם מתהפכים לאפור על לבן. */
 .rt__top {
   flex: 0 0 auto;
   min-inline-size: 0;
@@ -2938,7 +2966,7 @@ body.is-locked { overflow: hidden; }
   display: grid;
   gap: 8px;
 }
-[data-theme="light"] .rt__top { background: #fff; }
+
 
 .rt__status {
   margin: 0;
@@ -3098,7 +3126,7 @@ body.is-locked { overflow: hidden; }
 /* הפעולה הראשית יורדת לאזור האגודל ונשארת שם */
 .rt.is-out .rt__acts {
   position: absolute;
-  inset-inline: 10px 52px;
+  inset-inline: 10px;
   inset-block-end: 10px;
   z-index: 3;
   gap: 8px;
@@ -3124,10 +3152,9 @@ body.is-locked { overflow: hidden; }
 .rt.is-out .rt__badge::after { content: " · מצב חוץ"; }
 .rt.is-out .rt__compass { background: rgba(127, 127, 127, 0.18); }
 
-/* ---------- הסרגל הצדי ---------- */
-/* הוא יושב בשוליים השמאליים (inline-end בעמוד RTL), לכל גובה האזור
-   הנגלל, ואינו זז. הרצועה העליונה נותנת שמות ושעות ונגללת הצידה;
-   הסרגל נותן את כל היום בבת אחת, כמד אחד. */
+/* ---------- העמודה שמתחת לראש ---------- */
+/* הסרגל הצדי הוסר: הרצועה למעלה כבר עונה על "איפה אני ביום", ושתי
+   תשובות לאותה שאלה גזלו רוחב מסך בלי להוסיף דבר. */
 .rt__main {
   flex: 1 1 auto;
   min-block-size: 0;
@@ -3135,101 +3162,6 @@ body.is-locked { overflow: hidden; }
   display: flex;
   overflow-x: clip;
 }
-/* הסרגל אחרון בסדר הפריסה, ולכן בשוליים השמאליים של עמוד RTL */
-.rt__rail-slot {
-  order: 2;
-  flex: 0 0 42px;
-  position: relative;
-  overflow: hidden;
-  background: var(--ink-850);
-  /* בעמוד RTL inline-start הוא הצד הפונה לתוכן */
-  border-inline-start: 1px solid var(--line);
-}
-[data-theme="light"] .rt__rail-slot { background: #fff; }
-.rt__rail {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  align-items: stretch;
-  pointer-events: none;
-}
-.rt__rail ol {
-  margin: 0;
-  padding: 10px 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  block-size: 100%;
-  pointer-events: auto;
-}
-/* הפס שמאחורי הנקודות */
-.rt__rail::before {
-  content: "";
-  position: absolute;
-  inset-block: 18px;
-  inset-inline-start: 50%;
-  transform: translateX(-50%);
-  inline-size: 4px;
-  background: var(--line-strong);
-  border-radius: 4px;
-}
-.rt__rail li { position: relative; flex: 0 0 auto; }
-/* המילוי: מה שכבר עברנו, כפס אחד שגובהו הוא ההתקדמות */
-.rt__rail-fill {
-  position: absolute;
-  inset-block-start: 23px;
-  inset-inline-start: 50%;
-  transform: translateX(-50%);
-  inline-size: 4px;
-  border-radius: 3px;
-  background: #6bbf7b;
-  transition: block-size 0.35s ease;
-  pointer-events: none;
-}
-
-.rt__rail button {
-  display: grid;
-  place-items: center;
-  inline-size: 42px;
-  block-size: 30px;
-  padding: 0;
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-.rt__rail i {
-  display: block;
-  inline-size: 12px;
-  block-size: 12px;
-  border-radius: 50%;
-  border: 2px solid var(--line-strong);
-  background: var(--ink-850);
-  box-shadow: 0 0 0 3px var(--ink-850);   /* מנתק את הנקודה מהמסילה */
-  transition: inline-size 0.15s ease, block-size 0.15s ease;
-}
-[data-theme="light"] .rt__rail i { background: #fff; box-shadow: 0 0 0 3px #fff; }
-
-.rt__rail li.is-done i { background: #6bbf7b; border-color: #6bbf7b; }
-.rt__rail li.is-miss i {
-  inline-size: 14px;
-  block-size: 14px;
-  border-width: 3px;
-  background: var(--ink-850);
-  border-color: #e2a04a;
-  border-style: dashed;
-}
-[data-theme="light"] .rt__rail li.is-miss i { background: #fff; }
-.rt__rail li.is-here i {
-  inline-size: 20px;
-  block-size: 20px;
-  background: #6bbf7b;
-  border-color: #6bbf7b;
-  box-shadow: 0 0 0 4px color-mix(in srgb, #6bbf7b 26%, transparent);
-}
-/* מה שמוצג בכרטיס מקבל טבעת דקה, בלי לגעת בצבע המצב */
-.rt__rail li.is-view i { outline: 2px solid var(--line-strong); outline-offset: 3px; }
 
 /* ---------- רצועת התחנות ---------- */
 .rt__spine {
@@ -3480,7 +3412,6 @@ body.is-locked { overflow: hidden; }
 .rt__chev { color: var(--muted); }
 
 .rt__body {
-  order: 1;
   flex: 1 1 auto;
   min-inline-size: 0;
   /* לרוחב אין מה לגלול — תוכן שגולש נחתך ואינו מזיז את המסך */

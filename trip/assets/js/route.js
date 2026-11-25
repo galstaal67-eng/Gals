@@ -249,9 +249,16 @@ const DayRoute = (() => {
     }
     box.classList.toggle("is-here", near);
 
-    // המחט מצביעה מהמקום שבו אני עומד עכשיו
+    /*
+     * המחט מצביעה מהמקום שבו אני עומד עכשיו.
+     *
+     * אם אין מחט בכלל, הדיאל נבנה לפני שהמיקום הגיע — אז הוא מציג
+     * סיכה ולא חץ, ועדכון בלבד לא יחליף אותו. במקרה הזה בונים פעם
+     * אחת מחדש; בלי זה החץ היה מופיע רק ברענון הבא, בעוד חצי דקה.
+     */
     const needle = el.querySelector("[data-rt-needle]");
-    if (needle && me) needle.dataset.rtNeedle = bearing(me, p).toFixed(1);
+    if (!needle) { if (me) render(); return; }
+    if (me) needle.dataset.rtNeedle = bearing(me, p).toFixed(1);
 
     // הכפתור הראשי: הדרך המתאימה למרחק שהשתנה
     const nav = el.querySelector(".rt__acts .btn--primary");
@@ -772,48 +779,6 @@ const DayRoute = (() => {
       </div>`;
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  הסרגל הצדי — איפה אני במסלול, תמיד                                */
-  /* ------------------------------------------------------------------ */
-
-  /**
-   * סרגל אנכי בשולי המסך, שאינו נגלל ואינו נגלל הצידה.
-   *
-   * הרצועה העליונה נותנת שמות ושעות, ובטלפון צר היא נגללת — שמונה
-   * תחנות לא נכנסות בבת אחת. הסרגל נותן את מה שהיא לא יכולה: את **כל**
-   * היום בבת אחת, כמד אחד רציף. במבט אחד רואים כמה עשינו, כמה נשאר,
-   * ואיפה בדיוק באמצע אנחנו עומדים.
-   *
-   * הוא גם לחיץ: כל נקודה מציצה בתחנה שלה.
-   */
-  function railHTML(day, list) {
-    const vi = viewIdx(list);
-    /*
-     * המילוי מצויר כאלמנט אחד שגובהו הוא ההתקדמות, ולא כקו לכל נקודה
-     * שגולש מעבר לקצה. 23px הם מרכז הנקודה הראשונה והאחרונה, ולכן
-     * הפס מתחיל ונגמר בדיוק עליהן.
-     */
-    const pct = list.length > 1 ? st.idx / (list.length - 1) : 1;
-    return `
-      <nav class="rt__rail" aria-label="מיקום במסלול היומי">
-        <span class="rt__rail-fill" style="block-size: calc((100% - 46px) * ${pct.toFixed(3)})"></span>
-        <ol>
-          ${list
-            .map((p, i) => {
-              const stt = stateOf(i);
-              return `<li class="is-${stt}${i === vi ? " is-view" : ""}">
-                <button data-rt-peek="${i}"
-                  aria-label="${esc(p.name)} — ${
-                    stt === "done" ? "היינו" : stt === "here" ? "כאן אנחנו" :
-                    stt === "miss" ? "פוספסה" : "עוד לא"
-                  }"><i></i></button>
-              </li>`;
-            })
-            .join("")}
-        </ol>
-      </nav>`;
-  }
-
   /** "פארק ריקה — תחנת רכבל" ברצועה צרה הוא שלוש שורות; זה השם הקצר */
   const shortName = (n) =>
     String(n || "").split(/\s[—–-]\s/)[0].replace(/\s*\(.*$/, "").trim();
@@ -1232,15 +1197,11 @@ const DayRoute = (() => {
     const head = el.querySelector("[data-rt-head-txt]");
     const top = el.querySelector("[data-rt-top]");
 
-    const rail = el.querySelector("[data-rt-rail]");
-
     if (!day || !list.length) {
       head.textContent = "מסלול היום";
       top.innerHTML = "";
-      rail.innerHTML = "";
       tail.innerHTML = "";
       mountMap(null);
-      el.querySelector(".rt").classList.remove("has-rail");
       flow.innerHTML = `<div class="rt__empty">
         <p>ליום הזה אין תחנות שהולכים אליהן — מה שיש בו הוא טיסה, לינה,
         או נקודות בלי מיקום.</p>
@@ -1264,10 +1225,7 @@ const DayRoute = (() => {
      * ובלי לגלול, רואים גם איפה אני ביום וגם את התחנה שמולי.
      */
     top.innerHTML = statusHTML(day, list) + spineHTML(day, list);
-    rail.innerHTML = railHTML(day, list);
-    const sheet = el.querySelector(".rt");
-    sheet.classList.add("has-rail");
-    sheet.classList.toggle("is-out", outdoor);
+    el.querySelector(".rt").classList.toggle("is-out", outdoor);
 
     const toggle = el.querySelector("[data-rt-out]");
     if (toggle) {
