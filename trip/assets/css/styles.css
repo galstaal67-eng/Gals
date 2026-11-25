@@ -565,6 +565,177 @@ html[data-theme="light"] .bar-track { background: var(--ink-600); }
 .bar-fill { display: block; height: 100%; border-radius: 999px; transition: width .4s ease; }
 .bar-val { font-variant-numeric: tabular-nums; color: var(--txt-dim); min-width: 5.5rem; text-align: end; }
 
+/* ============================================== DAILY CHART ======== */
+/* גרף העמודות של ההוצאה היומית.
+
+   סדרה אחת, ולכן אין מקרא — הכותרת אומרת מה מוצג. הצבע מזהה את הסדרה
+   ואינו מדרג אותה: יום יקר אינו "קטגוריה אחרת", ולכן כל העמודות באותו
+   גוון, והיום הנוכחי מסומן בטבעת ובתווית.
+
+   הגוונים נבחרו לפי מידה ולא לפי עין: --moss של המצב הכהה (#4cc9a4)
+   בהיר מהטווח שמתאים לרקע כהה (OKLCH L 0.76 מול 0.48–0.70), ולכן יש
+   כאן צעד כהה יותר מאותה משפחה. שניהם עומדים ביחס ניגודיות 3:1 מול
+   משטח הגרף. */
+
+.chart {
+  --chart-series: #2bb392;         /* L 0.68 · 3:1 מול #0c1420 */
+  --chart-ink: var(--txt);
+  --chart-mute: var(--txt-mute);
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+[data-theme="light"] .chart { --chart-series: #12876a; }  /* L 0.55 · 3:1 מול לבן */
+
+.chart__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.74rem;
+  color: var(--chart-mute);
+}
+/* מפתח קו הממוצע — קו מקווקו קטן לפני הטקסט, כדי שהקו בגרף יזוהה */
+.chart__avg-key::before {
+  content: "";
+  display: inline-block;
+  inline-size: 18px;
+  border-block-start: 2px dashed var(--line-strong);
+  margin-inline-end: 6px;
+  vertical-align: middle;
+}
+
+.chart__plot {
+  position: relative;
+  padding-block-start: 14px;
+  /* הקו העליון והתחתון הם הציר; שאר הרשת מיותרת */
+  border-block-end: 1px solid var(--line-strong);
+}
+.chart__grid {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  border-block-start: 1px dashed var(--line);
+  pointer-events: none;
+}
+/* המספר יושב מתחת לקו ובתוך הגרף — מעליו הוא מתנגש בשורת הכותרת */
+.chart__grid i {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-end: 0;
+  font-size: 0.66rem;
+  font-style: normal;
+  color: var(--chart-mute);
+}
+/* קו הממוצע: בלעדיו רואים שישה מספרים, ואיתו רואים מי חרג */
+.chart__avg {
+  position: absolute;
+  inset-inline: 0;
+  border-block-start: 2px dashed var(--line-strong);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.chart__cols {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;                        /* רווח המשטח בין עמודות סמוכות */
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.chart__col {
+  flex: 1 1 0;
+  min-inline-size: 42px;
+  display: grid;
+  gap: 4px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.chart__col:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+
+/* המספר נשאר בדיו של הטקסט ולא בצבע העמודה */
+.chart__val {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--chart-ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.chart__slot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  block-size: 124px;
+}
+.chart__bar {
+  inline-size: 100%;
+  max-inline-size: 46px;
+  background: var(--chart-series);
+  /* קצה הנתון מעוגל, הבסיס נשאר נעוץ בציר */
+  border-radius: 4px 4px 0 0;
+  transition: block-size 0.3s ease;
+}
+/* יום בלי הוצאות: שן נייטרלית על הציר. אפס נמדד אינו אותו דבר כמו
+   עמודה שנעלמה, והצבע הנייטרלי מונע קריאה שלה כסכום זעיר. */
+.chart__zero {
+  inline-size: 100%;
+  max-inline-size: 46px;
+  block-size: 3px;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
+.chart__col.is-zero .chart__val { color: var(--chart-mute); }
+
+.chart__x {
+  display: grid;
+  justify-items: center;
+  gap: 0;
+  padding-block-start: 5px;
+  line-height: 1.15;
+}
+.chart__x b { font-size: 0.74rem; font-weight: 650; }
+.chart__x i { font-size: 0.64rem; font-style: normal; color: var(--chart-mute); }
+
+/* היום הנוכחי: טבעת ותווית, לא גוון אחר */
+.chart__col.is-today .chart__bar { box-shadow: 0 0 0 2px var(--ink-850), 0 0 0 4px var(--chart-series); }
+.chart__col.is-today .chart__x b::after {
+  content: "היום";
+  display: block;
+  font-size: 0.56rem;
+  font-weight: 500;
+  color: var(--chart-series);
+}
+/* הבחירה מסומנת בקו מתחת לעמודה ובגוון קל — לא בבלוק אפור שמתחרה
+   בעמודה עצמה על תשומת הלב */
+.chart__col.is-on {
+  background: rgba(127, 127, 127, 0.07);
+  box-shadow: inset 0 -2px 0 var(--chart-series);
+}
+.chart__col:hover .chart__bar { filter: brightness(1.08); }
+
+.chart__read {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: rgba(127, 127, 127, 0.1);
+  font-size: 0.84rem;
+}
+.chart__read span { color: var(--chart-mute); }
+.chart__read small { color: var(--chart-mute); font-size: 0.76rem; }
+
+@media (max-width: 420px) {
+  .chart__slot { block-size: 104px; }
+  .chart__col { min-inline-size: 38px; }
+  .chart__val { font-size: 0.62rem; }
+}
+
 .spark { display: flex; align-items: flex-end; gap: 3px; height: 110px; }
 .spark__col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; min-width: 0; }
 .spark__bar {

@@ -3487,28 +3487,178 @@ ${[marks, line].filter(Boolean).join("\n")}
       : `<p class="muted">אין נתונים עדיין.</p>`;
 
     /* --- הוצאה יומית --- */
-    const byDate = {};
-    state.expenses.forEach((e) => {
-      if (e.date) byDate[e.date] = (byDate[e.date] || 0) + toILS(e);
-    });
-    const maxDay = Math.max(...Object.values(byDate), 1);
-
-    $("#dailySpark").innerHTML = TRIP.days
-      .map((d) => {
-        const sum = byDate[d.date] || 0;
-        return `
-        <div class="spark__col" title="${fullDate(d.date)}: ${ils(sum)}">
-          <div class="spark__bar" style="height:${Math.max((sum / maxDay) * 100, 2)}%"></div>
-          <div class="spark__lbl">${d.n}</div>
-        </div>`;
-      })
-      .join("");
+    renderDaily();
 
     /* --- תקציב --- */
     renderBudget(t.total);
 
     // ההוצאות מופיעות גם כצ'יפ על היום במבט העל
     paintJourneyChips();
+  }
+
+  /**
+   * תקרה "עגולה" לציר.
+   *
+   * הקו העליון של גרף צריך להיות מספר שאפשר לקרוא — 800 ולא 783. בלי
+   * זה הקו העליון הוא תמיד בדיוק גובה העמודה הגבוהה, והעין לא לומדת
+   * ממנו כלום.
+   */
+  const NICE = [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10];
+
+  function niceMax(v) {
+    if (!(v > 0)) return 1;
+    const pow = 10 ** Math.floor(Math.log10(v));
+    const n = v / pow;
+    // סולם צפוף: 1,240 הופך ל-1,250 ולא ל-2,000, אחרת חצי הגרף ריק
+    return (NICE.find((x) => n <= x + 1e-9) ?? 10) * pow;
+  }
+
+  /** איזה יום נבחר בגרף (להצגת הפירוט מתחתיו), ומה הנתונים שמוצגים */
+  let dailyPick = null;
+  let dailyRows = [];
+  let dailyAvg = 0;
+
+  /**
+   * כמה יצא בכל יום — עמודות.
+   *
+   * סדרה אחת, ולכן אין מקרא: הכותרת אומרת מה זה. הצבע אחיד, כי הוא
+   * מזהה את הסדרה ולא את הדירוג — יום יקר אינו "קטגוריה אחרת". מה
+   * שמבדיל את היום הנוכחי הוא טבעת ותווית, לא גוון.
+   *
+   * המספרים כתובים על כל עמודה (שישה ימים, לא שישים), בצבע הטקסט ולא
+   * בצבע העמודה. יום בלי הוצאות מקבל "—" ובסיס דק — היעדר שצריך
+   * לראות אותו, ולא עמודה שנעלמת.
+   *
+   * קו הממוצע הוא מה שהופך את הגרף לשימושי: בלעדיו רואים שישה מספרים,
+   * ואיתו רואים אילו ימים חרגו.
+   */
+  function renderDaily() {
+    const host = $("#dailyChart");
+    if (!host) return;
+
+    const byDate = {};
+    const cntDate = {};
+    state.expenses.forEach((e) => {
+      if (!e.date) return;
+      byDate[e.date] = (byDate[e.date] || 0) + toILS(e);
+      cntDate[e.date] = (cntDate[e.date] || 0) + 1;
+    });
+
+    const rows = TRIP.days.map((d) => ({
+      n: d.n,
+      date: d.date,
+      dow: dowShort(d),
+      sum: byDate[d.date] || 0,
+      count: cntDate[d.date] || 0,
+      title: d.title || "",
+    }));
+
+    const spent = rows.reduce((a, r) => a + r.sum, 0);
+    if (!spent) {
+      host.innerHTML = `<p class="muted">אין עדיין הוצאות. הגרף ייבנה מהרשומה הראשונה.</p>`;
+      return;
+    }
+
+    const top = niceMax(Math.max(...rows.map((r) => r.sum)));
+    const avg = spent / rows.length;
+    const today = todayISO();
+
+    const bars = rows
+      .map((r) => {
+        const pct = r.sum > 0 ? Math.max((r.sum / top) * 100, 3) : 0;
+        const isToday = r.date === today;
+        return `
+        <button type="button" class="chart__col${isToday ? " is-today" : ""}${
+          r.sum ? "" : " is-zero"
+        }" data-daily="${r.n}"
+                aria-label="יום ${r.n}, ${esc(fullDate(r.date))}: ${
+                  r.sum ? esc(ils(r.sum)) : "ללא הוצאות"
+                }">
+          <span class="chart__val">${r.sum ? nfNum.format(Math.round(r.sum)) : "—"}</span>
+          <span class="chart__slot">
+            ${r.sum
+              ? `<span class="chart__bar" style="block-size:${pct}%"></span>`
+              : `<span class="chart__zero" aria-hidden="true"></span>`}
+          </span>
+          <span class="chart__x"><b>${r.n}</b><i>${esc(r.dow)}</i></span>
+        </button>`;
+      })
+      .join("");
+
+    dailyRows = rows;
+    dailyAvg = avg;
+    if (!rows.some((r) => r.n === dailyPick)) {
+      const first = rows.find((r) => r.date === today && r.sum)
+        || rows.reduce((a, b) => (b.sum > a.sum ? b : a));
+      dailyPick = first.n;
+    }
+
+    host.innerHTML = `
+      <figure class="chart">
+        <figcaption class="chart__head">
+          <span class="chart__unit">שקלים ליום</span>
+          <span class="chart__avg-key">ממוצע ${esc(ils(avg))}</span>
+        </figcaption>
+
+        <div class="chart__plot" style="--chart-top:${top}">
+          <span class="chart__grid"><i>${esc(nfNum.format(top))}</i></span>
+          <span class="chart__avg" style="inset-block-end:${(avg / top) * 100}%"
+                aria-hidden="true"></span>
+          <div class="chart__cols">${bars}</div>
+        </div>
+
+        <p class="chart__read" data-daily-read aria-live="polite">${readDaily()}</p>
+      </figure>`;
+
+    markDaily();
+  }
+
+  /** הפירוט של היום שנבחר. טקסט בלבד — הוא מתחלף בלי לבנות את הגרף מחדש. */
+  function readDaily() {
+    const r = dailyRows.find((x) => x.n === dailyPick);
+    if (!r) return "";
+    const rel = r.sum >= dailyAvg ? "מעל הממוצע" : "מתחת לממוצע";
+    return `
+      <b>יום ${r.n} · ${esc(fullDate(r.date))}</b>
+      <span>${r.sum
+        ? `${esc(ils(r.sum))} ב-${r.count} ${r.count === 1 ? "רשומה" : "רשומות"} · ${rel}`
+        : "לא נרשמו הוצאות ביום הזה"}</span>
+      ${r.title ? `<small>${esc(r.title)}</small>` : ""}`;
+  }
+
+  /**
+   * החלפת היום הנבחר בלי רינדור מחדש.
+   *
+   * ריחוף מעל הגרף במחשב קורה עשרות פעמים בשנייה. בנייה מחדש של ה-HTML
+   * בכל אחת מהן מנתקת את הכפתור שמתחת לסמן — ואז לחיצה עליו אפילו לא
+   * מגיעה. כאן מתחלפים רק מחלקה אחת ושורת טקסט.
+   */
+  function markDaily() {
+    const host = $("#dailyChart");
+    if (!host) return;
+    $$(".chart__col", host).forEach((b) =>
+      b.classList.toggle("is-on", Number(b.dataset.daily) === dailyPick)
+    );
+    const read = $("[data-daily-read]", host);
+    if (read) read.innerHTML = readDaily();
+  }
+
+  function wireDaily() {
+    const host = $("#dailyChart");
+    if (!host) return;
+    const pickFrom = (e) => {
+      const b = e.target.closest("[data-daily]");
+      if (!b) return;
+      const n = Number(b.dataset.daily);
+      if (n === dailyPick) return;        // אותו יום — אין מה לעדכן
+      dailyPick = n;
+      markDaily();
+    };
+    host.addEventListener("click", pickFrom);
+    // במחשב מספיק לרחף; בטלפון אין ריחוף, ולכן יש גם לחיצה
+    host.addEventListener("pointerover", (e) => {
+      if (e.pointerType === "mouse") pickFrom(e);
+    });
   }
 
   function renderBudget(total) {
@@ -4471,6 +4621,9 @@ ${[marks, line].filter(Boolean).join("\n")}
       if (!$("#dayOverlay").hidden) closeDayModal();
       DayRoute.open(Number(b.dataset.routeDay));
     });
+
+    // בחירת יום בגרף ההוצאה היומית
+    wireDaily();
 
     // ההצעה להתקין במסך הבית, לפי מה שהדפדפן הזה מאפשר
     InstallApp.init();
