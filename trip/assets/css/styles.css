@@ -2660,6 +2660,7 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 .overlay--full { padding: 0; }
 .overlay--full .overlay__sheet {
   position: relative;      /* מסגרת המיקום של הסרגל הצדי */
+  overflow-x: clip;        /* גלישה לרוחב דוחפת את הסרגל מהמסך */
   width: 100%;
   max-width: 680px;
   max-height: 100%;
@@ -2696,6 +2697,8 @@ body.is-locked { overflow: hidden; }
    בפועל רק על אחת. */
 .rt__top {
   flex: 0 0 auto;
+  min-inline-size: 0;
+  overflow: hidden;
   padding: 0 12px 10px;
   border-block-end: 1px solid var(--line);
   background: var(--ink-850);
@@ -2706,6 +2709,7 @@ body.is-locked { overflow: hidden; }
 
 .rt__status {
   margin: 0;
+  min-inline-size: 0;
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -2726,7 +2730,7 @@ body.is-locked { overflow: hidden; }
 .rt__status i.is-early { color: #6fa8dc; }
 .rt__status i.is-ok { color: #6bbf7b; }
 .rt__status-left { opacity: 0.8; }
-.rt__status-wx { margin-inline-start: auto; }
+.rt__status-wx { white-space: nowrap; }
 
 /* ---------- המצפן: החלק שנקרא בשנייה אחת ---------- */
 /* מחקר על ניווט להולכי רגל מצא שממשק דליל עם נקודת ציון עובד טוב יותר
@@ -2859,7 +2863,7 @@ body.is-locked { overflow: hidden; }
 /* הפעולה הראשית יורדת לאזור האגודל ונשארת שם */
 .rt.is-out .rt__acts {
   position: absolute;
-  inset-inline: 10px 44px;
+  inset-inline: 10px 52px;
   inset-block-end: 10px;
   z-index: 3;
   gap: 8px;
@@ -2883,15 +2887,18 @@ body.is-locked { overflow: hidden; }
 .rt__main {
   flex: 1 1 auto;
   min-block-size: 0;
+  min-inline-size: 0;
   display: flex;
 }
 /* הסרגל אחרון בסדר הפריסה, ולכן בשוליים השמאליים של עמוד RTL */
 .rt__rail-slot {
   order: 2;
-  flex: 0 0 34px;
+  flex: 0 0 42px;
   position: relative;
   overflow: hidden;
   background: var(--ink-850);
+  /* בעמוד RTL inline-start הוא הצד הפונה לתוכן */
+  border-inline-start: 1px solid var(--line);
 }
 [data-theme="light"] .rt__rail-slot { background: #fff; }
 .rt__rail {
@@ -2919,9 +2926,9 @@ body.is-locked { overflow: hidden; }
   inset-block: 18px;
   inset-inline-start: 50%;
   transform: translateX(-50%);
-  inline-size: 2px;
-  background: var(--line);
-  border-radius: 2px;
+  inline-size: 4px;
+  background: var(--line-strong);
+  border-radius: 4px;
 }
 .rt__rail li { position: relative; flex: 0 0 auto; }
 /* המילוי: מה שכבר עברנו, כפס אחד שגובהו הוא ההתקדמות */
@@ -2930,7 +2937,7 @@ body.is-locked { overflow: hidden; }
   inset-block-start: 23px;
   inset-inline-start: 50%;
   transform: translateX(-50%);
-  inline-size: 3px;
+  inline-size: 4px;
   border-radius: 3px;
   background: #6bbf7b;
   transition: block-size 0.35s ease;
@@ -2940,8 +2947,8 @@ body.is-locked { overflow: hidden; }
 .rt__rail button {
   display: grid;
   place-items: center;
-  inline-size: 34px;
-  block-size: 26px;
+  inline-size: 42px;
+  block-size: 30px;
   padding: 0;
   background: none;
   border: 0;
@@ -2949,27 +2956,29 @@ body.is-locked { overflow: hidden; }
 }
 .rt__rail i {
   display: block;
-  inline-size: 9px;
-  block-size: 9px;
+  inline-size: 12px;
+  block-size: 12px;
   border-radius: 50%;
   border: 2px solid var(--line-strong);
   background: var(--ink-850);
+  box-shadow: 0 0 0 3px var(--ink-850);   /* מנתק את הנקודה מהמסילה */
   transition: inline-size 0.15s ease, block-size 0.15s ease;
 }
-[data-theme="light"] .rt__rail i { background: #fff; }
+[data-theme="light"] .rt__rail i { background: #fff; box-shadow: 0 0 0 3px #fff; }
 
 .rt__rail li.is-done i { background: #6bbf7b; border-color: #6bbf7b; }
 .rt__rail li.is-miss i {
-  inline-size: 11px;
-  block-size: 11px;
+  inline-size: 14px;
+  block-size: 14px;
+  border-width: 3px;
   background: var(--ink-850);
   border-color: #e2a04a;
   border-style: dashed;
 }
 [data-theme="light"] .rt__rail li.is-miss i { background: #fff; }
 .rt__rail li.is-here i {
-  inline-size: 15px;
-  block-size: 15px;
+  inline-size: 20px;
+  block-size: 20px;
   background: #6bbf7b;
   border-color: #6bbf7b;
   box-shadow: 0 0 0 4px color-mix(in srgb, #6bbf7b 26%, transparent);
@@ -2979,6 +2988,12 @@ body.is-locked { overflow: hidden; }
 
 /* ---------- רצועת התחנות ---------- */
 .rt__spine {
+  min-inline-size: 0;
+  /* דהייה בשני הקצוות, כדי שייראה שיש עוד — ולא שהטקסט נחתך */
+  -webkit-mask-image: linear-gradient(to left, transparent 0, #000 18px,
+                      #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(to left, transparent 0, #000 18px,
+              #000 calc(100% - 18px), transparent 100%);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
@@ -2997,7 +3012,7 @@ body.is-locked { overflow: hidden; }
 .rt__spine li + li::before {
   content: "";
   position: absolute;
-  inset-block-start: 11px;
+  inset-block-start: 13px;
   inset-inline-end: 50%;
   inline-size: 100%;
   block-size: 2px;
@@ -3011,8 +3026,8 @@ body.is-locked { overflow: hidden; }
   z-index: 1;
   display: grid;
   justify-items: center;
-  gap: 1px;
-  inline-size: 78px;
+  gap: 2px;
+  inline-size: 80px;
   padding: 0 2px 2px;
   background: none;
   border: 0;
@@ -3023,8 +3038,8 @@ body.is-locked { overflow: hidden; }
 .rt__dot {
   display: grid;
   place-items: center;
-  inline-size: 22px;
-  block-size: 22px;
+  inline-size: 26px;
+  block-size: 26px;
   border-radius: 50%;
   border: 2px solid var(--line-strong);
   background: var(--ink-850);
@@ -3033,9 +3048,9 @@ body.is-locked { overflow: hidden; }
   line-height: 1;
 }
 [data-theme="light"] .rt__dot { background: #fff; }
-.rt__spine-time { font-size: 0.66rem; letter-spacing: 0.02em; }
+.rt__spine-time { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em; }
 .rt__spine-name {
-  font-size: 0.7rem;
+  font-size: 0.74rem;
   line-height: 1.15;
   text-align: center;
   max-inline-size: 76px;

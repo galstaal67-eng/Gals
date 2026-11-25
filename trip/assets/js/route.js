@@ -1105,13 +1105,16 @@ const DayRoute = (() => {
     centreSpine();
   }
 
-  /** הרצועה נגללת לבד לתחנה שמוצגת — אחרת היא נכונה ולא נראית */
+  /**
+   * הרצועה נגללת לבד לתחנה שמוצגת — אחרת היא נכונה ולא נראית.
+   *
+   * `scrollIntoView` ולא חשבון של offsetLeft: בגולל RTL הדפדפנים אינם
+   * מסכימים על מה `scrollLeft` אומר (אפס בהתחלה? שלילי?), והחשבון שיוצא
+   * נכון בכיוון אחד מקפיץ את הרצועה לקצה בכיוון השני.
+   */
   function centreSpine() {
-    const spine = el.querySelector("[data-rt-spine]");
-    const mark = spine?.querySelector("li.is-view");
-    if (!spine || !mark) return;
-    const off = mark.offsetLeft - (spine.clientWidth - mark.clientWidth) / 2;
-    spine.scrollTo({ left: Math.max(0, off), behavior: "smooth" });
+    const mark = el.querySelector("[data-rt-spine] li.is-view");
+    mark?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
   }
 
   /* ------------------------------------------------------------------ */
