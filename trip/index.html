@@ -367,12 +367,14 @@
   <div class="overview">
     <div class="overview__days" id="ovDays" role="tablist" aria-label="ימי הטיול"></div>
     <div class="ovs" id="ovScene"></div>
-    <p class="overview__hint" id="ovHint">הקישו על תחנה בתרשים כדי לראות אותה, ועל ⓘ שבסוף המסלול כדי לפתוח את הפירוט המלא של היום.</p>
-    <div class="ov-pick" id="ovPick" hidden aria-live="polite"></div>
+    <p class="overview__hint" id="ovHint">הקישו על תחנה בתרשים כדי לקרוא עליה, ועל ⓘ שבסוף המסלול כדי לפתוח את הפירוט המלא של היום.</p>
   </div>
 </section>
 
 <div class="live-strip wrap" id="liveStrip" role="status" hidden></div>
+
+<!-- חלון צף של תחנה. ראו openPop ב-app.js. -->
+<div class="pop" id="ovPop" role="dialog" aria-labelledby="ovPopName" hidden></div>
 
 <!-- ===================================================== NAV ========== -->
 <nav class="nav" aria-label="ניווט ראשי">

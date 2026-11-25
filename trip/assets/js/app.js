@@ -1372,15 +1372,20 @@
 
     /* קצה טיסה נושא את פרטי ההמראה או הנחיתה, וכך הכרטיס שנפתח עליו
        הוא כרטיס העלייה למטוס ולא קישור למפה של שדה תעופה */
+    const notes = stopMatch(day);
     const attrs = (q, i, total) => {
-      let extra = "";
+      const at = (day.points || []).indexOf(q);
+      const note = explain(q, notes[at]?.text);
+      let extra =
+        `data-ov-kind="${esc(DayScene.kindOf(q))}"` +
+        (note ? ` data-ov-note="${esc(note)}"` : "");
       if (q.type === "airport" && leg) {
         const no = leg.flightNo ? esc(leg.flightNo) + " · " : "";
         const term = leg.terminal ? ` · טרמינל ${esc(leg.terminal)}` : "";
-        extra =
+        extra += " " + (
           i === firstAir
             ? `data-ov-icon="🛫" ${leg.dep ? `data-ov-detail="${no}המראה ${esc(leg.dep)}${term}"` : ""}`
-            : `data-ov-icon="🛬" ${leg.arr ? `data-ov-detail="${no}נחיתה ${esc(leg.arr)}"` : ""}`;
+            : `data-ov-icon="🛬" ${leg.arr ? `data-ov-detail="${no}נחיתה ${esc(leg.arr)}"` : ""}`);
       }
       return segData(day, q, i, total, extra);
     };
@@ -1645,7 +1650,7 @@
     renderOverview();
 
     // הבחירה שייכת לתרשים שהיה; תרשים חדש מתחיל בלי תחנה נבחרת
-    if ($("#ovPick")) { $("#ovPick").hidden = true; $("#ovHint").hidden = false; }
+    closePop();
     paintJourneyChips();
   }
 
@@ -1704,41 +1709,146 @@
     return "out";
   }
 
-  function showPick(seg) {
-    const box = $("#ovPick");
+  /**
+   * ההסבר שמופיע בחלון התחנה.
+   *
+   * המקור הוא שורת התוכנית היומית שמדברת על התחנה, ולא טקסט שני שנכתב
+   * במיוחד לכאן. טקסט שני היה הופך לסותר ברגע שהעוזר משנה את היום —
+   * התוכנית הייתה מתעדכנת וההסבר לא, ואין דרך לדעת מי מהם נכון.
+   */
+  function explain(p, text) {
+    let t = String(text || "").trim();
+    if (!t) return "";
+
+    // הכותרת כבר אומרת את השם: "שוק דזרטירי — שוק המזון הגדול של
+    // טביליסי" מופיע בחלון כ-"שוק המזון הגדול של טביליסי"
+    const name = String(p?.name || "").trim();
+    if (name && t.startsWith(name)) {
+      t = t.slice(name.length).replace(/^\s*[—–\-:,]\s*/, "").trim() || t;
+    }
+
+    // שניים-שלושה משפטים. החלון קטן בכוונה, ומי שרוצה את הכול — הטיפים,
+    // שאר שורות התוכנית, המלון והמסמכים — פותח את הפירוט היומי מה-i.
+    const parts = t.split(/(?<=[.!?])\s+/).filter(Boolean);
+    let out = parts.slice(0, 3).join(" ");
+    if (out.length > 240) out = out.slice(0, 239).replace(/\s+\S*$/, "") + "…";
+    return out;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  חלון התחנה                                                        */
+  /* ------------------------------------------------------------------ */
+  /**
+   * לחיצה על סמל בתרשים פותחת חלון קטן וצף מעליו.
+   *
+   * קודם נפתח כרטיס מתחת לתרשים, והוא היה רחוק: בתרשים של שמונה תחנות
+   * הסמל שנלחץ והכרטיס שנפתח לא היו על המסך יחד, והיה צריך לגלול כדי
+   * לקשר ביניהם. חלון שנפתח **ליד הסמל** אינו דורש את הקישור הזה.
+   *
+   * החלון חי בסוף ה-body ולא בתוך מבט העל: הוא position:fixed, וכל אב
+   * עם transform או filter היה הופך אותו לממוקם ביחס לאב במקום למסך.
+   */
+  let popAt = null;              // הסמל שהחלון תלוי בו
+
+  function openPop(seg) {
+    const box = $("#ovPop");
     if (!box) return;
     const d = seg.dataset;
-    const icon = d.ovIcon || TYPE_ICON[d.ovType] || "📍";
     const label = TYPE_LABEL[d.ovType] || "נקודה";
-    // מקטע טיסה נושא את פרטי ההמראה או הנחיתה; שאר הנקודות את מיקומן ביום
-    const sub = d.ovDetail
+    // קצה טיסה נושא את פרטי ההמראה או הנחיתה; שאר התחנות את מקומן ביום
+    const meta = d.ovDetail
       ? `${d.ovDetail} · יום ${d.ovDay}`
       : `${d.ovTime ? d.ovTime + " · " : ""}${label} · יום ${d.ovDay} · עצירה ${d.ovI} מתוך ${d.ovTotal}`;
 
-    box.className = `ov-pick ov-pick--${OV_TONE[d.ovType] || "mute"}`;
+    const art = d.ovImg
+      ? `<img src="${esc(d.ovImg)}" alt="" loading="lazy" />`
+      : `<svg viewBox="0 0 24 24" aria-hidden="true">${
+          typeof DayScene === "undefined" ? "" : DayScene.glyph(d.ovKind)
+        }</svg>`;
+
+    const act = d.ovDetail
+      ? `<button type="button" class="btn btn--sm btn--primary"
+           data-pass-leg="${esc(legKeyOfDay(d.ovDay))}">🎫 כרטיס עלייה</button>`
+      : d.ovLat && d.ovLng
+      ? `<a class="btn btn--sm" target="_blank" rel="noopener"
+           title="${esc(d.ovName)} — נפתח באפליקציית המפות, ובמחשב ב-Google Maps"
+           href="${esc(placeMapsLink(d.ovName, d.ovLat, d.ovLng))}">🗺️ פתח במפות</a>`
+      : `<button type="button" class="btn btn--sm" data-focus="${esc(d.ovDay)}">🗺️ על המפה</button>`;
+
+    box.className = `pop pop--${OV_TONE[d.ovType] || "mute"}`;
     box.innerHTML = `
-      <span class="ov-pick__thumb">${
-        d.ovImg
-          ? `<img src="${esc(d.ovImg)}" alt="" loading="lazy" />`
-          : `<span aria-hidden="true">${icon}</span>`
-      }</span>
-      <span class="ov-pick__body">
-        <b>${esc(d.ovName)}</b>
-        <small>${esc(sub)}</small>
-      </span>
-      ${
-        d.ovDetail
-          ? // קצה טיסה: מה שרוצים ממנו ביום הנסיעה הוא כרטיס העלייה
-            `<button type="button" class="btn btn--sm btn--primary"
-               data-pass-leg="${esc(legKeyOfDay(d.ovDay))}">🎫 כרטיס עלייה</button>`
-          : d.ovLat && d.ovLng
-          ? `<a class="btn btn--sm" target="_blank" rel="noopener"
-               title="${esc(d.ovName)} — נפתח באפליקציית המפות, ובמחשב ב-Google Maps"
-               href="${esc(placeMapsLink(d.ovName, d.ovLat, d.ovLng))}">🗺️ פתח במפות</a>`
-          : `<button type="button" class="btn btn--sm" data-focus="${esc(d.ovDay)}">🗺️ על המפה</button>`
-      }`;
+      <button type="button" class="pop__x" data-pop-close aria-label="סגירת החלון">✕</button>
+      <div class="pop__head">
+        <span class="pop__art">${art}</span>
+        <span class="pop__ttl">
+          <b id="ovPopName">${esc(d.ovName)}</b>
+          <small>${esc(meta)}</small>
+        </span>
+      </div>
+      ${d.ovNote ? `<p class="pop__txt">${esc(d.ovNote)}</p>` : ""}
+      <div class="pop__acts">${act}</div>`;
+
     box.hidden = false;
-    $("#ovHint").hidden = true;
+    popAt = seg;
+    placePop();
+    box.querySelector(".pop__x")?.focus({ preventScroll: true });
+  }
+
+  /**
+   * מתחת לסמל כשיש מקום, מעליו כשאין, ותמיד בתוך המסך.
+   *
+   * נקרא גם בגלילה: החלון ממוקם ביחס לחלון התצוגה והסמל ממוקם ביחס
+   * לדף, ובלי זה הם היו נפרדים ברגע שהמשתמש גולל.
+   */
+  function placePop() {
+    const box = $("#ovPop");
+    if (!box || box.hidden || !popAt) return;
+    const a = popAt.getBoundingClientRect();
+    const w = box.offsetWidth;
+    const h = box.offsetHeight;
+    const pad = 8;
+
+    let left = a.left + a.width / 2 - w / 2;
+    left = Math.max(pad, Math.min(left, window.innerWidth - w - pad));
+
+    let top = a.bottom + 10;
+    if (top + h > window.innerHeight - pad) top = a.top - h - 10;
+    top = Math.max(pad, Math.min(top, window.innerHeight - h - pad));
+
+    box.style.left = `${Math.round(left)}px`;
+    box.style.top = `${Math.round(top)}px`;
+  }
+
+  function closePop() {
+    const box = $("#ovPop");
+    popAt = null;
+    if (!box || box.hidden) return;
+    box.hidden = true;
+    $$("#ovScene .is-on").forEach((el) => el.classList.toggle("is-on", false));
+  }
+
+  function bindPop() {
+    // סגירה: ה-X, לחיצה מחוץ לחלון, או Escape
+    document.addEventListener("click", (e) => {
+      if ($("#ovPop")?.hidden) return;
+      if (e.target.closest("[data-pop-close]")) return closePop();
+      if (e.target.closest("#ovPop")) return;          // פעולה בתוך החלון
+      if (e.target.closest("[data-ov-name]")) return;  // מעבר לתחנה אחרת
+      closePop();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closePop();
+    });
+
+    // גלילה ושינוי גודל: החלון נשאר תלוי בסמל שלו
+    let waiting = false;
+    const follow = () => {
+      if (waiting) return;
+      waiting = true;
+      requestAnimationFrame(() => { waiting = false; placePop(); });
+    };
+    window.addEventListener("scroll", follow, { passive: true });
+    window.addEventListener("resize", follow, { passive: true });
   }
 
   /* ------------------------------------------------------------------ */
@@ -1755,6 +1865,7 @@
   function openDayModal(n) {
     const day = TRIP.days.find((d) => d.n === Number(n));
     if (!day) return;
+    closePop();
 
     const prog = dayStatus(day) === "now" ? dayProgress(day) : null;
     const money = dayMoney(day);
@@ -1791,13 +1902,14 @@
   /* ------------------------------------------------------------------ */
 
   function bindJourney() {
+    bindPop();
+
     $("#journey").addEventListener("click", (e) => {
       // לחיצה על יום בבוחר מציירת אותו; הפירוט המלא נפתח מה-i שבסוף המסלול
       const pick = e.target.closest("[data-ov-day-pick]");
       if (pick) {
         ovDay = Number(pick.dataset.ovDayPick);
-        $("#ovPick").hidden = true;
-        $("#ovHint").hidden = false;
+        closePop();
         renderOverview();
         paintJourneyChips();
         renderTripDocs();
@@ -1812,7 +1924,7 @@
       if (seg) {
         $$("#ovScene .is-on").forEach((el) => el.classList.toggle("is-on", false));
         seg.classList.add("is-on");
-        showPick(seg);
+        openPop(seg);
         return;
       }
 

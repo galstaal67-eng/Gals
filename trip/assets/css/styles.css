@@ -1829,54 +1829,78 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 }
 .overview__hint[hidden] { display: none; }
 
-/* הגוון של סוג העצירה. הכרטיס שנפתח מלחיצה על מדליון בתרשים לובש
-   אותו, וכך רואים על מה נלחץ. */
-.ov-pick--moss    { --ov-tone: var(--moss); }
-.ov-pick--heather { --ov-tone: var(--heather); }
-.ov-pick--rose    { --ov-tone: var(--rose); }
-.ov-pick--gold    { --ov-tone: var(--gold); }
-.ov-pick--sky     { --ov-tone: var(--sky); }
-.ov-pick--mute    { --ov-tone: var(--ink-700); }
+/* ---------- חלון התחנה ---------- */
 
-.ov-pick {
+/* חלון קטן שנפתח צמוד לסמל שנלחץ. קודם נפתח כאן כרטיס מתחת לתרשים,
+   והוא היה רחוק: בתרשים של שמונה תחנות הסמל והכרטיס לא היו על המסך
+   יחד. החלון יושב ב-position:fixed, ו-app.js ממקם אותו. */
+
+/* הגוון של סוג העצירה — אותו גוון של טבעת המדליון שנלחץ */
+.pop--moss    { --ov-tone: var(--moss); }
+.pop--heather { --ov-tone: var(--heather); }
+.pop--rose    { --ov-tone: var(--rose); }
+.pop--gold    { --ov-tone: var(--gold); }
+.pop--sky     { --ov-tone: var(--sky); }
+.pop--mute    { --ov-tone: var(--ink-700); }
+
+.pop {
   /* ברירת המחדל יושבת ב-var() ולא כהצהרה נפרדת: הצהרה כאן הייתה
-     מנצחת את .ov-pick--moss, שספציפיותו זהה והוא מוגדר קודם בקובץ. */
-  display: flex; align-items: center; gap: 11px;
-  margin: 10px 0 0; padding: 9px 12px;
-  background: color-mix(in srgb, var(--ov-tone, var(--ink-700)) 16%, var(--ink-700));
-  border: 1px solid color-mix(in srgb, var(--ov-tone, var(--ink-700)) 45%, var(--line));
+     מנצחת את .pop--moss, שספציפיותו זהה והוא מוגדר קודם בקובץ. */
+  position: fixed; z-index: 70;
+  inline-size: min(300px, calc(100vw - 20px));
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 11px 12px 12px;
+  background: color-mix(in srgb, var(--ov-tone, var(--ink-700)) 14%, var(--ink-850));
+  border: 1px solid color-mix(in srgb, var(--ov-tone, var(--ink-700)) 50%, var(--line));
   border-inline-start: 3px solid var(--ov-tone, var(--line-strong));
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
+  box-shadow: 0 14px 34px -12px rgba(0, 0, 0, .75), 0 2px 6px rgba(0, 0, 0, .3);
 }
-.ov-pick[hidden] { display: none; }
+[data-theme="light"] .pop {
+  background: color-mix(in srgb, var(--ov-tone, #fff) 10%, #fff);
+  box-shadow: 0 14px 30px -14px rgba(20, 30, 45, .45), 0 2px 6px rgba(20, 30, 45, .14);
+}
+.pop[hidden] { display: none; }
 
-/* תמונת המקום כשיש, ואייקון הסוג כשאין — אותו ריבוע בדיוק */
-.ov-pick__thumb {
+/* ה-X יושב בפינה הפותחת של שורה RTL — השמאלית */
+.pop__x {
+  position: absolute; inset-block-start: 6px; inset-inline-start: 6px;
+  inline-size: 26px; block-size: 26px;
+  display: grid; place-items: center;
+  padding: 0;
+  background: transparent; border: 0; border-radius: 7px;
+  color: var(--txt-mute); font: inherit; font-size: .9rem; line-height: 1;
+  cursor: pointer;
+}
+.pop__x:hover { background: var(--ink-700); color: var(--txt); }
+[data-theme="light"] .pop__x:hover { background: #eef2f8; }
+
+.pop__head { display: flex; align-items: center; gap: 10px; padding-inline-start: 26px; }
+.pop__art {
   flex: 0 0 auto;
-  width: 38px; height: 38px;
+  inline-size: 38px; block-size: 38px;
   display: grid; place-items: center;
   overflow: hidden;
-  /* מעט כהה/בהיר יותר מהכרטיס, כדי שהריבוע ייראה גם על רקע מגוון */
-  background: color-mix(in srgb, var(--ov-tone, var(--ink-700)) 30%, var(--ink-700));
+  background: color-mix(in srgb, var(--ov-tone, var(--ink-700)) 28%, var(--ink-800));
   border: 1px solid color-mix(in srgb, var(--ov-tone, var(--ink-700)) 45%, var(--line));
-  border-radius: 9px;
-  font-size: 1.15rem; line-height: 1;
+  border-radius: 10px;
 }
-.ov-pick__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.pop__art img { inline-size: 100%; block-size: 100%; object-fit: cover; }
+.pop__art svg {
+  inline-size: 23px; block-size: 23px;
+  fill: none; stroke: var(--txt);
+  stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+}
 
-.ov-pick__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.ov-pick__body b {
-  font-size: .9rem; line-height: 1.3;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.ov-pick__body small { font-size: .73rem; color: var(--txt-mute); }
-.ov-pick .btn { flex: 0 0 auto; }
+.pop__ttl { flex: 1; min-inline-size: 0; display: flex; flex-direction: column; gap: 1px; }
+.pop__ttl b { font-size: .92rem; line-height: 1.25; }
+.pop__ttl small { font-size: .71rem; color: var(--txt-mute); }
 
-@media (max-width: 480px) {
-  .ov-pick { gap: 9px; padding: 8px 10px; }
-  .ov-pick__thumb { width: 32px; height: 32px; font-size: 1rem; }
-  .ov-pick__body b { font-size: .84rem; }
+.pop__txt {
+  margin: 0;
+  font-size: .81rem; line-height: 1.5; color: var(--txt-dim);
 }
+.pop__acts { display: flex; justify-content: flex-end; }
 
 
 /* בטלפון השם אינו נכנס לעמודה צרה, ולכן נשארים האייקונים — השם המלא
@@ -3905,7 +3929,7 @@ button.rt__next:hover { background: rgba(127, 127, 127, 0.08); }
   /* כל מה שקיים כדי ללחוץ עליו, וכל מה שאי אפשר לקרוא על נייר. */
   .nav, .fab, .btn, .icon-btn, .pill-row, .foot,
   .live-strip, .map-shell, .map-filter, .map-actions, .map-touch-guard,
-  .journey__range, .overview__hint, .ov-pick, .hero__ridge,
+  .journey__range, .overview__hint, .pop, .hero__ridge,
   .day__actions, .ai-fab, .sync-dot, .day__chev {
     display: none !important;
   }
