@@ -251,6 +251,25 @@ const DayRoute = (() => {
   /*  התקדמות                                                           */
   /* ------------------------------------------------------------------ */
 
+  /**
+   * מה קרה עם התחנה הזו.
+   *
+   * "פוספסה" אינו מצב שמישהו מסמן — הוא **נגזר**: תחנה שנשארה מאחור
+   * ולא סומנה כמבוקרת היא תחנה שלא היינו בה. זה חוסך מצב שאפשר לשקר
+   * בו (דגל שנשמר בנפרד ויכול לסתור את המיקום), והוא גם מה שבאמת קרה
+   * בשטח: עברנו הלאה בלי לעצור.
+   *
+   * done · here · miss · todo
+   */
+  function stateOf(i) {
+    if (st.done.includes(i)) return "done";
+    if (i === st.idx) return "here";
+    return i < st.idx ? "miss" : "todo";
+  }
+
+  const missed = (list) =>
+    list.map((_, i) => i).filter((i) => stateOf(i) === "miss");
+
   const viewIdx = (list) => {
     const i = view === null ? st.idx : view;
     return Math.max(0, Math.min(i, list.length - 1));
@@ -264,6 +283,30 @@ const DayRoute = (() => {
     if (st.idx < list.length - 1) st.idx++;
     st.auto = Boolean(auto);
     view = null;                       // הגעה מחזירה את המבט למקום שבו אני
+    save();
+    render();
+  }
+
+  /**
+   * דילוג: מתקדמים בלי לסמן ביקור.
+   *
+   * אין כאן דגל חדש — עצם ההתקדמות **היא** הדילוג, והתחנה נשארת מאחור
+   * בלי ✓. כך גם תחנה שפשוט עברנו אותה בלי ללחוץ כלום נראית בדיוק
+   * אותו דבר, וזה נכון: שתיהן לא קרו.
+   */
+  function skip() {
+    const list = stops(ctx.day(st.n));
+    if (st.idx >= list.length - 1) return;
+    st.done = st.done.filter((x) => x !== st.idx);
+    st.idx++;
+    view = null;
+    save();
+    render();
+  }
+
+  /** "בכל זאת הייתי כאן" — תיקון של תחנה שנראית מפוספסת */
+  function markDone(i) {
+    if (!st.done.includes(i)) st.done.push(i);
     save();
     render();
   }
@@ -434,17 +477,13 @@ const DayRoute = (() => {
           ${list
             .map((p, i) => {
               const m = match[pts.indexOf(p)] || {};
-              const done = st.done.includes(i);
-              const here = i === st.idx;
-              const cls = [
-                done ? "is-done" : "",
-                here ? "is-here" : "",
-                i === vi ? "is-view" : "",
-                !done && !here ? "is-todo" : "",
-              ].filter(Boolean).join(" ");
+              const stt = stateOf(i);
+              const cls = `is-${stt}${i === vi ? " is-view" : ""}`;
+              const mark = stt === "done" ? "✓" : stt === "here" ? "●" : stt === "miss" ? "✕" : i + 1;
               return `<li class="${cls}">
-                <button data-rt-peek="${i}" title="${esc(p.name)}">
-                  <span class="rt__dot" aria-hidden="true">${done ? "✓" : here ? "●" : i + 1}</span>
+                <button data-rt-peek="${i}"
+                        title="${esc(p.name)}${stt === "miss" ? " — פוספסה" : ""}">
+                  <span class="rt__dot" aria-hidden="true">${mark}</span>
                   <span class="rt__spine-time">${m.time ? esc(m.time) : "—"}</span>
                   <span class="rt__spine-name">${esc(shortName(p.name))}</span>
                 </button>
@@ -453,6 +492,48 @@ const DayRoute = (() => {
             .join("")}
         </ol>
       </div>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  הסרגל הצדי — איפה אני במסלול, תמיד                                */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * סרגל אנכי בשולי המסך, שאינו נגלל ואינו נגלל הצידה.
+   *
+   * הרצועה העליונה נותנת שמות ושעות, ובטלפון צר היא נגללת — שמונה
+   * תחנות לא נכנסות בבת אחת. הסרגל נותן את מה שהיא לא יכולה: את **כל**
+   * היום בבת אחת, כמד אחד רציף. במבט אחד רואים כמה עשינו, כמה נשאר,
+   * ואיפה בדיוק באמצע אנחנו עומדים.
+   *
+   * הוא גם לחיץ: כל נקודה מציצה בתחנה שלה.
+   */
+  function railHTML(day, list) {
+    const vi = viewIdx(list);
+    /*
+     * המילוי מצויר כאלמנט אחד שגובהו הוא ההתקדמות, ולא כקו לכל נקודה
+     * שגולש מעבר לקצה. 23px הם מרכז הנקודה הראשונה והאחרונה, ולכן
+     * הפס מתחיל ונגמר בדיוק עליהן.
+     */
+    const pct = list.length > 1 ? st.idx / (list.length - 1) : 1;
+    return `
+      <nav class="rt__rail" aria-label="מיקום במסלול היומי">
+        <span class="rt__rail-fill" style="block-size: calc((100% - 46px) * ${pct.toFixed(3)})"></span>
+        <ol>
+          ${list
+            .map((p, i) => {
+              const stt = stateOf(i);
+              return `<li class="is-${stt}${i === vi ? " is-view" : ""}">
+                <button data-rt-peek="${i}"
+                  aria-label="${esc(p.name)} — ${
+                    stt === "done" ? "היינו" : stt === "here" ? "כאן אנחנו" :
+                    stt === "miss" ? "פוספסה" : "עוד לא"
+                  }"><i></i></button>
+              </li>`;
+            })
+            .join("")}
+        </ol>
+      </nav>`;
   }
 
   /** "פארק ריקה — תחנת רכבל" ברצועה צרה הוא שלוש שורות; זה השם הקצר */
@@ -472,6 +553,7 @@ const DayRoute = (() => {
     const here = list[st.idx];
     const m = match[pts.indexOf(here)] || {};
     const left = list.length - st.idx - (st.done.includes(st.idx) ? 0 : 1);
+    const miss = missed(list);
 
     /*
      * כשההצעה להזיז את היום עוד פתוחה, "מאחרים ב-155 דקות" הוא לא
@@ -502,6 +584,10 @@ const DayRoute = (() => {
         }</span>
         ${drift}
         ${left > 0 ? `<span class="rt__status-left">נשארו ${left}</span>` : ""}
+        ${miss.length
+          ? `<button class="rt__status-miss" data-rt-peek="${miss[0]}"
+               title="${esc(list[miss[0]].name)}">✕ פוספסו ${miss.length}</button>`
+          : ""}
         ${wx
           ? `<span class="rt__status-wx">${esc(wx.icon)} ${esc(wx.now)}${
               wx.span ? ` · ${esc(wx.span)}` : ""
@@ -564,7 +650,9 @@ const DayRoute = (() => {
     const m = match[pts.indexOf(p)] || {};
     const legs = metres(p, next);
     const t = travel(legs);
-    const done = st.done.includes(i);
+    const stt = stateOf(i);
+    const done = stt === "done";
+    const miss = stt === "miss";
     const ahead = i !== st.idx;
 
     // המרחק ממני לתחנה — הוא שקובע איזו דרך מוצעת ראשונה
@@ -572,19 +660,27 @@ const DayRoute = (() => {
     const tips = ctx.tips ? ctx.tips(day, p) : [];
 
     return `
-      <section class="rt__now${ahead ? " is-peek" : ""}${done ? " is-done" : ""}">
+      <section class="rt__now${ahead ? " is-peek" : ""}${done ? " is-done" : ""}${
+        miss ? " is-miss" : ""
+      }">
         ${ahead
-          ? `<button class="rt__peekbar" data-rt-peek="${st.idx}">
-               👀 מציצים קדימה · חזרה לתחנה שלי (${st.idx + 1})
+          ? `<button class="rt__peekbar${miss ? " is-miss" : ""}" data-rt-peek="${st.idx}">
+               ${miss
+                 ? `✕ התחנה הזו פוספסה · חזרה לתחנה שלי (${st.idx + 1})`
+                 : i < st.idx
+                 ? `↩︎ מסתכלים אחורה · חזרה לתחנה שלי (${st.idx + 1})`
+                 : `👀 מציצים קדימה · חזרה לתחנה שלי (${st.idx + 1})`}
              </button>`
           : ""}
 
         <header class="rt__now-head">
-          <span class="rt__now-icon" aria-hidden="true">${done ? "✅" : ctx.icon(p.type)}</span>
+          <span class="rt__now-icon" aria-hidden="true">${
+            done ? "✅" : miss ? "✕" : ctx.icon(p.type)
+          }</span>
           <div>
             <span class="rt__now-tag">תחנה ${i + 1} מתוך ${list.length}${
               m.time ? ` · ${esc(m.time)}` : ""
-            }${done ? " · היינו" : ""}</span>
+            }${done ? " · היינו" : miss ? " · פוספסה" : ""}</span>
             <h3>${esc(p.name)}</h3>
             <span class="rt__now-kind">${esc(ctx.label(p.type) || "")}</span>
           </div>
@@ -615,9 +711,15 @@ const DayRoute = (() => {
              href="${esc(ctx.placeLink(p.name, p.lat, p.lng))}">ℹ️ על המקום</a>
           ${done
             ? `<button class="btn" data-rt-undo="${i}">↩︎ לא הייתי</button>`
+            : miss
+            ? `<button class="btn" data-rt-was="${i}">✅ בכל זאת הייתי</button>`
             : ahead
             ? `<button class="btn" data-rt-jump="${i}">📍 אני כאן</button>`
             : `<button class="btn" data-rt-arrive>✅ הגעתי</button>`}
+          ${!ahead && !done && st.idx < list.length - 1
+            ? `<button class="btn rt__skip" data-rt-skip
+                 title="להתקדם לתחנה הבאה בלי לסמן ביקור">⤼ מדלגים</button>`
+            : ""}
         </div>
 
         ${next
@@ -694,22 +796,27 @@ const DayRoute = (() => {
           ${list
             .map((p, i) => {
               const m = match[pts.indexOf(p)] || {};
-              const done = st.done.includes(i);
-              const cur = i === st.idx;
-              const cls = done ? "is-done" : cur ? "is-cur" : "";
+              const stt = stateOf(i);
+              const done = stt === "done";
               const gap = i > 0 ? metres(list[i - 1], p) : null;
-              return `<li class="${cls}">
+              return `<li class="is-${stt}">
                 <button class="rt__row" data-rt-peek="${i}">
-                  <span class="rt__row-mark" aria-hidden="true">${done ? "✅" : cur ? "▶️" : ctx.icon(p.type)}</span>
+                  <span class="rt__row-mark" aria-hidden="true">${
+                    done ? "✅" : stt === "here" ? "▶️" : stt === "miss" ? "✕" : ctx.icon(p.type)
+                  }</span>
                   <span class="rt__row-txt">
                     <b>${esc(p.name)}</b>
                     <small>${m.time ? esc(m.time) : ""}${
                       gap !== null ? `${m.time ? " · " : ""}${esc(human(gap))} מהקודמת` : ""
-                    }${!m.time && gap === null ? "תחנה ראשונה" : ""}</small>
+                    }${!m.time && gap === null ? "תחנה ראשונה" : ""}${
+                      stt === "miss" ? " · פוספסה" : ""
+                    }</small>
                   </span>
                 </button>
                 ${done
                   ? `<button class="rt__undo" data-rt-undo="${i}" title="לא הייתי שם">↩︎</button>`
+                  : stt === "miss"
+                  ? `<button class="rt__undo" data-rt-was="${i}" title="בכל זאת הייתי שם">✓</button>`
                   : `<a class="rt__row-nav" target="_blank" rel="noopener"
                        href="${esc(navLink(p, "walking"))}" title="ניווט לתחנה">🧭</a>`}
               </li>`;
@@ -731,9 +838,13 @@ const DayRoute = (() => {
     const head = el.querySelector("[data-rt-head]");
     const top = el.querySelector("[data-rt-top]");
 
+    const rail = el.querySelector("[data-rt-rail]");
+
     if (!day || !list.length) {
       head.textContent = "מסלול היום";
       top.innerHTML = "";
+      rail.innerHTML = "";
+      el.querySelector(".rt").classList.remove("has-rail");
       body.innerHTML = `<div class="rt__empty">
         <p>ליום הזה אין תחנות שהולכים אליהן — מה שיש בו הוא טיסה, לינה,
         או נקודות בלי מיקום.</p>
@@ -757,6 +868,8 @@ const DayRoute = (() => {
      * ובלי לגלול, רואים גם איפה אני ביום וגם את התחנה שמולי.
      */
     top.innerHTML = statusHTML(day, list) + spineHTML(day, list);
+    rail.innerHTML = railHTML(day, list);
+    el.querySelector(".rt").classList.add("has-rail");
 
     body.innerHTML =
       alertHTML() +
@@ -790,6 +903,11 @@ const DayRoute = (() => {
       if (e.target === el || e.target.closest("[data-rt-close]")) return close();
 
       if (e.target.closest("[data-rt-arrive]")) return arrive(false);
+      if (e.target.closest("[data-rt-skip]")) return skip();
+
+      const was = e.target.closest("[data-rt-was]");
+      if (was) return markDone(Number(was.dataset.rtWas));
+
       if (e.target.closest("[data-rt-geo]")) { stopGeo(); startGeo(); return render(); }
       if (e.target.closest("[data-rt-list]")) { openList = !openList; return render(); }
       if (e.target.closest("[data-rt-bell]")) { showAll = !showAll; return render(); }

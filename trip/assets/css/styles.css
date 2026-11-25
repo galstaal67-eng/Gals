@@ -2659,6 +2659,7 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 
 .overlay--full { padding: 0; }
 .overlay--full .overlay__sheet {
+  position: relative;      /* מסגרת המיקום של הסרגל הצדי */
   width: 100%;
   max-width: 680px;
   max-height: 100%;
@@ -2726,6 +2727,107 @@ body.is-locked { overflow: hidden; }
 .rt__status i.is-ok { color: #6bbf7b; }
 .rt__status-left { opacity: 0.8; }
 .rt__status-wx { margin-inline-start: auto; }
+
+/* ---------- הסרגל הצדי ---------- */
+/* הוא יושב בשוליים השמאליים (inline-end בעמוד RTL), לכל גובה האזור
+   הנגלל, ואינו זז. הרצועה העליונה נותנת שמות ושעות ונגללת הצידה;
+   הסרגל נותן את כל היום בבת אחת, כמד אחד. */
+.rt__main {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  display: flex;
+}
+/* הסרגל אחרון בסדר הפריסה, ולכן בשוליים השמאליים של עמוד RTL */
+.rt__rail-slot {
+  order: 2;
+  flex: 0 0 34px;
+  position: relative;
+  overflow: hidden;
+  background: var(--ink-850);
+}
+[data-theme="light"] .rt__rail-slot { background: #fff; }
+.rt__rail {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-items: stretch;
+  pointer-events: none;
+}
+.rt__rail ol {
+  margin: 0;
+  padding: 10px 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  block-size: 100%;
+  pointer-events: auto;
+}
+/* הפס שמאחורי הנקודות */
+.rt__rail::before {
+  content: "";
+  position: absolute;
+  inset-block: 18px;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  inline-size: 2px;
+  background: var(--line);
+  border-radius: 2px;
+}
+.rt__rail li { position: relative; flex: 0 0 auto; }
+/* המילוי: מה שכבר עברנו, כפס אחד שגובהו הוא ההתקדמות */
+.rt__rail-fill {
+  position: absolute;
+  inset-block-start: 23px;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  inline-size: 3px;
+  border-radius: 3px;
+  background: #6bbf7b;
+  transition: block-size 0.35s ease;
+  pointer-events: none;
+}
+
+.rt__rail button {
+  display: grid;
+  place-items: center;
+  inline-size: 34px;
+  block-size: 26px;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.rt__rail i {
+  display: block;
+  inline-size: 9px;
+  block-size: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  background: var(--ink-850);
+  transition: inline-size 0.15s ease, block-size 0.15s ease;
+}
+[data-theme="light"] .rt__rail i { background: #fff; }
+
+.rt__rail li.is-done i { background: #6bbf7b; border-color: #6bbf7b; }
+.rt__rail li.is-miss i {
+  inline-size: 11px;
+  block-size: 11px;
+  background: var(--ink-850);
+  border-color: #e2a04a;
+  border-style: dashed;
+}
+[data-theme="light"] .rt__rail li.is-miss i { background: #fff; }
+.rt__rail li.is-here i {
+  inline-size: 15px;
+  block-size: 15px;
+  background: #6bbf7b;
+  border-color: #6bbf7b;
+  box-shadow: 0 0 0 4px color-mix(in srgb, #6bbf7b 26%, transparent);
+}
+/* מה שמוצג בכרטיס מקבל טבעת דקה, בלי לגעת בצבע המצב */
+.rt__rail li.is-view i { outline: 2px solid var(--line-strong); outline-offset: 3px; }
 
 /* ---------- רצועת התחנות ---------- */
 .rt__spine {
@@ -2796,6 +2898,13 @@ body.is-locked { overflow: hidden; }
 }
 
 .rt__spine li.is-done .rt__dot { background: #6bbf7b; border-color: #6bbf7b; color: #0b1b10; }
+.rt__spine li.is-miss .rt__dot {
+  border-color: #e2a04a;
+  border-style: dashed;
+  color: #e2a04a;
+}
+.rt__spine li.is-miss .rt__spine-name,
+.rt__spine li.is-miss .rt__spine-time { color: #e2a04a; }
 .rt__spine li.is-here .rt__dot {
   border-color: #6bbf7b;
   color: #6bbf7b;
@@ -2849,6 +2958,21 @@ body.is-locked { overflow: hidden; }
 
 /* ---------- הצצה קדימה ---------- */
 .rt__now.is-peek { border-style: dashed; }
+.rt__now.is-miss { border-color: color-mix(in srgb, #e2a04a 55%, var(--line)); }
+.rt__now.is-miss .rt__now-icon { color: #e2a04a; font-size: 1.7rem; }
+.rt__now.is-miss .rt__now-tag { color: #e2a04a; }
+.rt__peekbar.is-miss { background: color-mix(in srgb, #e2a04a 22%, transparent); }
+
+.rt__status-miss {
+  padding: 2px 9px;
+  border-radius: 99px;
+  border: 1px dashed #e2a04a;
+  background: none;
+  color: #e2a04a;
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
 .rt__peekbar {
   margin: -4px 0 2px;
   padding: 7px 11px;
@@ -2898,7 +3022,9 @@ body.is-locked { overflow: hidden; }
 .rt__chev { color: var(--muted); }
 
 .rt__body {
+  order: 1;
   flex: 1 1 auto;
+  min-inline-size: 0;
   overflow: auto;
   overscroll-behavior: contain;
   padding: 14px 16px 24px;
@@ -2982,6 +3108,9 @@ body.is-locked { overflow: hidden; }
 .rt__acts { display: flex; gap: 8px; flex-wrap: wrap; }
 .rt__acts .btn { flex: 1 1 auto; justify-content: center; text-align: center; }
 .rt__acts .btn--primary { flex-basis: 100%; }
+/* דילוג הוא פעולה שלילית: נוכחת, ולא מזמינה */
+.rt__skip { flex: 0 0 auto; opacity: 0.72; font-size: 0.84rem; }
+.rt__skip:hover { opacity: 1; }
 
 /* ---------- מה הבא ---------- */
 .rt__next {
@@ -3056,8 +3185,10 @@ button.rt__next:hover { background: rgba(127, 127, 127, 0.08); }
   border-radius: 10px;
   overflow: hidden;
 }
-.rt__list li.is-cur { border-color: var(--line-strong); background: rgba(127, 127, 127, 0.08); }
 .rt__list li.is-done .rt__row-txt b { text-decoration: line-through; color: var(--muted); }
+.rt__list li.is-here { border-color: var(--line-strong); background: rgba(127, 127, 127, 0.08); }
+.rt__list li.is-miss { border-color: color-mix(in srgb, #e2a04a 50%, var(--line)); }
+.rt__list li.is-miss .rt__row-txt small { color: #e2a04a; }
 
 .rt__row {
   flex: 1 1 0;
