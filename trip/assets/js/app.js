@@ -1958,33 +1958,23 @@
    */
   function gmapsLink(day) {
     const pts = (day.points || []).filter((p) => p.lat && p.lng && inDestination(p));
+    if (!pts.length) return null;
 
     /*
-     * היום מתחיל במלון, לא בעצירה הראשונה.
+     * המסלול מתחיל **מאיפה שאתם**, ולא מנקודה שאנחנו בחרנו.
      *
-     * הנקודה הראשונה ביום טיולים היא כבר המקום שנוסעים אליו — מבצר
-     * אנאנורי במרחק 60 ק"מ — ומסלול שמתחיל ממנה מדלג בדיוק על הקטע
-     * שצריך ניווט: מהמיטה ועד לשם.
+     * הדרך לומר את זה ל-Google Maps היא פשוט לא לשלוח `origin`: כשהוא
+     * חסר, המפות לוקחות את המיקום הנוכחי של המכשיר. זה נכון יותר מכל
+     * ניחוש שלנו — גם המלון הוא ניחוש, כי בשמונה בבוקר אתם בו ובשתיים
+     * בצהריים כבר לא.
      *
-     * שני חריגים: יום שמתחיל בשדה תעופה (יום ההגעה) באמת מתחיל שם,
-     * ומלון שהוא ממילא הנקודה הראשונה לא נוסף פעמיים.
+     * כל הנקודות של היום הופכות לעצירות, והאחרונה היא היעד.
      */
-    const h = day.hotel;
-    const hotel = h?.lat && h?.lng ? { lat: h.lat, lng: h.lng, name: h.name } : null;
-    const near = (a, b) =>
-      a && b && Math.abs(a.lat - b.lat) < 0.0006 && Math.abs(a.lng - b.lng) < 0.0006;
-    const fromPort = pts[0]?.type === "airport";
-
-    const chain = hotel && !fromPort && !near(pts[0], hotel) ? [hotel, ...pts] : pts;
-    if (chain.length < 2) return null;
-
-    const origin = chain[0];
-    const dest = chain[chain.length - 1];
-    const mid = chain.slice(1, -1).slice(0, 9);
+    const dest = pts[pts.length - 1];
+    const mid = pts.slice(0, -1).slice(0, 9);
 
     let url =
       `https://www.google.com/maps/dir/?api=1` +
-      `&origin=${origin.lat},${origin.lng}` +
       `&destination=${dest.lat},${dest.lng}`;
     if (mid.length) {
       url += `&waypoints=` + mid.map((p) => `${p.lat},${p.lng}`).join("|");
