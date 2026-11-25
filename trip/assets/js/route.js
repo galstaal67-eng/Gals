@@ -42,6 +42,7 @@ const DayRoute = (() => {
   let tick = null;
   let openList = false;              // האם הרשימה המלאה פרושה
   let showAll = false;               // האם רשימת ההתראות שנסגרו פתוחה
+  let showMiss = false;              // האם לוח התחנות שפוספסו פתוח
   let heading = null;                 // לאן הטלפון מופנה, מעלות מצפון
   let headOn = false;                 // האם חיישן הכיוון מאזין
   let headAsk = false;                // האם צריך אישור מפורש (iOS)
@@ -321,6 +322,7 @@ const DayRoute = (() => {
     view = null;
     openList = false;
     showAll = false;
+    showMiss = false;
     headAsk = false;
     try { outdoor = localStorage.getItem("route:outdoor") === "1"; } catch { outdoor = false; }
     if (outdoor) startHeading();
@@ -471,6 +473,7 @@ const DayRoute = (() => {
   function markDone(i) {
     if (!st.done.includes(i)) st.done.push(i);
     save();
+    if (showMiss && !missed(stops(ctx.day(st.n))).length) showMiss = false;
     render();
   }
 
@@ -800,8 +803,9 @@ const DayRoute = (() => {
         ${drift}
         ${left > 0 ? `<span class="rt__status-left">נשארו ${left}</span>` : ""}
         ${miss.length
-          ? `<button class="rt__status-miss" data-rt-peek="${miss[0]}"
-               title="${esc(list[miss[0]].name)}">✕ פוספסו ${miss.length}</button>`
+          ? `<button class="rt__status-miss" data-rt-missed
+               aria-expanded="${showMiss}"
+               title="התחנות שלא סומנו — אפשר לתקן">✕ פוספסו ${miss.length}</button>`
           : ""}
         ${wx
           ? `<span class="rt__status-wx">${esc(wx.icon)} ${esc(wx.now)}${
@@ -809,6 +813,48 @@ const DayRoute = (() => {
             }${wx.rain ? ` · ${esc(wx.rain)}` : ""}</span>`
           : ""}
       </p>`;
+  }
+
+  /**
+   * התחנות שנשארו בלי ✓ — ותיקון שלהן במקום אחד.
+   *
+   * "פוספסה" נגזר מכך שעברנו הלאה בלי לסמן, וזה נכון ברוב המקרים
+   * ושגוי בחלקם: היינו שם, פשוט לא נגענו במסך. לתקן את זה תחנה-תחנה
+   * דרך הכרטיס אפשר היה גם קודם, אבל רק מי שידע לחפש מצא — ולכן
+   * המונה עצמו פותח עכשיו את הרשימה, עם כפתור לכל שורה ואחד לכולן.
+   */
+  function missedHTML(day, list) {
+    if (!showMiss) return "";
+    const miss = missed(list);
+    if (!miss.length) return "";
+
+    const match = ctx.stopMatch(day);
+    const pts = day.points || [];
+
+    return `
+      <div class="rt__missed">
+        <button class="rt__alert-x" data-rt-missed aria-label="סגירה">✕</button>
+        <b>${miss.length} תחנות בלי סימון</b>
+        <p>עברנו אותן בלי לסמן הגעה. אם בכל זאת הייתם שם — סמנו כאן.</p>
+        <ul>
+          ${miss
+            .map((i) => {
+              const m = match[pts.indexOf(list[i])] || {};
+              return `<li>
+                <button class="rt__missed-go" data-rt-peek="${i}">
+                  <span>${ctx.icon(list[i].type)}</span>
+                  <b>${esc(list[i].name)}</b>
+                  ${m.time ? `<small>${esc(m.time)}</small>` : ""}
+                </button>
+                <button class="btn btn--sm" data-rt-was="${i}">✅ הייתי</button>
+              </li>`;
+            })
+            .join("")}
+        </ul>
+        ${miss.length > 1
+          ? `<button class="btn btn--sm btn--primary" data-rt-was-all>✅ הייתי בכולן</button>`
+          : ""}
+      </div>`;
   }
 
   /* ------------------------------------------------------------------ */
@@ -928,7 +974,7 @@ const DayRoute = (() => {
           ${done
             ? `<button class="btn" data-rt-undo="${i}">↩︎ לא הייתי</button>`
             : miss
-            ? `<button class="btn" data-rt-was="${i}">✅ בכל זאת הייתי</button>`
+            ? `<button class="btn btn--primary" data-rt-was="${i}">✅ בכל זאת הייתי כאן</button>`
             : ahead
             ? `<button class="btn" data-rt-jump="${i}">📍 אני כאן</button>`
             : `<button class="btn" data-rt-arrive>✅ הגעתי</button>`}
@@ -1097,6 +1143,7 @@ const DayRoute = (() => {
     }
 
     body.innerHTML =
+      missedHTML(day, list) +
       alertHTML() +
       shiftHTML(day) +
       stopHTML(day, list) +
@@ -1155,6 +1202,16 @@ const DayRoute = (() => {
       if (e.target.closest("[data-rt-skip]")) return skip();
       if (e.target.closest("[data-rt-head]")) return startHeading();
       if (e.target.closest("[data-rt-out]")) return setOutdoor(!outdoor);
+
+      if (e.target.closest("[data-rt-missed]")) { showMiss = !showMiss; return render(); }
+
+      if (e.target.closest("[data-rt-was-all]")) {
+        const list = stops(ctx.day(st.n));
+        missed(list).forEach((i) => { if (!st.done.includes(i)) st.done.push(i); });
+        save();
+        showMiss = false;
+        return render();
+      }
 
       const was = e.target.closest("[data-rt-was]");
       if (was) return markDone(Number(was.dataset.rtWas));

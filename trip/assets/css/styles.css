@@ -2847,28 +2847,67 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 /* מסך המסלול היומי. הוא לא חלונית אלא **מסך**: מי שמחזיק טלפון ביד
    ברחוב צריך תחנה אחת גדולה, לא דף שצריך לחפש בו. */
 
-.overlay--full { padding: 0; }
+/* ---------- המסלול היומי הוא **חלון**, ולא עוד מסך ---------- */
+/* הוא מצב אחר של השימוש באפליקציה: יצאנו, אנחנו בחוץ, והמסך מלווה
+   אותנו. לכן הוא נראה אחרת — צף מעל הדף עם רווח שמראה אותו מאחור,
+   פינות עגולות, קו מבטא בראש ותג שאומר מה זה. */
+
+.overlay--full {
+  padding: 0;
+  align-items: end;                 /* עולה מלמטה, כמו גיליון */
+  background: rgba(4, 8, 14, 0.82);
+}
 .overlay--full .overlay__sheet {
   position: relative;      /* מסגרת המיקום של הסרגל הצדי */
   overflow-x: clip;        /* גלישה לרוחב דוחפת את הסרגל מהמסך */
   width: 100%;
   max-width: 680px;
-  max-height: 100%;
-  block-size: 100%;
-  border-radius: 0;
-  border-inline: 0;
+  /* הרווח למעלה הוא כל העניין: רואים שיש דף מתחת, ושזה חלון שמעליו */
+  block-size: calc(100% - 14px);
+  max-height: calc(100% - 14px);
+  border-radius: 20px 20px 0 0;
+  border: 1px solid color-mix(in srgb, var(--moss) 45%, var(--line-strong));
+  border-block-end: 0;
+  border-block-start: 3px solid var(--moss);
+  box-shadow: 0 -14px 44px -12px rgba(0, 0, 0, 0.72);
   display: flex;
   flex-direction: column;
+  animation: rt-rise 0.26s cubic-bezier(0.2, 0.8, 0.3, 1) both;
 }
+@media (prefers-reduced-motion: reduce) {
+  .overlay--full .overlay__sheet { animation: none; }
+}
+@keyframes rt-rise {
+  from { transform: translateY(18px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
 @media (min-width: 720px) {
-  .overlay--full { padding: 16px; }
+  .overlay--full { padding: 16px; align-items: center; }
   .overlay--full .overlay__sheet {
     block-size: auto;
     max-height: min(92vh, 900px);
     border-radius: var(--radius);
-    border-inline: 1px solid var(--line-strong);
+    border: 1px solid color-mix(in srgb, var(--moss) 45%, var(--line-strong));
+    border-block-start: 3px solid var(--moss);
   }
 }
+
+/* התג: שתי מילים שאומרות באיזה חלון אנחנו, בלי לקחת שורה */
+.rt__badge {
+  position: absolute;
+  inset-block-start: 6px;
+  inset-inline-start: 14px;
+  padding: 2px 9px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--moss) 18%, transparent);
+  color: var(--moss);
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.rt__head { position: relative; padding-block-start: 26px; }
 
 body.is-locked { overflow: hidden; }
 
@@ -2997,6 +3036,8 @@ body.is-locked { overflow: hidden; }
   line-height: 1;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
+  /* "215 מ'" שנשבר לשתי שורות מאבד בדיוק את מה שהוא בשביל: מבט אחד */
+  white-space: nowrap;
 }
 .rt__big.is-here { font-size: 1.7rem; color: #6bbf7b; }
 .rt__big.is-wait { color: var(--muted); }
@@ -3035,7 +3076,7 @@ body.is-locked { overflow: hidden; }
 .rt.is-out .rt__peek-cue { display: none; }
 
 .rt.is-out .rt__body {
-  padding-block-end: 92px;
+  padding-block-end: 136px;   /* שתי שורות כפתורים בתחתית */
   /* safe: אם התוכן גבוה מהמסך, מרכוז לא ייחתוך את ראשו */
   align-content: safe center;
 }
@@ -3049,8 +3090,8 @@ body.is-locked { overflow: hidden; }
   border-inline-width: 22px;
   border-block-end-width: 62px;
 }
-.rt.is-out .rt__big { font-size: 3.4rem; }
-.rt.is-out .rt__big.is-here { font-size: 2.3rem; }
+.rt.is-out .rt__big { font-size: clamp(2.3rem, 10.5vw, 3.4rem); }
+.rt.is-out .rt__big.is-here { font-size: clamp(1.7rem, 7vw, 2.3rem); }
 .rt.is-out .rt__turn { font-size: 1.45rem; }
 .rt.is-out .rt__sub, .rt.is-out .rt__land { font-size: 0.95rem; }
 
@@ -3072,6 +3113,15 @@ body.is-locked { overflow: hidden; }
 
 /* הניגודיות מועלית: מסך בשמש מאבד את ההפרשים העדינים */
 .rt.is-out { --muted: color-mix(in srgb, currentColor 72%, transparent); }
+.overlay--full:has(.rt.is-out) .overlay__sheet {
+  border-color: color-mix(in srgb, var(--gold) 55%, var(--line-strong));
+  border-block-start-color: var(--gold);
+}
+.rt.is-out .rt__badge {
+  background: color-mix(in srgb, var(--gold) 20%, transparent);
+  color: var(--gold);
+}
+.rt.is-out .rt__badge::after { content: " · מצב חוץ"; }
 .rt.is-out .rt__compass { background: rgba(127, 127, 127, 0.18); }
 
 /* ---------- הסרגל הצדי ---------- */
@@ -3302,6 +3352,56 @@ body.is-locked { overflow: hidden; }
   color: inherit;
   cursor: pointer;
 }
+/* ---------- לוח התחנות שפוספסו ---------- */
+.rt__missed {
+  position: relative;
+  padding: 12px 38px 12px 14px;
+  border-radius: 12px;
+  border: 1px dashed #e2a04a;
+  background: color-mix(in srgb, #e2a04a 12%, transparent);
+  display: grid;
+  gap: 8px;
+  font-size: 0.87rem;
+}
+.rt__missed > b { font-size: 0.95rem; }
+.rt__missed > p { margin: 0; color: var(--muted); font-size: 0.8rem; }
+.rt__missed ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.rt__missed li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-inline-size: 0;
+}
+/* השם בשורה משלו והשעה מתחתיו — בשורה אחת הוא נחתך אחרי שתי מילים */
+.rt__missed-go {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 0 7px;
+  padding: 6px 2px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.rt__missed-go b {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rt__missed-go small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+.rt__missed li .btn { flex: 0 0 auto; }
+.rt__missed [data-rt-was-all] { justify-self: start; }
+
 .rt__bell {
   justify-self: start;
   padding: 5px 11px;
