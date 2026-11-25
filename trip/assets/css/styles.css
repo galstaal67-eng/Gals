@@ -2228,12 +2228,22 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 .now {
   position: relative;
   display: flex; align-items: flex-start; gap: 11px;
+  /*
+   * הקוביה נכנסת פנימה מהקצוות ואינה נוגעת בהם.
+   *
+   * ‎.wrap נותן ריווח צד כ-padding, אבל ‎.now דורסת אותו ב-padding משלה
+   * — ולכן הכרטיס נגע בשני קצות המסך ונראה כמו רצועה ולא כמו קוביה.
+   * max-inline-size הוא שמחזיר את הריווח, והפעם כ**שוליים**: במסך צר
+   * הכרטיס צר ב-2.3rem מהמסך וממורכז, ובמסך רחב הוא עדיין נעצר ב---maxw.
+   */
+  max-inline-size: min(var(--maxw), calc(100% - 2.3rem));
   margin: 0 auto 2px;
   padding: 12px 14px;
   background: var(--ink-800);
   border: 1px solid var(--line-strong);
   border-inline-start: 3px solid var(--moss);
   border-radius: var(--radius);
+  box-shadow: 0 10px 26px -18px rgba(0, 0, 0, 0.7);
 }
 .now[hidden] { display: none; }
 
