@@ -52,6 +52,7 @@ const DayRoute = (() => {
   let geoErr = "";
   let nearHits = 0;                  // קריאות רצופות בתוך הרדיוס
   let askShift = false;              // האם ההצעה להזיז את היום פתוחה
+  let timeEdit = false;              // האם עורך שעת ההתחלה פתוח
   let tick = null;
   let openList = false;              // האם הרשימה המלאה פרושה
   let showAll = false;               // האם רשימת ההתראות שנסגרו פתוחה
@@ -400,6 +401,7 @@ const DayRoute = (() => {
     showAll = false;
     showMiss = false;
     keyEdit = false;
+    timeEdit = false;
     headAsk = false;
     try { outdoor = localStorage.getItem("route:outdoor") === "1"; } catch { outdoor = false; }
     if (outdoor) startHeading();
@@ -412,7 +414,7 @@ const DayRoute = (() => {
     startGeo();
     clearInterval(tick);
     // רענון תקופתי — אבל לא בזמן שמקלידים מפתח לתוך שדה
-    tick = setInterval(() => { if (!keyEdit) render(); }, 30000);
+    tick = setInterval(() => { if (!keyEdit && !timeEdit) render(); }, 30000);
   }
 
   function close() {
@@ -760,6 +762,61 @@ const DayRoute = (() => {
         <button class="btn btn--sm" data-rt-shift-no>השאר כמו שכתוב</button>
       </div>
     </div>`;
+  }
+
+  /**
+   * עורך שעת ההתחלה של היום.
+   *
+   * ── למה כאן ולא בקוביה ──
+   * הוא ישב בקוביית "עכשיו", בין שבעה כפתורים אחרים. אבל שעת ההתחלה
+   * היא שאלה שנשאלת **כשיוצאים**, ויוצאים מכאן: המסך הזה נפתח ברגע
+   * שעוזבים את המלון, והוא כבר שואל אותה בעצמו כשהשעון רחוק מהתוכנית.
+   * מה שחסר היה רק דרך לשנות אותה גם אחרי שענית על השאלה ההיא.
+   *
+   * ההזזה היא מהתחנה הראשונה והלאה, ולא מהשורה הראשונה של היום —
+   * ביום טיסה ההמראה כבר קרתה, והיא אינה זזה.
+   */
+  function timeHTML(day) {
+    if (!timeEdit) return "";
+    const from = firstStopTime(day);
+    if (!from) return "";
+    const rows = (day.plan || []).filter((r) => ctx.min(r.time) !== null);
+    const last = rows.length ? rows[rows.length - 1].time : "";
+    return `<div class="rt__shift rt__shift--edit">
+      <label class="rt__time-lbl">מתחילים את המסלול ב־
+        <input type="time" id="rtTimeAt" value="${esc(from)}" />
+      </label>
+      <p data-rt-time-note>המסלול מתחיל ב-${esc(from)}${
+        last ? ` והיום נגמר ב-${esc(last)}` : ""
+      }.</p>
+      <div class="rt__shift-acts">
+        <button class="btn btn--sm btn--primary"
+          data-rt-time-save data-rt-from="${esc(from)}">הזז את היום</button>
+        <button class="btn btn--sm" data-rt-time-no>ביטול</button>
+      </div>
+    </div>`;
+  }
+
+  /** התיאור שמתחת לשדה — מתעדכן בלי לצייר מחדש, אחרת השדה היה מתאפס */
+  function timeNote(day) {
+    const input = el.querySelector("#rtTimeAt");
+    const note = el.querySelector("[data-rt-time-note]");
+    if (!input || !note || !day) return;
+    const from = ctx.min(firstStopTime(day));
+    const to = ctx.min(input.value);
+    if (from === null || to === null) return;
+    const rows = (day.plan || []).filter((r) => ctx.min(r.time) !== null);
+    if (!rows.length) return;
+    const delta = to - from;
+    if (!delta) {
+      note.textContent = "זו כבר שעת ההתחלה של המסלול.";
+      return;
+    }
+    const moving = rows.filter((r) => ctx.min(r.time) >= from);
+    const last = hhmm(ctx.min(rows[rows.length - 1].time) + delta);
+    note.textContent =
+      `${moving.length} שעות יזוזו ב-${Math.abs(delta)} דקות ` +
+      `${delta > 0 ? "קדימה" : "אחורה"}. היום ייגמר ב-${last}.`;
   }
 
   /* ------------------------------------------------------------------ */
@@ -1252,6 +1309,9 @@ const DayRoute = (() => {
     top.innerHTML = statusHTML(day, list) + spineHTML(day, list);
     el.querySelector(".rt").classList.toggle("is-out", outdoor);
 
+    const clock = el.querySelector("[data-rt-time]");
+    if (clock) clock.setAttribute("aria-pressed", String(timeEdit));
+
     const toggle = el.querySelector("[data-rt-out]");
     if (toggle) {
       toggle.textContent = outdoor ? "⤢" : "🔆";
@@ -1263,6 +1323,7 @@ const DayRoute = (() => {
       missedHTML(day, list) +
       alertHTML() +
       shiftHTML(day) +
+      timeHTML(day) +
       stopHTML(day, list);
     tail.innerHTML = listHTML(day, list);
 
@@ -1362,6 +1423,22 @@ const DayRoute = (() => {
       }
       if (e.target.closest("[data-rt-shift-no]")) { askShift = false; return render(); }
 
+      if (e.target.closest("[data-rt-time]")) {
+        timeEdit = !timeEdit;
+        askShift = false;          // שתי הצעות על אותה שעה הן אחת יותר מדי
+        render();
+        el.querySelector("#rtTimeAt")?.focus();
+        return;
+      }
+      if (e.target.closest("[data-rt-time-no]")) { timeEdit = false; return render(); }
+      const ts = e.target.closest("[data-rt-time-save]");
+      if (ts) {
+        const to = el.querySelector("#rtTimeAt")?.value;
+        if (to) ctx.shiftDay(st.n, ts.dataset.rtFrom, to);
+        timeEdit = false;
+        return render();
+      }
+
       if (e.target.closest("[data-rt-key]")) {
         keyEdit = true;
         render();
@@ -1378,6 +1455,10 @@ const DayRoute = (() => {
         mapShown = "";                 // המפה נטענת מחדש, הפעם בלי מפתח
         return render();
       }
+    });
+
+    el.addEventListener("input", (e) => {
+      if (e.target.id === "rtTimeAt") timeNote(ctx.day(st?.n));
     });
 
     el.addEventListener("submit", (e) => {
@@ -1400,6 +1481,7 @@ const DayRoute = (() => {
          ב-Escape. בלי הבדיקה הזו אותה הקשה סגרה **גם** את המסלול
          שמתחתיו, והמשתמש מצא את עצמו בחוץ אחרי שאלה אחת לעוזר. */
       if (document.querySelector(OTHER_OVERLAY)) return;
+      if (timeEdit) { timeEdit = false; return render(); }
       if (keyEdit) { keyEdit = false; return render(); }
       close();
     });

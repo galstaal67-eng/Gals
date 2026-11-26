@@ -2916,21 +2916,6 @@ body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .guide {
   font-size: .8rem; color: var(--txt-dim); line-height: 1.5;
 }
 
-/* מתי מתחילים את היום */
-.now__start {
-  margin: 9px 0 0; padding: 9px 11px;
-  background: var(--ink-900); border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-}
-.now__start label { display: block; font-size: .78rem; color: var(--txt-dim); }
-.now__start input {
-  display: block; width: auto; margin-top: 5px; padding: 6px 9px;
-  background: var(--ink-800); border: 1px solid var(--line);
-  border-radius: var(--radius-sm); color: var(--txt); font: inherit;
-}
-.now__start-note { margin: 8px 0 0; font-size: .78rem; color: var(--gold); }
-.now__start-acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 9px; }
-
 /* בחירת אופן ההגעה מהשדה ללינה */
 .now__ways { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
 .now__way {
@@ -3074,21 +3059,9 @@ body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .guide {
 }
 .food__src a { color: var(--txt-dim); }
 
-/* ---------- התשובה מהחבר ---------- */
+/* ---------- ההתראות שנמצאו ---------- */
 
-.now__answer {
-  position: relative;
-  margin: 9px 0 0; padding: 9px 11px;
-  background: var(--ink-900); border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  font-size: .84rem; line-height: 1.55;
-}
-.now__answer.is-wait { color: var(--txt-mute); }
-.now__answer.is-bad { color: var(--danger); }
-.now__answer b { display: block; margin-bottom: 5px; padding-inline-end: 22px; }
-
-/* סגירה: אחרי שקראו את התשובה היא רק תופסת מקום, ובעוד שעה היא גם
-   כבר לא נכונה */
+/* סגירה: אחרי שקראו את ההתראה היא רק תופסת מקום */
 .now__x {
   position: absolute; inset-block-start: 5px; inset-inline-end: 6px;
   width: 22px; height: 22px;
@@ -3096,8 +3069,6 @@ body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .guide {
   color: var(--txt-mute); font: inherit; font-size: .8rem; cursor: pointer;
 }
 .now__x:hover { background: var(--ink-700); color: var(--txt); }
-.now__answer ul { margin: 0; padding-inline-start: 17px; color: var(--txt-dim); }
-.now__answer li { margin-bottom: 3px; }
 .now__warn { margin: 6px 0 0; color: var(--gold); }
 
 .now__src {
@@ -3105,14 +3076,6 @@ body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .guide {
   margin: 7px 0 0; font-size: .7rem; color: var(--txt-mute);
 }
 .now__src a { color: var(--sky); }
-
-.now__more { display: flex; gap: 6px; margin-top: 8px; }
-.now__more input {
-  flex: 1 1 0; min-width: 0; width: 100%;
-  padding: 5px 9px; font-size: .8rem;
-  background: var(--ink-800); border: 1px solid var(--line);
-  border-radius: 999px; color: var(--txt);
-}
 
 /* ---------- החבר/ה שמהלך/ת על הקצה ---------- */
 /* דמות קטנה שחוצה את הפאה העליונה של הקוביה הלוך ושוב, עם קפיצה קלה.
@@ -4137,6 +4100,23 @@ body.is-locked { overflow: hidden; }
   background: color-mix(in srgb, var(--gold, #b08b3a) 12%, transparent);
 }
 .rt__shift p { margin: 0 0 8px; font-size: 0.88rem; }
+/* עורך שעת ההתחלה — אותה מסגרת של ההצעה האוטומטית, עם שדה שעה */
+.rt__shift--edit { border-style: solid; }
+.rt__time-lbl {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  font-size: .86rem; font-weight: 700;
+}
+.rt__time-lbl input {
+  min-inline-size: 0;
+  padding: 5px 9px;
+  background: var(--ink-900); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--txt); font: inherit; font-size: .95rem;
+  font-variant-numeric: tabular-nums; direction: ltr;
+}
+[data-theme="light"] .rt__time-lbl input { background: #fff; }
+.rt__time-lbl input:focus { outline: none; border-color: var(--moss); }
+
 .rt__shift-acts { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ---------- התחנה הנוכחית ---------- */

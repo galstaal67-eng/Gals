@@ -687,8 +687,6 @@
    * שקרית בכל שורה ממנה והלאה. ההפרשים בין הסעיפים נשמרים — הם מה
    * שבאמת תוכנן — והשעות זזות יחד.
    */
-  let startEdit = null;        // מספר היום שהעורך פתוח עליו
-
   /**
    * הזזה של **חלק** מהיום: כל שורה מ-`fromMin` והלאה.
    *
@@ -705,55 +703,6 @@
     if (!delta) return 0;
     rows.forEach((row) => { row.time = hhmm(MIN(row.time) + delta); });
     return delta;
-  }
-
-  function shiftPlan(day, toMin) {
-    const rows = (day.plan || []).filter((p) => MIN(p.time) !== null);
-    if (!rows.length) return 0;
-    const delta = toMin - MIN(rows[0].time);
-    if (!delta) return 0;
-    rows.forEach((row) => { row.time = hhmm(MIN(row.time) + delta); });
-    return delta;
-  }
-
-  function startEditHTML(card) {
-    if (startEdit !== card.day) return "";
-    const day = TRIP.days.find((d) => d.n === card.day);
-    const rows = (day?.plan || []).filter((p) => MIN(p.time) !== null);
-    if (!rows.length) return "";
-    const first = rows[0].time;
-    const last = rows[rows.length - 1].time;
-    return `
-      <div class="now__start">
-        <label>מתחילים את היום ב־
-          <input type="time" data-start-at value="${esc(first)}" />
-        </label>
-        <p class="now__start-note" data-start-note>היום מתחיל עכשיו ב-${esc(first)} ונגמר ב-${esc(last)}.</p>
-        <div class="now__start-acts">
-          <button class="btn btn--sm" data-start-cancel>ביטול</button>
-          <button class="btn btn--sm btn--primary" data-start-save>הזז את היום</button>
-        </div>
-      </div>`;
-  }
-
-  /** התיאור שמתחת לשדה, שמתעדכן עם כל שינוי */
-  function startPreview() {
-    const box = $("#nowBox");
-    const input = $("[data-start-at]", box);
-    const note = $("[data-start-note]", box);
-    if (!input || !note) return;
-
-    const day = TRIP.days.find((d) => d.n === startEdit);
-    const rows = (day?.plan || []).filter((p) => MIN(p.time) !== null);
-    const to = MIN(input.value);
-    if (!rows.length || to === null) return;
-
-    const delta = to - MIN(rows[0].time);
-    const last = hhmm(MIN(rows[rows.length - 1].time) + delta);
-    note.textContent = !delta
-      ? `זו כבר שעת ההתחלה של היום.`
-      : `${rows.length} שעות יזוזו ב-${Math.abs(Math.round(delta))} דקות ` +
-        `${delta > 0 ? "קדימה" : "אחורה"}. היום ייגמר ב-${last}.`;
   }
 
   /* ---------- השלב הבא ---------- */
@@ -857,41 +806,6 @@
   }
 
   /* ---------- לשאול את החבר ---------- */
-
-  /**
-   * השאלה שנשאלת בלחיצה אחת, לפי מה שקורה עכשיו.
-   *
-   * זו הנקודה שבה הקוביה מפסיקה להיות לוח מידע: היא יודעת איפה אנחנו
-   * ומה הלאה, ולכן היא יכולה לשאול את השאלה הנכונה בלי שנקליד אותה.
-   */
-  function askPrompt(card) {
-    const f = TRIP.flights || {};
-    const leg = card.pass ? f[card.pass] : null;
-    const place = TRIP.meta?.title || "";
-
-    if (leg && ["soon", "alert", "air", "pre"].includes(card.tone)) {
-      return (
-        `מה הסטטוס של טיסה ${leg.flightNo} בתאריך ${fullDate(leg.date)}? ` +
-        "האם יש עיכוב, מאיזה שער היא יוצאת, ומה השעה המעודכנת?"
-      );
-    }
-    if (card.tone === "arrive") {
-      return (
-        `נחתנו עכשיו בנמל התעופה של ${place}. מה הדרך הכי טובה להגיע ל-` +
-        `${TRIP.days?.[0]?.hotel?.name || "המלון"} עכשיו, כמה זה עולה וכמה זמן זה לוקח?`
-      );
-    }
-    if (card.day) {
-      return (
-        `אנחנו ב${place}, ${card.main}. מה כדאי לדעת על זה עכשיו — שעות ` +
-        "פתיחה, מחיר כניסה, תורים, ואיפה אוכלים טוב בסביבה?"
-      );
-    }
-    return `מה כדאי לדעת היום על ${place} — מזג אוויר, אירועים, ומשהו ששווה לראות?`;
-  }
-
-  let answer = null;      // התשובה האחרונה, חיה כל עוד הדף פתוח
-  let asking = false;
 
   /** מה שהחבר צריך לדעת כדי לענות — אותו הקשר לשאלה ולבדיקה היזומה */
   /**
@@ -1008,78 +922,6 @@
       spot: spotLine(),
       flight: leg ? `${leg.flightNo} ${leg.from} ${leg.dep} → ${leg.to} ${leg.arr}` : "",
     };
-  }
-
-  async function runAsk(question) {
-    if (asking) return;
-    asking = true;
-    answer = { question, loading: true };
-    renderNow();
-
-    try {
-      const res = await fetch("/api/ask", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          question,
-          code: localStorage.getItem("ai:code") || "",
-          context: nowContext(),
-        }),
-      });
-      const out = await TripAPI.readJson(res);
-      if (!res.ok || !out || out.error) {
-        throw new Error(out?.error || `הבדיקה נכשלה (${res.status})`);
-      }
-      answer = { question, ...out, at: new Date() };
-    } catch (err) {
-      answer = { question, error: err.message || "הבדיקה נכשלה." };
-    } finally {
-      asking = false;
-      renderNow();
-    }
-  }
-
-  /** החלק שמוצג אחרי שהחבר בדק */
-  function answerHTML() {
-    if (!answer) return "";
-
-    // תשובה על שער, עיכוב או שעת פתיחה מתיישנת מהר. אחרי חצי שעה היא
-    // נעלמת מעצמה, כדי שלא תישאר על המסך ותיראה כמו המצב עכשיו.
-    if (answer.at && Date.now() - answer.at.getTime() > 30 * 60_000) {
-      answer = null;
-      return "";
-    }
-
-    const close = '<button class="now__x" data-now-close aria-label="סגירה">✕</button>';
-    if (answer.loading) {
-      return '<div class="now__answer is-wait">בודק ברשת…</div>';
-    }
-    if (answer.error) {
-      return `<div class="now__answer is-bad">${close}${esc(answer.error)}</div>`;
-    }
-    const src = (answer.sources || [])
-      .map(
-        (x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a>`
-      )
-      .join("");
-    return `
-      <div class="now__answer">
-        ${close}
-        <b>${esc(answer.headline || "")}</b>
-        ${(answer.bullets || []).length
-          ? `<ul>${answer.bullets.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>`
-          : ""}
-        ${answer.caution ? `<p class="now__warn">⚠️ ${esc(answer.caution)}</p>` : ""}
-        <p class="now__src">
-          ${answer.fresh ? "נבדק ברשת" : "מידע כללי, בלי חיפוש"}
-          ${answer.at ? ` · ${answer.at.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}` : ""}
-          ${src}
-        </p>
-        <form class="now__more" data-now-more>
-          <input type="text" placeholder="לשאול משהו אחר…" aria-label="שאלה לחבר" />
-          <button class="btn btn--sm" type="submit">שאל</button>
-        </form>
-      </div>`;
   }
 
   /**
@@ -1332,7 +1174,6 @@
         ${wxLine(card.day)}
         <p class="now__main">${esc(card.main)}</p>
         ${cardGuts(card)}
-        ${startEditHTML(card)}
         ${card.next
           ? `<button class="now__next" data-now-peek aria-expanded="${peeking}">
                ${esc(card.next)}
@@ -1341,15 +1182,12 @@
           : ""}
         ${peekHTML(card)}
         ${foundHTML()}
-        ${answerHTML()}
       </div>
       <div class="now__acts">
         ${!TripWatch.unseen() && TripWatch.found().length
           ? `<button class="btn btn--sm now__bell" data-found-list="1"
                title="ההתראות שנסגרו">⚠️<span>${TripWatch.found().length}</span></button>`
           : ""}
-        <button class="btn btn--sm" data-now-ask ${asking ? "disabled" : ""}
-                title="בדיקה ברשת לרגע הזה">${asking ? "בודק…" : "🔎 בדוק עכשיו"}</button>
         ${card.dir ? `<a class="btn btn--sm btn--primary" target="_blank" rel="noopener"
              href="${esc(card.dir)}">🗺️ נווט</a>` : ""}
         ${card.pass ? `<button class="btn btn--sm${card.tone === "alert" ? " btn--primary" : ""}"
@@ -1359,7 +1197,6 @@
              href="${esc(statusLink(card.status))}">🔄 סטטוס</a>` : ""}
         ${card.day ? `<button class="btn btn--sm btn--primary" data-route-day="${card.day}"
              title="מסך המסלול: תחנה־תחנה, עם ניווט לכל אחת">🚶 יוצאים למסלול</button>` : ""}
-        ${card.day ? `<button class="btn btn--sm" data-start-day="${card.day}">🕐 שעת התחלה</button>` : ""}
         ${card.day ? `<button class="btn btn--sm" data-food-near=""
              title="מסעדות, בתי קפה וברים ליד המקום שבו אנחנו">🍽️ אוכל</button>` : ""}
         ${card.day ? `<button class="btn btn--sm" data-add-exp>➕ הוצאה</button>` : ""}
@@ -5101,17 +4938,6 @@ ${[marks, line].filter(Boolean).join("\n")}
     setInterval(tickCountdown, 60_000);
     // חצי דקה: שעת עלייה למטוס היא רגע שרוצים לראות בלי לרענן
     setInterval(() => { renderNow(); renderClocks(); }, 30_000);
-    $("#nowBox").addEventListener("input", (e) => {
-      if (e.target.closest("[data-start-at]")) startPreview();
-    });
-
-    $("#nowBox").addEventListener("submit", (e) => {
-      const form = e.target.closest("[data-now-more]");
-      if (!form) return;
-      e.preventDefault();
-      const q = form.querySelector("input").value.trim();
-      if (q) runAsk(q);
-    });
     $("#nowBox").addEventListener("click", (e) => {
       if (e.target.closest("[data-now-bell]")) return askNotify();
 
@@ -5142,18 +4968,6 @@ ${[marks, line].filter(Boolean).join("\n")}
         peeking = !peeking;
         return renderNow();
       }
-      if (e.target.closest("[data-now-close]")) {
-        answer = null;
-        return renderNow();
-      }
-
-      const ask = e.target.closest("[data-now-ask]");
-      if (ask) {
-        const card = nowCard();
-        if (card) runAsk(askPrompt(card));
-        return;
-      }
-
       const way = e.target.closest("[data-now-way]");
       if (way) {
         arriveWay = arriveWay === way.dataset.nowWay ? null : way.dataset.nowWay;
@@ -5162,30 +4976,6 @@ ${[marks, line].filter(Boolean).join("\n")}
 
       const pass = e.target.closest("[data-pass-leg]");
       if (pass) return BoardingPass.open({ leg: pass.dataset.passLeg });
-
-      const startBtn = e.target.closest("[data-start-day]");
-      if (startBtn) {
-        const n = Number(startBtn.dataset.startDay);
-        startEdit = startEdit === n ? null : n;
-        return renderNow();
-      }
-      if (e.target.closest("[data-start-cancel]")) {
-        startEdit = null;
-        return renderNow();
-      }
-      if (e.target.closest("[data-start-save]")) {
-        const day = TRIP.days.find((d) => d.n === startEdit);
-        const to = MIN($("[data-start-at]", $("#nowBox")).value);
-        if (day && to !== null) {
-          const delta = shiftPlan(day, to);
-          if (delta) {
-            TRIP = TripStore.save(TRIP);
-            renderTrip();
-          }
-        }
-        startEdit = null;
-        return renderNow();
-      }
 
       if (e.target.closest("[data-add-exp]")) {
         // רישום הוצאה הוא פעולה של שתי שניות, ולכן הטופס נפתח מוכן:
