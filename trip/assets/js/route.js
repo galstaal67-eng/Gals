@@ -1428,7 +1428,64 @@ const DayRoute = (() => {
     return out;
   }
 
-  return { init, open, close, isOpen, progress, where: () => lastFix, started: (date) => {
+  /**
+   * האם אפשר לסמן את המקום הזה כ"היינו שם".
+   *
+   * שדה תעופה ומלון אינם תחנות שהולכים אליהן — ראו stops() — ולכן אין
+   * מה לסמן בהם, והמסכים האחרים צריכים לדעת זאת לפני שהם מציירים
+   * תיבת סימון שלא תעשה דבר.
+   */
+  function markable(n, name) {
+    const day = ctx?.day?.(n);
+    if (!day || !name) return false;
+    return stops(day).some((p) => p.name === name);
+  }
+
+  /**
+   * סימון או ביטול של "היינו שם", מכל מקום באפליקציה.
+   *
+   * ── למה זה כאן ולא אצל הקורא ──
+   * המצב נשמר תחת `route:<תאריך>`, ומסך המסלול מחזיק עותק חי שלו
+   * בזיכרון כל עוד הוא פתוח. קורא חיצוני שהיה כותב ל-localStorage
+   * ישירות היה נדרס ברגע שהמסך הפתוח שומר את העותק שלו. לכן יש כאן
+   * שני מסלולים: המסך פתוח על היום הזה — נוגעים בעותק החי; אינו פתוח
+   * — קוראים, משנים ושומרים.
+   *
+   * ── והמצביע ──
+   * סימון תחנה מקדם את "איפה אני" אל מעבר לה, כי מי שהגיע לתחנה 3
+   * כבר עבר את 1 ו-2. ביטול סימון אינו מחזיר את המצביע אחורה: אדם
+   * שמתקן טעות אינו מבקש לחזור בזמן.
+   */
+  function mark(n, name, on = true) {
+    const day = ctx?.day?.(n);
+    if (!day) return false;
+    const list = stops(day);
+    const i = list.findIndex((p) => p.name === name);
+    if (i < 0) return false;
+
+    const live = st && st.n === day.n && isOpen();
+    const state = live ? st : load(day);
+    const done = Array.isArray(state.done) ? state.done : (state.done = []);
+
+    if (on) {
+      if (!done.includes(i)) done.push(i);
+      if (!state.startedAt) state.startedAt = Date.now();
+      state.idx = Math.max(state.idx || 0, Math.min(i + 1, list.length - 1));
+    } else {
+      const at = done.indexOf(i);
+      if (at >= 0) done.splice(at, 1);
+    }
+
+    if (live) {
+      save();
+      render();
+    } else {
+      try { localStorage.setItem(SKEY(state.date), JSON.stringify(state)); } catch { /* מלא */ }
+    }
+    return true;
+  }
+
+  return { init, open, close, isOpen, progress, mark, markable, where: () => lastFix, started: (date) => {
     try {
       const s = JSON.parse(localStorage.getItem(SKEY(date)) || "null");
       return s?.startedAt || null;

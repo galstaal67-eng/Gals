@@ -2104,12 +2104,36 @@
       </div>
       ${d.ovNote ? `<p class="pop__txt">${esc(d.ovNote)}</p>` : ""}
       ${rateLine(d.ovName)}
+      ${beenBox(d.ovDay, d.ovName)}
       <div class="pop__acts">${act}</div>`;
 
     box.hidden = false;
     popAt = seg;
     placePop();
     box.querySelector(".pop__x")?.focus({ preventScroll: true });
+  }
+
+  /**
+   * תיבת "היינו שם".
+   *
+   * אותו מצב בדיוק של ה-✓ במסלול היומי ושל הסימון בתרשים — לא דגל
+   * שלישי. מי שעבר במקום ולא פתח את מסך המסלול צריך דרך לומר זאת,
+   * ומי שהאפליקציה סימנה לו בטעות צריך דרך לבטל.
+   *
+   * אינה מוצגת על שדה תעופה או מלון: אלה אינם תחנות שהולכים אליהן,
+   * ותיבה שאינה עושה דבר גרועה מתיבה שאינה קיימת.
+   */
+  function beenBox(dayN, name) {
+    if (typeof DayRoute === "undefined" || !DayRoute.markable) return "";
+    if (!DayRoute.markable(Number(dayN), name)) return "";
+    const day = (TRIP.days || []).find((x) => x.n === Number(dayN));
+    const marks = (day && DayRoute.progress ? DayRoute.progress(day) : {}) || {};
+    const on = marks[name] === "done";
+    return `<label class="pop__been${on ? " is-on" : ""}">
+      <input type="checkbox" data-pop-been="${esc(name)}"
+             data-pop-been-day="${esc(dayN)}" ${on ? "checked" : ""} />
+      <span>${on ? "היינו שם" : "סמנו שהייתם כאן"}</span>
+    </label>`;
   }
 
   /** הדירוג שנתתם למקום בשטח, אם נתתם */
@@ -2172,6 +2196,14 @@
     document.addEventListener("click", (e) => {
       if ($("#ovPop")?.hidden) return;
       if (e.target.closest("[data-pop-close]")) return closePop();
+
+      const been = e.target.closest("[data-pop-been]");
+      if (been) {
+        DayRoute.mark(Number(been.dataset.popBeenDay), been.dataset.popBeen, been.checked);
+        paintScene();                 // התרשים מספר את אותו סיפור
+        if (popAt) openPop(popAt);    // והחלון מתרענן מתחת לאצבע
+        return;
+      }
       if (e.target.closest("#ovPop")) return;          // פעולה בתוך החלון
       if (e.target.closest("[data-ov-name]")) return;  // מעבר לתחנה אחרת
       closePop();

@@ -2177,6 +2177,30 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
   margin: 0;
   font-size: .81rem; line-height: 1.5; color: var(--txt-dim);
 }
+/* "היינו שם" — אותו מצב של ה-✓ במסלול היומי, ולא דגל נוסף */
+.pop__been {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 9px;
+  background: var(--ink-800);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: .79rem; color: var(--txt-dim);
+  cursor: pointer;
+  user-select: none;
+}
+[data-theme="light"] .pop__been { background: #f2f5fa; }
+.pop__been.is-on {
+  background: color-mix(in srgb, var(--moss) 16%, var(--ink-800));
+  border-color: color-mix(in srgb, var(--moss) 55%, var(--line));
+  color: var(--txt);
+}
+.pop__been input {
+  inline-size: 17px; block-size: 17px;
+  margin: 0;
+  accent-color: var(--moss);
+  cursor: pointer;
+}
+
 .pop__acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 
 

@@ -155,6 +155,11 @@ const TripGuide = (() => {
         if (near[p.name] >= HITS && !v) {
           st.visits[k] = { at: Date.now(), greeted: false, asked: false };
           save();
+          /* הגעה היא גם "היינו שם". בלי זה הדמות אמרה שהיא רואה
+             שהגענו, ובמבט העל אותה תחנה נשארה לא מסומנת — שני מסכים
+             שמספרים סיפור אחר על אותו רגע. */
+          try { DayRoute?.mark?.(day.n, p.name, true); } catch { /* לא קריטי */ }
+          ctx?.rated?.(p.name);
           queue();
         }
       } else if (d >= GONE) {
