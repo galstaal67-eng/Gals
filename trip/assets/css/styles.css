@@ -1009,6 +1009,214 @@ table.data.cost-table td:first-child { min-width: 15rem; }
 .btn[disabled]:hover { border-color: var(--line-strong); color: var(--txt); }
 
 /* ================================================= PRINT SUMMARY ===== */
+
+
+/* ---------- פס שלב התכנון ---------- */
+
+.stage {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  min-inline-size: 0;
+  margin: 0 0 10px; padding: 9px 12px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--ink-800);
+  font-size: .8rem; line-height: 1.45; color: var(--txt-dim);
+}
+[data-theme="light"] .stage { background: #f2f5fa; }
+.stage[hidden] { display: none; }
+.stage__txt { flex: 1 1 200px; min-inline-size: 0; }
+.stage__txt b { display: block; color: var(--txt); font-size: .86rem; }
+.stage .btn { flex: 0 0 auto; white-space: nowrap; }
+
+/* בתכנון הפס בולט; אחרי הסגירה הוא שקט — הוא כבר לא קורא לפעולה */
+.stage.is-planning {
+  background: color-mix(in srgb, var(--gold) 12%, var(--ink-800));
+  border-color: color-mix(in srgb, var(--gold) 45%, var(--line));
+}
+.stage.is-planning .stage__txt b { color: var(--gold); }
+.stage.is-ready .stage__txt b { color: var(--moss); }
+
+/* =========================================================== WIZARD === */
+/* אשף הכנת הטיול. חמישה שלבים, אחד על המסך בכל פעם: טופס אחד ארוך
+   בטלפון הוא טופס שגוללים בו ולא ממלאים אותו. */
+
+.wz { display: flex; flex-direction: column; min-block-size: 0; }
+
+.wz__bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 16px 10px;
+}
+.wz__dot {
+  flex: 1 1 0;
+  display: grid; place-items: center;
+  block-size: 26px;
+  background: var(--ink-800); border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: .72rem; font-weight: 700; color: var(--txt-mute);
+}
+[data-theme="light"] .wz__dot { background: #f2f5fa; }
+.wz__dot.is-done { background: color-mix(in srgb, var(--moss) 22%, var(--ink-800)); color: var(--moss); border-color: color-mix(in srgb, var(--moss) 45%, var(--line)); }
+.wz__dot.is-on { background: var(--moss); border-color: var(--moss); color: #04150f; }
+
+.wz__body {
+  flex: 1 1 auto; min-block-size: 0;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 0 16px 14px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.wz__h { margin: 0; font-size: 1.05rem; }
+.wz__lead { margin: 0; font-size: .82rem; line-height: 1.5; color: var(--txt-mute); }
+.wz__hint { margin: 0; font-size: .8rem; color: var(--gold); }
+.wz__err {
+  margin: 0; padding: 8px 10px;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line));
+  border-radius: var(--radius-sm);
+  font-size: .82rem; color: var(--danger);
+}
+.wz__foot { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ---------- סוג הטיול ---------- */
+
+/* שתי עמודות בטלפון: שמונה אפשרויות בעמודה אחת הן רשימה שגוללים,
+   ובשתיים הן לוח שסורקים במבט */
+.wz__kinds {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+}
+.wz__kind {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  min-inline-size: 0;
+  padding: 11px 12px;
+  background: var(--ink-800); border: 1px solid var(--line);
+  border-radius: var(--radius); color: var(--txt);
+  font: inherit; text-align: start; cursor: pointer;
+}
+[data-theme="light"] .wz__kind { background: #f6f8fc; }
+.wz__kind:hover { border-color: var(--moss); }
+.wz__kind.is-on {
+  background: color-mix(in srgb, var(--moss) 16%, var(--ink-800));
+  border-color: var(--moss);
+}
+.wz__kind-i { font-size: 1.3rem; line-height: 1.2; }
+.wz__kind b { font-size: .88rem; }
+.wz__kind small { font-size: .7rem; color: var(--txt-mute); line-height: 1.35; }
+
+/* ---------- היעדים ---------- */
+
+.wz__stops { display: flex; flex-direction: column; gap: 8px; }
+.wz__stop {
+  display: flex; align-items: flex-start; gap: 8px;
+  min-inline-size: 0;
+  padding: 9px 10px;
+  background: var(--ink-800); border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+[data-theme="light"] .wz__stop { background: #f6f8fc; }
+.wz__stop-n {
+  flex: 0 0 auto;
+  inline-size: 22px; block-size: 22px;
+  display: grid; place-items: center;
+  background: var(--ink-700); border-radius: 50%;
+  font-size: .72rem; font-weight: 700; color: var(--txt-mute);
+}
+.wz__stop-main { flex: 1 1 auto; min-inline-size: 0; }
+.wz__stop-main input { inline-size: 100%; min-inline-size: 0; }
+.wz__stop-at {
+  margin: 4px 0 0; min-block-size: 1em;
+  font-size: .72rem; color: var(--txt-mute); line-height: 1.35;
+}
+.wz__stop-nights {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; gap: 2px;
+  font-size: .68rem; color: var(--txt-mute);
+}
+.wz__stop-nights input { inline-size: 58px; text-align: center; }
+.wz__stop-acts { flex: 0 0 auto; display: flex; flex-direction: column; gap: 2px; }
+.wz__stop-acts .icon-btn { inline-size: 28px; block-size: 26px; font-size: .78rem; }
+
+/* ---------- מי ---------- */
+
+.wz__choice { display: flex; gap: 8px; flex-wrap: wrap; }
+.wz__opt {
+  flex: 1 1 140px; min-inline-size: 0;
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 10px 12px;
+  background: var(--ink-800); border: 1px solid var(--line);
+  border-radius: var(--radius); color: var(--txt);
+  font: inherit; text-align: start; cursor: pointer;
+}
+[data-theme="light"] .wz__opt { background: #f6f8fc; }
+.wz__opt.is-on { background: color-mix(in srgb, var(--moss) 16%, var(--ink-800)); border-color: var(--moss); }
+.wz__opt b { font-size: .86rem; }
+.wz__opt small { font-size: .71rem; color: var(--txt-mute); }
+
+.wz__row { display: flex; gap: 8px; flex-wrap: wrap; }
+.wz__row > label { flex: 1 1 140px; min-inline-size: 0; }
+.wz__names > label { flex: 1 1 120px; }
+
+/* ---------- איך ---------- */
+
+.wz__grp { display: flex; flex-direction: column; gap: 5px; }
+.wz__lbl { font-size: .78rem; font-weight: 700; color: var(--txt-dim); }
+.wz__chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.wz__chip {
+  padding: 5px 11px;
+  background: var(--ink-800); border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--txt-mute); font: inherit; font-size: .76rem;
+  cursor: pointer;
+}
+[data-theme="light"] .wz__chip { background: #f2f5fa; }
+.wz__chip.is-on {
+  background: color-mix(in srgb, var(--moss) 18%, var(--ink-800));
+  border-color: var(--moss); color: var(--txt);
+}
+.wz__fld { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; color: var(--txt-dim); }
+
+/* האשף מצייר את השדות שלו; אלה החוקים המשותפים לכולם */
+.wz input[type="text"], .wz input[type="date"], .wz input[type="time"],
+.wz input[type="number"], .wz select, .wz textarea {
+  min-inline-size: 0;
+  padding: 7px 10px;
+  background: var(--ink-900); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--txt); font: inherit; font-size: .84rem;
+}
+[data-theme="light"] .wz input, [data-theme="light"] .wz select,
+[data-theme="light"] .wz textarea { background: #fff; }
+.wz input:focus, .wz select:focus, .wz textarea:focus {
+  outline: none; border-color: var(--moss);
+}
+.wz label { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; color: var(--txt-dim); }
+.wz textarea { resize: vertical; }
+
+/* ---------- מסך הבנייה ---------- */
+
+.wz__busy { justify-content: center; align-items: center; text-align: center; padding-block: 28px; }
+.wz__prog {
+  inline-size: min(300px, 100%); block-size: 8px;
+  background: var(--ink-800); border-radius: 999px; overflow: hidden;
+}
+.wz__prog i { display: block; block-size: 100%; background: var(--moss); transition: inline-size .3s; }
+.wz__busy-txt { margin: 0; font-size: .9rem; font-weight: 700; }
+.wz__acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+
+/* ---------- הודעה חולפת ---------- */
+
+.toast {
+  position: fixed; z-index: 1100;
+  inset-block-end: calc(18px + env(safe-area-inset-bottom));
+  inset-inline: 14px;
+  max-inline-size: 420px; margin-inline: auto;
+  padding: 11px 14px;
+  background: var(--ink-850);
+  border: 1px solid var(--moss);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 36px -14px rgba(0, 0, 0, .8);
+  font-size: .82rem; line-height: 1.45; color: var(--txt);
+}
+[data-theme="light"] .toast { background: #fff; }
+.toast[hidden] { display: none; }
+
 /* גיליון תמצית בן שני עמודי A4 בדיוק. נבנה לפי דרישה ומוצג רק בהדפסה,
    כדי שלא יעלה בעלות רינדור על המסך ולא יסתבך עם ערכת הצבעים הכהה. */
 

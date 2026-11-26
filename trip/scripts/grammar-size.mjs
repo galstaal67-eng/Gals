@@ -114,6 +114,27 @@ const DOC = z.object({
   dayChanges: z.array(DocDayChange),
 });
 
+/* --- /api/plan: שתי הפאזות של בניית טיול --- */
+
+const SkeletonDay = z.object({
+  n: z.number().int(), base: z.string(), title: z.string(),
+  summary: z.string(), stay: z.string(),
+});
+const SKELETON = z.object({
+  title: z.string(), subtitle: z.string(),
+  countries: z.array(z.string()), note: z.string(),
+  days: z.array(SkeletonDay),
+});
+
+const DayDetail = z.object({
+  n: z.number().int(), title: z.string(), summary: z.string(),
+  mode: z.enum(["flight", "drive", "train", "hike", "city"]),
+  driveKm: z.number(), driveHours: z.number(), driveNote: z.string(),
+  hotelName: z.string(), hotelArea: z.string(),
+  plan: z.array(PlanRow), tips: z.array(z.string()), places: z.array(z.string()),
+});
+const DETAIL = z.object({ days: z.array(DayDetail) });
+
 const FLIGHT = z.object({
   flightNo: z.string(), date: z.string(), dep: z.string(), arr: z.string(),
   from: z.string(), to: z.string(), terminal: z.string(), duration: z.string(),
@@ -155,6 +176,8 @@ const rows = [
   stats("new DOC path", DOC),
   stats("flight read (already in production)", FLIGHT),
   stats("ask (web search)", ASK),
+  stats("plan: skeleton", SKELETON),
+  stats("plan: day detail", DETAIL),
 ];
 
 const pad = (s, n) => String(s).padEnd(n);

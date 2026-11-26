@@ -254,77 +254,11 @@
       </div>
     </section>
 
-    <!-- ---------- אשף הטיול החדש ---------- -->
-    <section class="ov-view" id="tripsWizard" hidden>
-      <div class="ov-head">
-        <h2>➕ טיול חדש</h2>
-        <button class="icon-btn" id="wizCancel" aria-label="ביטול">✕</button>
-      </div>
-
-      <form id="wizForm" class="wiz">
-        <fieldset class="wiz__step">
-          <legend>לאן</legend>
-          <label>יעד
-            <input type="text" id="wizWhere" required placeholder="למשל: ליסבון" autocomplete="off" />
-          </label>
-          <!-- היעד מאותר בזמן ההקלדה: בלי קואורדינטות אין מפה, תחזית או חגים -->
-          <p class="wiz-found" id="wizFound" hidden></p>
-          <label>שם הטיול <span class="muted">(לא חובה)</span>
-            <input type="text" id="wizTitle" placeholder="ברירת מחדל: שם היעד" autocomplete="off" />
-          </label>
-          <label>לינה <span class="muted">(לא חובה)</span>
-            <input type="text" id="wizHotel" placeholder="שם המלון או הדירה" autocomplete="off" />
-          </label>
-        </fieldset>
-
-        <fieldset class="wiz__step">
-          <legend>מתי</legend>
-          <div class="wiz__row">
-            <label>יציאה <input type="date" id="wizFrom" required /></label>
-            <label>חזרה  <input type="date" id="wizTo" required /></label>
-          </div>
-          <p class="muted sm" id="wizLen">—</p>
-        </fieldset>
-
-        <fieldset class="wiz__step">
-          <legend>מי</legend>
-          <div class="wiz__choice" role="radiogroup" aria-label="הרכב הנוסעים">
-            <label class="wiz__opt">
-              <input type="radio" name="wizWho" value="1" checked />
-              <span><b>רק אנחנו</b><small>זוג אחד — בלי קיזוז</small></span>
-            </label>
-            <label class="wiz__opt">
-              <input type="radio" name="wizWho" value="2" />
-              <span><b>שני זוגות</b><small>עם קיזוז הוצאות בין הזוגות</small></span>
-            </label>
-          </div>
-          <div class="wiz__row" id="wizNames"></div>
-        </fieldset>
-
-        <fieldset class="wiz__step">
-          <legend>כסף</legend>
-          <label>מטבע מקומי
-            <select id="wizCurrency">
-              <option value="€">€ אירו</option>
-              <option value="$">$ דולר</option>
-              <option value="₾">₾ לארי</option>
-              <option value="£">£ ליש"ט</option>
-              <option value="₪">₪ שקל</option>
-            </select>
-          </label>
-          <label>מה צריך לסגור מראש <span class="muted">(לא חובה)</span>
-            <textarea id="wizNotes" rows="2" placeholder="טיסות, לינה, רכב…"></textarea>
-          </label>
-        </fieldset>
-
-        <p class="wiz__err" id="wizErr" hidden></p>
-
-        <div class="ov-foot">
-          <button type="button" class="btn" id="wizBack">חזרה</button>
-          <button type="submit" class="btn btn--primary">צור את הטיול</button>
-        </div>
-      </form>
-    </section>
+    <!-- ---------- אשף הטיול החדש ----------
+         התוכן נבנה כולו ב-wizard.js: חמישה שלבים שתלויים זה בזה
+         (סוג הטיול קובע מה נשאל בהמשך), ושלושה מהם הם רשימות
+         שמשתנות תוך כדי. HTML סטטי לא היה חוסך כאן דבר. -->
+    <section class="ov-view wz" id="tripsWizard" hidden></section>
 
   </div>
 </div>
@@ -365,6 +299,9 @@
   <div class="journey__head">
     <h2 id="journeyTitle">מבט על הטיול</h2>
   </div>
+
+  <!-- שלב התכנון: פתוח לשינויים, או סגור ובהכנות. ראו renderStage. -->
+  <div class="stage" id="stageBar" hidden></div>
 
   <!-- בוחר הימים למעלה, ומתחתיו היום הנבחר מצויר: מסלול מתפתל שעובר
        בין התחנות, על רקע שמתאים לאופי היום. -->
@@ -812,6 +749,7 @@
 <script src="assets/js/api.js"></script>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/trips.js"></script>
+<script src="assets/js/wizard.js"></script>
 <script src="assets/js/ai.js"></script>
 <script src="assets/js/docs.js"></script>
 <script src="assets/js/flights.js"></script>

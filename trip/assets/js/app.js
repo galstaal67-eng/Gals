@@ -4337,6 +4337,7 @@ ${[marks, line].filter(Boolean).join("\n")}
         )
         .join("");
 
+    renderStage();
     renderJourney();
     tickCountdown();                 // האריח נבנה זה עתה וצריך את הערך שלו
   }
@@ -4574,146 +4575,137 @@ ${[marks, line].filter(Boolean).join("\n")}
     renderTripList();
   });
 
-  /* ------------------------------ האשף -------------------------------- */
+  /* ------------------------------------------------------------------ */
+  /*  שלב התכנון                                                        */
+  /* ------------------------------------------------------------------ */
 
-  /** שדות השמות נגזרים מהבחירה "רק אנחנו" / "שני זוגות" */
-  function renderWizNames() {
-    const couples = Number($('input[name="wizWho"]:checked').value) || 1;
-    const prev = $$("#wizNames input").map((i) => i.value);
-    const slots = couples * 2;
-    const def = ["גל", "נועה", "", ""];
-    $("#wizNames").innerHTML = Array.from({ length: slots }, (_, i) => {
-      const couple = Math.floor(i / 2) + 1;
-      return `<label>נוסע/ת ${i + 1} ${couples > 1 ? `<span class="muted">(זוג ${couple})</span>` : ""}
-        <input type="text" data-couple="${couple}" value="${esc(prev[i] ?? def[i] ?? "")}"
-               placeholder="שם" autocomplete="off" />
-      </label>`;
-    }).join("");
+  /**
+   * טיול בתכנון וטיול שיוצאים אליו הם שני דברים שונים, וצריך לדעת
+   * באיזה מהם אנחנו.
+   *
+   * ── למה זה בכלל שלב ולא סתם תווית ──
+   * כל עוד התכנון פתוח, השאלה היא "מה לשנות": להזיז ימים, להחליף סדר,
+   * לבקש מהעוזר גרסה אחרת. ברגע שהוא נסגר השאלה מתהפכת ל"מה עוד לא
+   * סגרנו": מה להזמין, מה לארוז, מה לבדוק. אותו מסך לא יכול לשאול את
+   * שתיהן, ולכן הפס הזה אומר איפה אנחנו ומה הצעד הבא.
+   *
+   * טיול שנוצר לפני השלב הזה אינו נושא stage, והוא נחשב סגור: הוא כבר
+   * תוכנן, ולא נכון להחזיר אותו לתכנון בלי שביקשו.
+   */
+  function renderStage() {
+    const bar = $("#stageBar");
+    if (!bar) return;
+    const stage = TRIP?.stage || "ready";
+    const planning = stage === "planning";
+
+    bar.hidden = false;
+    bar.className = `stage is-${stage}`;
+    bar.innerHTML = planning
+      ? `<span class="stage__txt"><b>🛠️ הטיול בתכנון</b>
+           ערכו, סדרו ובקשו שינויים מהעוזר. כשזה נראה טוב — סגרו את התכנון.</span>
+         <button type="button" class="btn btn--sm btn--primary" data-stage="ready">
+           ✓ סגירת התכנון</button>`
+      : `<span class="stage__txt"><b>✅ התכנון סגור</b>
+           מכאן זה הכנות: מה להזמין, מה לארוז ומה לבדוק לפני היציאה.</span>
+         <button type="button" class="btn btn--sm btn--primary" data-prep>🧳 הכנות ליציאה</button>
+         <button type="button" class="btn btn--sm" data-stage="planning">פתיחה לעריכה</button>`;
   }
 
-  function updateWizLen() {
-    const from = $("#wizFrom").value, to = $("#wizTo").value;
-    const n = from && to ? TripStore.dateRange(from, to).length : 0;
-    $("#wizLen").textContent = n
-      ? `${n} ימים · ${Math.max(n - 1, 0)} לילות`
-      : "בחרו תאריכי יציאה וחזרה";
+  /** קופץ אל רשימות ההכנה שבלשונית המידע ומדגיש אותן לרגע */
+  function openPrep() {
+    selectTab($("#tab-info"));
+    const card = $("#packGrid")?.closest(".card") || $("#infoGrid")?.closest(".card");
+    if (!card) return;
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+    card.classList.add("is-flash");
+    setTimeout(() => card.classList.remove("is-flash"), 1600);
+  }
+
+  document.addEventListener("click", (e) => {
+    const st = e.target.closest("[data-stage]");
+    if (st) {
+      const next = st.dataset.stage;
+      if (next === "ready") {
+        const n = (TRIP.days || []).filter((d) => !(d.plan || []).length).length;
+        if (n && !confirm(`ל-${n} ימים עדיין אין לוח זמנים. לסגור את התכנון בכל זאת?`)) return;
+      }
+      TripStore.stage(TRIP.id, next);
+      TRIP.stage = next;
+      renderStage();
+      if (next === "ready") openPrep();
+      return;
+    }
+    if (e.target.closest("[data-prep]")) return openPrep();
+  });
+
+  /* ------------------------------------------------------------------ */
+  /*  האשף                                                              */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * האשף עצמו חי ב-wizard.js. כאן רק מה שהוא לא יכול לדעת: מה לעשות
+   * עם הטיול שנוצר.
+   *
+   * אחרי בנייה נוחתים על **מבט העל** ולא על המסלול היומי: מה שרוצים
+   * לראות ראשון זה מה בנית לי, ורק אחר כך לפתוח יום ולשנות.
+   */
+  function initWizard() {
+    if (typeof TripWizard === "undefined") return;
+    TripWizard.init({
+      onCancel: openTrips,
+      onDone: (doc, info) => {
+        if (!doc) return openTrips();
+        TRIP = doc;
+        state = load();
+        // המטיילים שהוקלדו באשף הם אנשי ההוצאות של הטיול הזה
+        state.people = (doc.travellers || []).map((t) => ({ name: t.name, group: t.couple }));
+        save();
+        renderTrip();
+        closeTrips();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        if (info?.missed?.length) {
+          const n = info.missed.length;
+          toast(
+            "הטיול מוכן. " +
+              (n === 1
+                ? "מקום אחד לא נמצא על המפה — אפשר להוסיף אותו"
+                : `${n} מקומות לא נמצאו על המפה — אפשר להוסיף אותם`) +
+              ` בעריכת היום: ${info.missed.slice(0, 3).join(", ")}`
+          );
+        }
+      },
+    });
+  }
+
+  /**
+   * הודעה קצרה שנעלמת מעצמה.
+   *
+   * לא alert: alert עוצר את הדף ודורש אישור על מידע שאינו דורש החלטה.
+   */
+  let toastAt = null;
+  function toast(text) {
+    clearTimeout(toastAt);
+    let box = $("#toast");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "toast";
+      box.className = "toast";
+      box.setAttribute("role", "status");
+      document.body.appendChild(box);
+    }
+    box.textContent = text;
+    box.hidden = false;
+    toastAt = setTimeout(() => { box.hidden = true; }, 7000);
   }
 
   function openWizard() {
-    $("#wizForm").reset();
-    $("#wizErr").hidden = true;
-    $("#wizFound").hidden = true;
-    wizPlace = null;
-    wizPlaceFor = "";
-    wizLookup = null;
-    const soon = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
-    $("#wizFrom").value = soon;
-    $("#wizTo").value = new Date(Date.now() + 35 * 86400000).toISOString().slice(0, 10);
-    renderWizNames();
-    updateWizLen();
     $("#tripsPicker").hidden = true;
     $("#tripsWizard").hidden = false;
-    $("#wizWhere").focus();
+    TripWizard.open();
   }
-
-  /* היעד שאותר באשף. בלי קואורדינטות הטיול נוצר בלי מפה, בלי תחזית
-     ובלי חגים — ולכן זה קורה כאן, לפני היצירה, ולא אחריה. */
-  let wizPlace = null;
-  let wizPlaceFor = "";
-  let wizLookup = null;   // החיפוש שרץ כרגע, כדי לא לשלוח אותו פעמיים
-
-  function lookupWhere() {
-    wizLookup = (wizLookup || Promise.resolve()).then(runLookup, runLookup);
-    return wizLookup;
-  }
-
-  async function runLookup() {
-    const where = $("#wizWhere").value.trim();
-    const out = $("#wizFound");
-    if (where.length < 2) {
-      wizPlace = null; wizPlaceFor = "";
-      out.hidden = true;
-      return;
-    }
-    if (wizPlaceFor === where) return;      // כבר אותר עבור הטקסט הזה
-
-    out.hidden = false;
-    out.textContent = "מאתר…";
-    try {
-      const res = await fetch(`/api/geo?q=${encodeURIComponent(where)}`);
-      const data = await TripAPI.readJson(res);
-      wizPlaceFor = where;
-      if (data && data.found) {
-        wizPlace = data.place;
-        const parts = [data.place.name, data.place.admin, data.place.country].filter(Boolean);
-        out.textContent = `📍 ${parts.join(", ")}`;
-      } else {
-        wizPlace = null;
-        out.textContent = "לא מצאתי את היעד הזה. אפשר להמשיך — אבל בלי מפה ובלי תחזית.";
-      }
-    } catch {
-      // בלי שרת אין איתור. זו אינה סיבה למנוע יצירת טיול.
-      wizPlace = null; wizPlaceFor = "";
-      out.textContent = "אין חיבור לשרת, ולכן היעד לא אותר. הטיול ייווצר בלי מפה.";
-    }
-  }
-
-  $("#wizWhere").addEventListener("blur", lookupWhere);
 
   $("#newTripBtn").addEventListener("click", openWizard);
-  $("#wizCancel").addEventListener("click", closeTrips);
-  $("#wizBack").addEventListener("click", openTrips);
-  $$('input[name="wizWho"]').forEach((r) => r.addEventListener("change", renderWizNames));
-  $("#wizFrom").addEventListener("change", updateWizLen);
-  $("#wizTo").addEventListener("change", updateWizLen);
-
-  $("#wizForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const err = $("#wizErr");
-    const where = $("#wizWhere").value.trim();
-    const from = $("#wizFrom").value;
-    const to = $("#wizTo").value;
-
-    const fail = (msg) => { err.textContent = msg; err.hidden = false; };
-
-    if (!where) return fail("צריך יעד.");
-    if (!from || !to) return fail("צריך תאריך יציאה ותאריך חזרה.");
-    if (to < from) return fail("תאריך החזרה מוקדם מתאריך היציאה.");
-    const dates = TripStore.dateRange(from, to);
-    if (!dates.length) return fail("טווח התאריכים אינו תקין.");
-    if (dates.length > 60) return fail("הטווח ארוך מ-60 ימים — בדקו את התאריכים.");
-
-    const travellers = $$("#wizNames input")
-      .map((i) => ({ name: i.value.trim(), couple: Number(i.dataset.couple) }))
-      .filter((t) => t.name);
-    if (!travellers.length) return fail("צריך לפחות נוסע אחד — ההוצאות נרשמות על שמות.");
-
-    err.hidden = true;
-
-    // מי שהקליד ולחץ מיד לא עבר דרך blur — מאתרים כאן לפני היצירה
-    await lookupWhere();
-
-    const doc = TripStore.create({
-      title: $("#wizTitle").value.trim() || where,
-      where,
-      hotel: $("#wizHotel").value.trim(),
-      from, to,
-      currency: $("#wizCurrency").value,
-      notes: $("#wizNotes").value.trim(),
-      travellers,
-      place: wizPlace,
-    });
-
-    TRIP = doc;
-    state = load();
-    // המטיילים שהוקלדו באשף הם אנשי ההוצאות של הטיול הזה
-    state.people = doc.travellers.map((t) => ({ name: t.name, group: t.couple }));
-    save();
-    renderTrip();
-    closeTrips();
-    // נוחתים ישר על המסלול: שם ממלאים את הימים
-    $("#tab-route").click();
-  });
+  initWizard();
 
   /* --------------------------- עריכת יום ------------------------------ */
 
