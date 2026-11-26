@@ -5185,14 +5185,25 @@ ${[marks, line].filter(Boolean).join("\n")}
       here: () => {
         const day = (TRIP?.days || []).find((d) => d.date === todayISO()) || null;
         let stop = null;
+        let next = null;
         if (day) {
           const rail = railState(day);
           const now = rail.state.indexOf("now");
           const i = now >= 0 ? now : rail.at !== null && rail.at >= 0 ? Math.round(rail.at) : -1;
           if (i >= 0) stop = (day.points || []).indexOf(rail.pts[i]);
+
+          /* התחנה הבאה, למסלול שמשלב אותה עם המסעדה. לפי המיקום עצמו ולא
+             לפי הסימון: בין שתי תחנות הבאה היא זו שלפנינו, ובתחנה — זו
+             שאחריה. שדה תעופה אינו יעד שהולכים אליו ברגל אחרי ארוחה. */
+          if (rail.at !== null) {
+            const from = rail.at < 0 ? 0 : Math.floor(rail.at) + 1;
+            const q = rail.pts.slice(from).find(
+              (x) => x.type !== "airport" && Number.isFinite(x.lat) && Number.isFinite(x.lng));
+            if (q) next = { name: q.name, lat: q.lat, lng: q.lng };
+          }
         }
         const fix = typeof DayRoute !== "undefined" && DayRoute.where ? DayRoute.where() : null;
-        return { fix, day, stop };
+        return { fix, day, stop, next };
       },
     });
     document.addEventListener("click", (e) => {

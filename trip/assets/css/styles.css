@@ -2852,6 +2852,15 @@ body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .fx {
 .food__facts li { display: flex; gap: 7px; }
 .food__facts span { flex: 0 0 auto; }
 .food__card .btn { margin-top: 2px; }
+/* המסלול המשולב: המסעדה והיעד הבא בקישור אחד, בשני הסדרים האפשריים */
+.food__route {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  inline-size: 100%;
+  margin-top: 4px; padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+.food__route span { flex: 1 1 100%; font-size: .78rem; color: var(--txt-mute); }
+.food__route .btn { margin-top: 0; }
 .food__warn { margin: 10px 0 0; font-size: .86rem; color: var(--gold); }
 .food__src {
   display: flex; flex-wrap: wrap; gap: 4px 10px;

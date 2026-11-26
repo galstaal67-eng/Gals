@@ -220,8 +220,11 @@ const FoodFinder = (() => {
       out = {
         ...got,
         at: Date.now(),
-        near: { name: anchor.name, lat: anchor.lat, lng: anchor.lng, mine: anchor.mine },
-        asked: { kind: q.kind, styles: [...q.styles] },
+        near: {
+          name: anchor.name, lat: anchor.lat, lng: anchor.lng, mine: anchor.mine,
+          region: anchor.region || "",
+        },
+        asked: { kind: q.kind, styles: [...q.styles], walk: q.walk },
       };
       persist();
     } catch (err) {
@@ -245,6 +248,44 @@ const FoodFinder = (() => {
     return `https://www.google.com/maps/search/${encodeURIComponent(name)}${at}`;
   }
 
+  /**
+   * היעד שהמסלול צריך לכלול יחד עם המסעדה.
+   *
+   * מי שחיפש סביב תחנה חיפש שם כי הוא הולך לשם — התחנה היא היעד. מי
+   * שחיפש סביב המיקום שלו מקבל את התחנה הבאה במסלול של היום. כשאין
+   * לא זה ולא זה אין מסלול משולב, ונשאר רק "פתח במפות".
+   */
+  function routeTarget() {
+    if (out?.near && !out.near.mine && hasGeo(out.near)) return out.near;
+    const next = host.here()?.next;
+    return hasGeo(next) ? next : null;
+  }
+
+  /**
+   * מסלול אחד ב-Google Maps שעובר גם במסעדה וגם ביעד.
+   *
+   * בלי `origin`: כשהוא חסר המפות יוצאות מהמיקום של המכשיר, וזה מה
+   * שרוצים. היעד נשלח כקואורדינטה — הוא מהמסלול שלנו ואנחנו יודעים
+   * איפה הוא. המסעדה נשלחת כשם עם האזור, כי קואורדינטה שלה אין לנו,
+   * ואת השם המפות יודעות לפתור טוב מאיתנו.
+   *
+   * @param first  true — קודם אוכלים ואז ממשיכים ליעד; false — להפך
+   */
+  function routeLink(place, target, first) {
+    const eat = [place.name, out.near?.region].filter(Boolean).join(", ");
+    const goal = `${target.lat},${target.lng}`;
+    return (
+      "https://www.google.com/maps/dir/?api=1" +
+      `&destination=${encodeURIComponent(first ? goal : eat)}` +
+      `&waypoints=${encodeURIComponent(first ? eat : goal)}` +
+      `&travelmode=${out.asked?.walk === false ? "driving" : "walking"}`
+    );
+  }
+
+  /** שם קצר לכפתור: בלי ההסבר שאחרי המקף ובלי הסוגריים */
+  const shortName = (name) =>
+    String(name || "").split(/\s[—–-]\s/)[0].replace(/\s*\(.*$/, "").trim();
+
   function ago(ts) {
     const min = Math.round((Date.now() - ts) / 60000);
     if (min < 2) return "עכשיו";
@@ -265,6 +306,8 @@ const FoodFinder = (() => {
       .map((id) => STYLES.find((s) => s.id === id)?.label)
       .filter(Boolean);
     const places = out.places || [];
+    const target = routeTarget();
+    const goal = target ? shortName(target.name) || "היעד הבא" : "";
 
     return `
       <div class="food__sum">
@@ -290,6 +333,17 @@ const FoodFinder = (() => {
                 <a class="btn btn--sm" target="_blank" rel="noopener"
                    title="שעות פתיחה, ביקורות וניווט — נפתח במפות"
                    href="${esc(mapsLink(p.name, out.near))}">🗺️ פתח במפות</a>
+                ${target
+                  ? `<div class="food__route">
+                       <span>🧭 מסלול אחד עם ${esc(goal)}:</span>
+                       <a class="btn btn--sm btn--primary" target="_blank" rel="noopener"
+                          title="מהמיקום שלכם אל ${esc(p.name)}, ומשם אל ${esc(goal)}"
+                          href="${esc(routeLink(p, target, true))}">קודם לאכול</a>
+                       <a class="btn btn--sm" target="_blank" rel="noopener"
+                          title="מהמיקום שלכם אל ${esc(goal)}, ומשם אל ${esc(p.name)}"
+                          href="${esc(routeLink(p, target, false))}">לאכול אחר כך</a>
+                     </div>`
+                  : ""}
               </li>`
             )
             .join("")}</ol>`
