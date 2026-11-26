@@ -25,6 +25,9 @@
    ========================================================================= */
 
 const DayRoute = (() => {
+  /** חלון אחר שפתוח מעל מסך המסלול */
+  const OTHER_OVERLAY = ".overlay:not(#routeOverlay):not([hidden])";
+
   const SKEY = (date) => `route:${date}`;
   const GKEY = "gmaps:key";          // מפתח Embed API, אם המשתמש הזין
   const NEAR = 120;                  // מטרים שמהם נחשב "הגעת"
@@ -392,7 +395,9 @@ const DayRoute = (() => {
     if (outdoor) startHeading();
     centred = null;
     el.hidden = false;
-    document.body.classList.add("is-locked");
+    // is-route ולא רק is-locked: הכפתורים הצפים צריכים לדעת שהמסך
+    // שמעליהם הוא **מסך המסלול** ולא חלון דיאלוג כלשהו
+    document.body.classList.add("is-locked", "is-route");
     render();
     startGeo();
     clearInterval(tick);
@@ -402,7 +407,7 @@ const DayRoute = (() => {
 
   function close() {
     el.hidden = true;
-    document.body.classList.remove("is-locked");
+    document.body.classList.remove("is-locked", "is-route");
     stopGeo();
     stopHeading();
     mapFrame = null;
@@ -1371,6 +1376,10 @@ const DayRoute = (() => {
     document.addEventListener("keydown", (e) => {
       // Escape סוגר קודם את השדה, ורק אחר כך את המסך
       if (e.key !== "Escape" || !isOpen()) return;
+      /* חלון שנפתח מעל המסלול — העוזר, כרטיס העלייה — סוגר את עצמו
+         ב-Escape. בלי הבדיקה הזו אותה הקשה סגרה **גם** את המסלול
+         שמתחתיו, והמשתמש מצא את עצמו בחוץ אחרי שאלה אחת לעוזר. */
+      if (document.querySelector(OTHER_OVERLAY)) return;
       if (keyEdit) { keyEdit = false; return render(); }
       close();
     });
