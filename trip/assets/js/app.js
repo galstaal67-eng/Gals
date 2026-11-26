@@ -1190,6 +1190,119 @@
       : '<li class="muted sm">עדיין לא נמצא משהו שהצדיק להפריע.</li>';
   }
 
+  /* ------------------------------------------------------------------ */
+  /*  חץ היום                                                            */
+  /* ------------------------------------------------------------------ */
+  /**
+   * החץ שבצד הקוביה: כל תחנות היום מלמעלה למטה, ואיפה אנחנו עליו.
+   *
+   * הקוביה אומרת מה הבא בתור, אבל לא איפה זה יושב בתוך היום — האם זו
+   * התחנה השנייה מתוך שמונה או האחרונה. החץ עונה על זה במבט: מה שמאחורינו
+   * מלא, מה שלפנינו חלול, והנקודה הכחולה היא אנחנו.
+   *
+   * ── מאיפה יודעים איפה אנחנו ──
+   * שלושה מקורות, מהאמין לפחות אמין, והראשון שיש לו מה לומר מנצח:
+   *
+   * 1. **מה שסומן במסך המסלול.** "הגעתי" ידני הוא עובדה ולא הערכה.
+   * 2. **ה-GPS**, אם ניתנה הרשאה והמיקום טרי ואנחנו ממש ליד תחנה.
+   * 3. **השעון מול לוח הזמנים.** בין שתי תחנות שיש להן שעה הנקודה נעה
+   *    ביחס לזמן שעבר. זו הערכה — היא מניחה שעומדים בתוכנית — אבל היא
+   *    תמיד זמינה, גם בלי הרשאה ובלי שפתחו את מסך המסלול.
+   *
+   * יום שאין לאף תחנה בו שעה, ושלא סומן בו דבר, מצויר בלי נקודה: חץ
+   * שמראה מיקום מנוחש גרוע מחץ שאינו מראה מיקום.
+   */
+  function railState(day) {
+    const pts = (day.points || []).filter((q) => q && q.name);
+    const n = pts.length;
+    const state = pts.map(() => "");
+    let at = null;              // המיקום על החץ, ביחידות של תחנות: 2.5 = בין השלישית לרביעית
+
+    const marks = dayMarks(day);
+    const fix = typeof DayRoute !== "undefined" && DayRoute.where ? DayRoute.where() : null;
+    const d = new Date();
+    const clock = d.getHours() * 60 + d.getMinutes();
+
+    if (Object.keys(marks).length) {
+      let last = -1;
+      pts.forEach((q, i) => {
+        state[i] = marks[q.name] || "";
+        if (state[i]) last = i;
+      });
+      const here = state.indexOf("now");
+      // בין תחנה שסומנה לבאה אחריה: באמצע הדרך, כי אין מה שיאמר יותר מזה
+      at = here >= 0 ? here : last >= 0 ? Math.min(last + 0.5, n - 1) : null;
+    } else {
+      const times = pts.map((q) => MIN(pointTime(day, q)));
+      const timed = times.map((t, i) => (t === null ? -1 : i)).filter((i) => i >= 0);
+      const k = [...timed].reverse().find((i) => times[i] <= clock);
+      if (k !== undefined) {
+        const m = timed.find((i) => i > k);
+        const f = m === undefined ? 0 : (clock - times[k]) / Math.max(times[m] - times[k], 1);
+        at = m === undefined ? k : k + (m - k) * Math.min(f, 1);
+        pts.forEach((_, i) => { if (i < at - 0.2) state[i] = "done"; });
+        if (Math.abs(at - Math.round(at)) <= 0.2) state[Math.round(at)] = "now";
+      } else if (timed.length) {
+        at = -1;                // היום עוד לא התחיל
+      }
+    }
+
+    // GPS טרי ליד תחנה גובר על השעון, אבל לא על סימון ידני
+    if (fix && !Object.keys(marks).length && Date.now() - fix.at < 15 * 60_000) {
+      let best = null;
+      pts.forEach((q, i) => {
+        if (!Number.isFinite(q.lat) || !Number.isFinite(q.lng)) return;
+        const km = kmBetween(fix, q);
+        if (km !== null && km <= 0.2 && (!best || km < best.km)) best = { km, i };
+      });
+      if (best) {
+        at = best.i;
+        pts.forEach((_, i) => { state[i] = i < best.i ? "done" : i === best.i ? "now" : ""; });
+      }
+    }
+
+    return { pts, state, at };
+  }
+
+  function railHTML(day) {
+    if (!day || typeof DayScene === "undefined") return "";
+    const { pts, state, at } = railState(day);
+    if (pts.length < 2) return "";
+
+    const n = pts.length;
+    const attrs = stopAttrs(day);
+    /* התחנות מפוזרות ברווחים שווים, ולכן מיקום על החץ הוא חלק יחסי מהגובה
+       שבין מרכז התחנה הראשונה למרכז האחרונה. שני הקבועים הם הריפוד
+       שמעל הראשונה ומתחת לאחרונה — אותם ערכים שב-CSS. */
+    const along = (t) =>
+      `calc(var(--rail-top) + var(--rail-dot) / 2 + (100% - var(--rail-top) - var(--rail-end) - var(--rail-dot)) * ${
+        Math.round((Math.max(0, Math.min(t, n - 1)) / (n - 1)) * 1000) / 1000})`;
+
+    const done = at === null || at < 0 ? "0px" : along(at);
+    const between = at !== null && at >= 0 && !state.includes("now");
+
+    const here = state.indexOf("now");
+    const label =
+      here >= 0 ? `אנחנו ב${pts[here].name}`
+      : at === null ? "תחנות היום"
+      : at < 0 ? "היום עוד לא התחיל"
+      : `אנחנו בין ${pts[Math.floor(at)].name} ל${pts[Math.min(Math.ceil(at), n - 1)].name}`;
+
+    return `
+      <div class="now__rail" style="--rail-n:${n}" role="group" aria-label="${esc(label)}" title="${esc(label)}">
+        <i class="now__rail-done" style="block-size:${done}"></i>
+        ${pts
+          .map(
+            (q, i) => `<button type="button" class="now__stop${state[i] ? " is-" + state[i] : ""}"
+              ${attrs(q, i, n)} aria-label="${esc(q.name)}">
+              <svg viewBox="0 0 24 24" aria-hidden="true">${DayScene.glyph(DayScene.kindOf(q))}</svg>
+            </button>`
+          )
+          .join("")}
+        ${between ? `<i class="now__me" style="inset-block-start:${along(at)}"></i>` : ""}
+      </div>`;
+  }
+
   function renderNow() {
     const box = $("#nowBox");
     // נקראת גם מתוך זרימת הסנכרון, שרצה לפני שהטיול נטען
@@ -1208,7 +1321,10 @@
     box.className = `now wrap is-${card.tone}`;
     box.innerHTML = `
       <span class="now__walker" aria-hidden="true"><span>🚶</span></span>
-      <span class="now__icon" aria-hidden="true">${card.icon}</span>
+      <div class="now__side">
+        <span class="now__icon" aria-hidden="true">${card.icon}</span>
+        ${card.day ? railHTML(TRIP.days.find((d) => d.n === card.day)) : ""}
+      </div>
       <div class="now__body">
         <button class="now__who" data-now-settings
                 title="רמת הליווי ונושאי העניין">חבר/ה מלווה ⚙︎</button>
@@ -1244,6 +1360,8 @@
         ${card.day ? `<button class="btn btn--sm btn--primary" data-route-day="${card.day}"
              title="מסך המסלול: תחנה־תחנה, עם ניווט לכל אחת">🚶 יוצאים למסלול</button>` : ""}
         ${card.day ? `<button class="btn btn--sm" data-start-day="${card.day}">🕐 שעת התחלה</button>` : ""}
+        ${card.day ? `<button class="btn btn--sm" data-food-near=""
+             title="מסעדות, בתי קפה וברים ליד המקום שבו אנחנו">🍽️ אוכל</button>` : ""}
         ${card.day ? `<button class="btn btn--sm" data-add-exp>➕ הוצאה</button>` : ""}
         ${card.day ? `<button class="btn btn--sm" data-ov-open="${card.day}">היום המלא</button>` : ""}
         ${wantsBell ? '<button class="btn btn--sm" data-now-bell title="התראה בשעת העלייה למטוס, כל עוד האפליקציה פתוחה">🔔</button>' : ""}
@@ -1401,8 +1519,10 @@
 
   /**
    * היום שמוצג בתרשים. `null` עד הציור הראשון, שבוחר את היום הנוכחי.
+   * הערך "all" הוא התרשים של כל הטיול: כל הימים זה לצד זה.
    */
   let ovDay = null;
+  const OV_ALL = "all";
 
   /* ------------------------------------------------------------------ */
   /*  בוחר הימים + התרשים של היום הנבחר                                  */
@@ -1435,11 +1555,25 @@
     if (ovDay === null) {
       const anchor = (all[anchorIndex()] || {}).n;
       ovDay = days.some((d) => d.n === anchor) ? anchor : days[0].n;
-    } else if (!days.some((d) => d.n === ovDay)) {
+    } else if (ovDay !== OV_ALL && !days.some((d) => d.n === ovDay)) {
       ovDay = days[0].n;
     }
 
-    strip.innerHTML = days
+    /* "כל הטיול" ראשון בשורה, לפני יום 1: הוא אינו עוד יום אלא המבט
+       הרחב שממנו יורדים אל יום. בטיול של יום אחד אין לו מה להוסיף. */
+    const allOn = ovDay === OV_ALL;
+    const allBtn = days.length > 1
+      ? `<button type="button" role="tab" aria-selected="${allOn}"
+            class="ovd ovd--all${allOn ? " is-on" : ""}"
+            data-ov-day-pick="${OV_ALL}" title="תרשים של כל ימי הטיול">
+            <b>כל הטיול</b>
+            <i>${days.length} ימים</i>
+            <i class="ovd__date">${ovSlashDate(days[0].date)}–${ovSlashDate(days[days.length - 1].date)}</i>
+          </button>`
+      : "";
+    if (allOn && !allBtn) ovDay = days[0].n;
+
+    strip.innerHTML = allBtn + days
       .map((day) => {
         const on = day.n === ovDay;
         return `<button type="button" role="tab" aria-selected="${on}"
@@ -1456,25 +1590,27 @@
     scrollToDay();
   }
 
-  /** התרשים של היום הנבחר, והשורה שמתחתיו */
-  function paintScene() {
-    const scene = $("#ovScene");
-    const day = (TRIP.days || []).find((d) => d.n === ovDay);
-    if (!scene || !day || typeof DayScene === "undefined") return;
+  /** מה כבר נעשה ביום — נקרא ממסך המסלול, לא מחושב כאן מחדש */
+  /* `const DayRoute` בקובץ סקריפט רגיל אינו נכס של window — הוא קיים
+     כשם בלבד. בדיקה דרך window הייתה תמיד שקרית, והסימונים לא הופיעו. */
+  const dayMarks = (day) =>
+    (typeof DayRoute !== "undefined" && DayRoute.progress ? DayRoute.progress(day) : {}) || {};
 
+  /**
+   * התכונות שתחנה נושאת אל החלון שנפתח עליה.
+   *
+   * פונקציה אחת לשני התרשימים — של היום ושל כל הטיול — כדי שהקשה על
+   * אותה תחנה תפתח את אותו חלון בדיוק, לא משנה מאיפה הגיעו אליה.
+   */
+  function stopAttrs(day) {
     const pts = (day.points || []).filter((q) => q && q.name);
-    // מה כבר נעשה היום — נקרא ממסך המסלול, לא מחושב כאן מחדש
-    /* `const DayRoute` בקובץ סקריפט רגיל אינו נכס של window — הוא קיים
-       כשם בלבד. בדיקה דרך window הייתה תמיד שקרית, והסימונים לא הופיעו. */
-    const marks =
-      (typeof DayRoute !== "undefined" && DayRoute.progress ? DayRoute.progress(day) : {}) || {};
     const leg = flightOfDay(day);
     const firstAir = pts.findIndex((q) => q.type === "airport");
 
     /* קצה טיסה נושא את פרטי ההמראה או הנחיתה, וכך הכרטיס שנפתח עליו
        הוא כרטיס העלייה למטוס ולא קישור למפה של שדה תעופה */
     const notes = stopMatch(day);
-    const attrs = (q, i, total) => {
+    return (q, i, total) => {
       const at = (day.points || []).indexOf(q);
       const note = explain(q, notes[at]?.text);
       let extra =
@@ -1490,6 +1626,84 @@
       }
       return segData(day, q, i, total, extra);
     };
+  }
+
+  /**
+   * התרשים של כל הטיול: עמודה לכל יום, כל הימים זה לצד זה.
+   *
+   * הקשה על כותרת של יום יורדת אל התרשים שלו, והקשה על תחנה פותחת את
+   * אותו חלון שנפתח בתרשים היומי. הציור עצמו ב-scene.js.
+   */
+  function paintTrip() {
+    const scene = $("#ovScene");
+    const days = TRIP.days || [];
+    if (!scene || typeof DayScene === "undefined" || !DayScene.tripSvg) return;
+
+    const stops = days.reduce(
+      (sum, d) => sum + (d.points || []).filter((q) => q && q.name).length, 0);
+    const km = days.reduce((sum, d) => sum + (Number(d.drive?.km) || 0), 0);
+    const attrs = new Map();
+    const marks = new Map();
+
+    scene.className = "ovs ovs--trip";
+    scene.innerHTML = `
+      <div class="ovs__head">
+        <b>${esc(TRIP.meta?.title || "כל הטיול")}</b>
+        <span>${days.length} ימים · ${stops} תחנות</span>
+      </div>
+      <div class="ovs__art ovs__art--trip" style="--tc-n:${days.length}">${DayScene.tripSvg(days, {
+        status: dayStatus,
+        dow: (d) => dowShort(d),
+        date: (d) => ovSlashDate(d.date),
+        foot: (d) => {
+          const mode = TRIP.modes?.[d.mode] || {};
+          const n = (d.points || []).filter((q) => q && q.name).length;
+          return d.drive?.km >= 20
+            ? `${mode.icon || "🚗"} ${nfNum.format(d.drive.km)} ק"מ`
+            : `${n} תחנות`;
+        },
+        state: (d, q) => {
+          if (!marks.has(d.n)) marks.set(d.n, dayStatus(d) === "now" ? dayMarks(d) : {});
+          return marks.get(d.n)[q.name] || "";
+        },
+        data: (d, q, i, total) => {
+          if (!attrs.has(d.n)) attrs.set(d.n, stopAttrs(d));
+          return attrs.get(d.n)(q, i, total);
+        },
+      })}</div>
+      <div class="ovs__foot">
+        <span class="ovs__meta">הקישו על יום כדי לפתוח את התרשים שלו${
+          km ? ` · ${nfNum.format(km)} ק"מ בסך הכול` : ""
+        }</span>
+      </div>`;
+
+    // טיול ארוך נגלל הצידה, ואז מה שצריך להיות מול העיניים הוא היום הנוכחי
+    const art = scene.querySelector(".ovs__art--trip");
+    const now = art?.querySelector(".tc-col.is-now .tc-head");
+    if (art && now && art.scrollWidth > art.clientWidth + 2) {
+      const a = art.getBoundingClientRect();
+      const b = now.getBoundingClientRect();
+      art.scrollLeft += b.left + b.width / 2 - (a.left + a.width / 2);
+    }
+  }
+
+  /** התרשים של היום הנבחר, והשורה שמתחתיו */
+  function paintScene() {
+    const hint = $("#ovHint");
+    if (hint) {
+      hint.textContent = ovDay === OV_ALL
+        ? "כל ימי הטיול בתמונה אחת. הקישו על תחנה כדי לקרוא עליה, ועל כותרת של יום כדי לפתוח את התרשים המלא שלו."
+        : "הקישו על תחנה בתרשים כדי לקרוא עליה, ועל ⓘ שבסוף המסלול כדי לפתוח את הפירוט המלא של היום.";
+    }
+    if (ovDay === OV_ALL) return paintTrip();
+
+    const scene = $("#ovScene");
+    const day = (TRIP.days || []).find((d) => d.n === ovDay);
+    if (!scene || !day || typeof DayScene === "undefined") return;
+
+    const pts = (day.points || []).filter((q) => q && q.name);
+    const marks = dayMarks(day);
+    const attrs = stopAttrs(day);
 
     const mode = TRIP.modes[day.mode] || {};
     const km = day.drive?.km
@@ -1871,7 +2085,9 @@
       ? `<button type="button" class="btn btn--sm btn--primary"
            data-pass-leg="${esc(legKeyOfDay(d.ovDay))}">🎫 כרטיס עלייה</button>`
       : d.ovLat && d.ovLng
-      ? `<a class="btn btn--sm" target="_blank" rel="noopener"
+      ? `<button type="button" class="btn btn--sm" data-food-near="${esc(foodAnchorOf(d))}"
+           title="מסעדות, בתי קפה וברים ליד ${esc(d.ovName)}">🍽️ אוכל בסביבה</button>
+         <a class="btn btn--sm" target="_blank" rel="noopener"
            title="${esc(d.ovName)} — נפתח באפליקציית המפות, ובמחשב ב-Google Maps"
            href="${esc(placeMapsLink(d.ovName, d.ovLat, d.ovLng))}">🗺️ פתח במפות</a>`
       : `<button type="button" class="btn btn--sm" data-focus="${esc(d.ovDay)}">🗺️ על המפה</button>`;
@@ -1893,6 +2109,18 @@
     popAt = seg;
     placePop();
     box.querySelector(".pop__x")?.focus({ preventScroll: true });
+  }
+
+  /**
+   * המזהה של תחנה בחיפוש האוכל: המלון, או היום והמקום שלה ברשימת היום.
+   * ההתאמה לפי שם ולא לפי המספר שעל הסמל — הסמל סופר רק נקודות שיש להן
+   * שם, והחיפוש צריך את המקום ברשימה המלאה.
+   */
+  function foodAnchorOf(d) {
+    if (d.ovType === "hotel") return "hotel";
+    const day = (TRIP.days || []).find((x) => x.n === Number(d.ovDay));
+    const i = (day?.points || []).findIndex((q) => q && q.name === d.ovName);
+    return i >= 0 ? `p:${day.n}:${i}` : "";
   }
 
   /**
@@ -2009,7 +2237,7 @@
       // לחיצה על יום בבוחר מציירת אותו; הפירוט המלא נפתח מה-i שבסוף המסלול
       const pick = e.target.closest("[data-ov-day-pick]");
       if (pick) {
-        ovDay = Number(pick.dataset.ovDayPick);
+        ovDay = pick.dataset.ovDayPick === OV_ALL ? OV_ALL : Number(pick.dataset.ovDayPick);
         closePop();
         renderOverview();
         paintJourneyChips();
@@ -2042,7 +2270,8 @@
     // צומת ב-SVG אינו כפתור, ולכן Enter ורווח אינם מפעילים אותו לבד
     $("#journey").addEventListener("keydown", (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
-      const node = e.target.closest?.("[data-ov-name],[data-ov-info]");
+      // כותרת יום בתרשים של כל הטיול היא g ולא button, ולכן גם היא כאן
+      const node = e.target.closest?.("[data-ov-name],[data-ov-info],g[data-ov-day-pick]");
       if (!node) return;
       e.preventDefault();
       node.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -4251,6 +4480,7 @@ ${[marks, line].filter(Boolean).join("\n")}
     renderInfo();
     renderPacking();
     FlightsView.render();        // אסינכרוני — קורא מסמכים מ-IndexedDB
+    if (typeof FoodFinder !== "undefined") FoodFinder.render();
     renderTripDocs();            // אסינכרוני מאותה סיבה
 
     fillSelects();
@@ -4924,6 +5154,10 @@ ${[marks, line].filter(Boolean).join("\n")}
         return;
       }
 
+      // תחנה על חץ היום פותחת את אותו חלון שנפתח עליה במבט העל
+      const stop = e.target.closest(".now__stop[data-ov-name]");
+      if (stop) return openPop(stop);
+
       const day = e.target.closest("[data-ov-open]");
       if (day) return openDayModal(day.dataset.ovOpen);
     });
@@ -4939,6 +5173,34 @@ ${[marks, line].filter(Boolean).join("\n")}
 
     // הייבוא מהמייל מוסר את מה שמצא לעוזר, ולכן אינו נוגע בטיול בעצמו
     MailImport.init({ getTrip: () => TRIP });
+
+    /* חיפוש האוכל. הוא צריך לדעת איפה אנחנו — אותה תשובה שחץ היום
+       מצייר — ולא שום דבר אחר מהמצב הפנימי. הכפתורים שפותחים אותו
+       יושבים בקוביית "עכשיו" ובחלון התחנה, ששניהם מחוץ ללשונית עצמה,
+       ולכן ההאזנה על המסמך כולו. */
+    FoodFinder.init({
+      getTrip: () => TRIP,
+      tripId: () => TripStore.activeId(),
+      openTab: (name) => selectTab($("#tab-" + name)),
+      here: () => {
+        const day = (TRIP?.days || []).find((d) => d.date === todayISO()) || null;
+        let stop = null;
+        if (day) {
+          const rail = railState(day);
+          const now = rail.state.indexOf("now");
+          const i = now >= 0 ? now : rail.at !== null && rail.at >= 0 ? Math.round(rail.at) : -1;
+          if (i >= 0) stop = (day.points || []).indexOf(rail.pts[i]);
+        }
+        const fix = typeof DayRoute !== "undefined" && DayRoute.where ? DayRoute.where() : null;
+        return { fix, day, stop };
+      },
+    });
+    document.addEventListener("click", (e) => {
+      const food = e.target.closest("[data-food-near]");
+      if (!food) return;
+      closePop();
+      FoodFinder.open(food.dataset.foodNear);
+    });
 
     // המרת מטבע. אותם שערים של הלשוניות, ולכן אין כאן מקור אמת שני.
     Converter.init({ getRates: () => state.rates, getTrip: () => TRIP });

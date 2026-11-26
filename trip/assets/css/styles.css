@@ -1802,6 +1802,105 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
   --sc-sky: #f3f7fd; --sc-far: #dbe7f7; --sc-near: #c9dbf2;
 }
 
+/* ---------- התרשים של כל הטיול ---------- */
+
+/* כל הימים זה לצד זה, עמודה צבעונית לכל יום — כרזת מסלול מאוירת.
+   גם כאן ה-SVG נושא מבנה בלבד: לכל עמודה יש גוון אחד (--tc-h), וכל
+   שאר הצבעים שלה — הרקע, השביל, קו הרקיע — נגזרים ממנו. חמישה גוונים
+   שחוזרים במחזור, כך ששני ימים סמוכים לעולם אינם באותו צבע. */
+.ovd--all { min-inline-size: 72px; }
+.ovd--all b { white-space: nowrap; }
+
+/* יחידת הציור היא פיקסל של טלפון: 54 לעמודה. מתחת לזה השמות אינם
+   נקראים, ולכן טיול ארוך נגלל הצידה במקום להתכווץ; ומעל 86 המדליונים
+   נהיים ענקיים, ולכן במסך רחב התרשים נעצר שם. */
+.ovs__art--trip {
+  max-inline-size: calc(var(--tc-n, 6) * 86px);
+  margin-inline: auto;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  padding: 6px 4px 2px;
+}
+.ovs__art--trip .ovs__svg { min-inline-size: calc(var(--tc-n, 6) * 54px); }
+
+.tc-col--1 { --tc-h: #5b9bd5; }
+.tc-col--2 { --tc-h: #f0a23a; }
+.tc-col--3 { --tc-h: #8e7fd6; }
+.tc-col--4 { --tc-h: #4fb37f; }
+.tc-col--5 { --tc-h: #45b4d6; }
+
+.tc-col {
+  --tc-bg: color-mix(in srgb, var(--tc-h) 30%, var(--ink-850));
+  --tc-way: color-mix(in srgb, #fff3d6 30%, var(--tc-bg));
+  --tc-sil: color-mix(in srgb, var(--tc-h) 48%, var(--ink-850));
+  --tc-cloud: rgba(255, 255, 255, .13);
+  --tc-ink: color-mix(in srgb, var(--tc-h) 42%, #16202c);
+}
+[data-theme="light"] .tc-col {
+  --tc-bg: color-mix(in srgb, var(--tc-h) 46%, #fff);
+  --tc-way: color-mix(in srgb, #fff6de 82%, var(--tc-bg));
+  --tc-sil: color-mix(in srgb, var(--tc-h) 76%, #fff);
+  --tc-cloud: rgba(255, 255, 255, .78);
+}
+
+.tc-bg { fill: var(--tc-bg); }
+.tc-cloud { fill: var(--tc-cloud); }
+.tc-hill { fill: var(--tc-sil); }
+.tc-snow { fill: rgba(255, 255, 255, .82); }
+.tc-trunk { fill: none; stroke: var(--tc-sil); stroke-width: 1.6; }
+
+/* השביל: גוף בהיר, ועליו קו מקווקו דק — כמו בכרזה */
+.tc-path, .tc-path-mark { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.tc-path { stroke: var(--tc-way); stroke-width: 7.5; }
+.tc-path-mark {
+  stroke: color-mix(in srgb, var(--tc-h) 55%, transparent);
+  stroke-width: 1; stroke-dasharray: 2.5 4;
+}
+
+.tc-head { cursor: pointer; }
+.tc-hit { fill: transparent; }
+.tc-head:hover .tc-hit,
+.tc-head:focus-visible .tc-hit { fill: rgba(255, 255, 255, .16); }
+.tc-head:focus-visible { outline: none; }
+.tc-day, .tc-sub, .tc-label, .tc-foot, .tc-empty {
+  text-anchor: middle; direction: rtl; fill: var(--txt);
+}
+.tc-day { font-size: 12.5px; font-weight: 800; }
+.tc-sub { font-size: 7.4px; font-weight: 500; opacity: .8; }
+.tc-foot { font-size: 7.2px; font-weight: 600; opacity: .85; }
+.tc-empty { font-size: 7.6px; font-weight: 500; opacity: .6; }
+
+/* מדליון בהיר בשני הנושאים: הסמל מצויר עליו בגוון של העמודה, וזה מה
+   שנותן לכל יום את הצבע שלו גם בלי לקרוא את הכותרת */
+.tc-disc { fill: #fffaf0; stroke: var(--tc-ink); stroke-width: 1.3; }
+.tc-g { stroke: var(--tc-ink); stroke-width: 1.75; }
+.tc-label {
+  /* font-size ולא הקיצור font: עם inherit בתור משפחה הקיצור כולו נפסל,
+     והטקסט חוזר ל-16 פיקסלים */
+  font-size: 8.3px; font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--tc-bg); stroke-width: 2.6px; stroke-linejoin: round;
+}
+.tc-stop:hover .tc-disc { stroke-width: 2.2; }
+.tc-stop:focus-visible .tc-disc,
+.tc-stop.is-on .tc-disc { stroke: var(--txt); stroke-width: 2.4; }
+.tc-stop.is-done .tc-disc,
+.tc-stop.is-done .tc-g { opacity: .55; }
+.tc-stop.is-now .tc-disc { stroke: var(--gold); stroke-width: 2.4; }
+.tc-stop .sc-ok path { stroke-width: 1.5; }
+
+/* מצב: יום שחלף נסוג, והיום הנוכחי ממוסגר */
+.tc-col.is-past { opacity: .66; }
+.tc-now { fill: none; stroke: var(--gold); stroke-width: 2; }
+
+.tc-river {
+  fill: none; stroke: var(--sky); stroke-width: 2; stroke-linecap: round;
+  opacity: .8;
+}
+.tc-boat path { fill: none; stroke: var(--txt-dim); stroke-width: 1.2; stroke-linejoin: round; }
+.tc-boat path:first-child { fill: var(--txt-dim); }
+
 /* ארבעת הדברים שרוצים לראות על יום בלי לפתוח אותו */
 .ov-day__chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .ov-chip {
@@ -1900,7 +1999,7 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
   margin: 0;
   font-size: .81rem; line-height: 1.5; color: var(--txt-dim);
 }
-.pop__acts { display: flex; justify-content: flex-end; }
+.pop__acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 
 
 /* בטלפון השם אינו נכנס לעמודה צרה, ולכן נשארים האייקונים — השם המלא
@@ -2422,6 +2521,93 @@ body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .fx {
 .now[hidden] { display: none; }
 
 .now__icon { flex: 0 0 auto; font-size: 1.5rem; line-height: 1.1; }
+
+/* ---------- חץ היום ---------- */
+
+/* הטור שבצד הקוביה: האייקון למעלה, ומתחתיו חץ שיורד לאורך כל הקוביה
+   ועליו תחנות היום. הוא נמתח לגובה הגוף (align-self), ולכן יום של שלוש
+   תחנות נפרש ויום של שמונה מצטופף — בלי שאף אחד מהם קובע את גובה
+   הקוביה, מלבד הרצפה שלמטה שמונעת מהתחנות לעלות זו על זו. */
+.now__side {
+  flex: 0 0 auto; align-self: stretch;
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+}
+.now__rail {
+  --rail-dot: 22px;
+  --rail-top: 4px;
+  --rail-end: 13px;
+  position: relative;
+  flex: 1 1 auto;
+  inline-size: 26px;
+  min-block-size: calc(var(--rail-n, 4) * 27px + 14px);
+  padding-block: var(--rail-top) var(--rail-end);
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: space-between;
+}
+/* הקו, וראש החץ שבתחתיתו */
+.now__rail::before {
+  content: ""; position: absolute;
+  inset-block: 0 5px; inset-inline-start: calc(50% - 1.5px);
+  inline-size: 3px; border-radius: 3px;
+  background: var(--line-strong);
+}
+.now__rail::after {
+  content: ""; position: absolute;
+  inset-block-end: 0; inset-inline-start: calc(50% - 6px);
+  border: 6px solid transparent; border-block-end: 0;
+  border-block-start: 8px solid var(--line-strong);
+}
+/* מה שכבר מאחורינו */
+.now__rail-done {
+  position: absolute; inset-block-start: 0; inset-inline-start: calc(50% - 1.5px);
+  inline-size: 3px; border-radius: 3px;
+  background: var(--moss);
+  transition: block-size .6s ease;
+}
+.now__stop {
+  position: relative; z-index: 1;
+  flex: 0 0 auto;
+  inline-size: var(--rail-dot); block-size: var(--rail-dot);
+  display: grid; place-items: center;
+  padding: 0;
+  background: var(--ink-800);
+  border: 1.6px solid var(--line-strong); border-radius: 50%;
+  color: var(--txt-dim);
+  cursor: pointer;
+}
+.now__stop svg {
+  inline-size: 13px; block-size: 13px;
+  fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.now__stop:hover { border-color: var(--moss); color: var(--txt); }
+.now__stop.is-done {
+  background: var(--moss); border-color: var(--moss); color: var(--ink-900);
+}
+[data-theme="light"] .now__stop.is-done { color: #fff; }
+/* התחנה שבה אנחנו: כחול של "אתה כאן", כמו הנקודה במפה */
+.now__stop.is-now {
+  background: var(--sky); border-color: var(--sky); color: #fff;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sky) 28%, transparent);
+  transform: scale(1.12);
+}
+/* בין שתי תחנות: נקודה כחולה על הקו עצמו */
+.now__me {
+  position: absolute; z-index: 2;
+  inset-inline-start: calc(50% - 6.5px);
+  inline-size: 13px; block-size: 13px;
+  margin-block-start: -6.5px;
+  background: var(--sky);
+  border: 2.5px solid var(--ink-800); border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sky) 30%, transparent);
+  transition: inset-block-start .6s ease;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .now__stop.is-now, .now__me { animation: railPulse 2.4s ease-in-out infinite; }
+}
+@keyframes railPulse {
+  50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--sky) 8%, transparent); }
+}
 /* בסיס אפס: עם flex-wrap, בסיס "auto" נמדד לפי רוחב התוכן — והגוש
    ירד שורה מתחת לאייקון במקום לשבת לצידו */
 .now__body { flex: 1 1 0; min-width: 0; }
@@ -2611,6 +2797,67 @@ body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .fx {
   }
   .now__acts > * { flex: 0 1 auto; white-space: nowrap; }
 }
+
+/* ====================================================== FOOD ========= */
+/* חיפוש האוכל: טופס קצר של ארבע שורות — איפה, מה, איך, ועוד — ומתחתיו
+   הרשימה. התוויות בטור צר וקבוע, כדי שארבע השורות ייקראו כטבלה. */
+
+.food { display: grid; gap: 12px; }
+.food__row {
+  display: grid; grid-template-columns: 2.6rem minmax(0, 1fr);
+  align-items: center; gap: 8px;
+}
+.food__lbl { font-size: .78rem; font-weight: 700; color: var(--txt-mute); }
+.food__row select, .food__row input[type="text"] {
+  inline-size: 100%; min-inline-size: 0;
+  padding: .5rem .65rem;
+  background: var(--ink-900); color: var(--txt);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  font: inherit; font-size: .9rem;
+}
+.food__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.food__chips .chip { cursor: pointer; }
+.food__go {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+}
+.food__walk {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .84rem; color: var(--txt-dim); cursor: pointer;
+}
+.food__err { margin: 0; font-size: .86rem; color: var(--danger); }
+
+.food__out { margin-top: 14px; }
+.food__wait, .food__empty { margin: 0; padding: 6px 2px; font-size: .88rem; color: var(--txt-mute); }
+.food__sum { margin-bottom: 10px; }
+.food__sum b { display: block; font-size: 1rem; line-height: 1.4; }
+.food__sum small { color: var(--txt-mute); font-size: .76rem; }
+
+.food__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: food; }
+@media (min-width: 760px) { .food__list { grid-template-columns: 1fr 1fr; } }
+.food__card {
+  counter-increment: food;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  padding: 12px 14px;
+  background: var(--ink-800);
+  border: 1px solid var(--line); border-inline-start: 3px solid var(--gold);
+  border-radius: var(--radius-sm);
+}
+.food__name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.food__name b { font-size: 1rem; }
+.food__name b::before { content: counter(food) ". "; color: var(--gold); }
+.food__name small { color: var(--txt-mute); font-size: .8rem; }
+.food__why { margin: 0; font-size: .9rem; line-height: 1.5; }
+.food__facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font-size: .82rem; color: var(--txt-dim); }
+.food__facts li { display: flex; gap: 7px; }
+.food__facts span { flex: 0 0 auto; }
+.food__card .btn { margin-top: 2px; }
+.food__warn { margin: 10px 0 0; font-size: .86rem; color: var(--gold); }
+.food__src {
+  display: flex; flex-wrap: wrap; gap: 4px 10px;
+  margin: 10px 0 0; font-size: .74rem; color: var(--txt-mute);
+}
+.food__src a { color: var(--txt-dim); }
 
 /* ---------- התשובה מהחבר ---------- */
 
