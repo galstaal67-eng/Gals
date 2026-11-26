@@ -458,7 +458,247 @@ const DayScene = (() => {
     );
   }
 
-  return { svg, kindOf, sceneOf, sceneLabel: (d) => SCENE_LABEL[sceneOf(d)] || "", glyph: (k) => G[k] || G.pin };
+  /* ================================================================== */
+  /*  התרשים של כל הטיול                                                */
+  /* ================================================================== */
+  /**
+   * כל הימים בתמונה אחת: עמודה צבעונית לכל יום, ובה התחנות של אותו יום
+   * מלמעלה למטה על שביל שמתפתל ביניהן — כמו כרזת מסלול מאוירת.
+   *
+   * התרשים של יום בודד עונה על "מה עושים היום". הוא אינו עונה על "איך
+   * נראה הטיול": כדי להשוות יום ליום היה צריך לדפדף ביניהם ולזכור.
+   * כאן רואים בבת אחת איזה יום עמוס ואיזה קל, איפה הטיסות ואיפה יום
+   * הנסיעה, ואיפה אנחנו בתוך כל זה.
+   *
+   * ── שלוש החלטות ──
+   * **יחידת הציור היא פיקסל של טלפון.** שישה ימים על מסך של 360 הם
+   * כ-54 פיקסלים לעמודה, ולכן העמודה מצוירת ברוחב 54 והטקסט בגודל
+   * שנקרא ברוחב הזה. טיול קצר נמתח ומתרווח; טיול ארוך נגלל הצידה
+   * (ה-CSS קובע רוחב מינימום לעמודה) ואינו מתכווץ עד שאי אפשר לקרוא.
+   *
+   * **העמודות אינן טבלה.** אין שורות משותפות: בכל עמודה התחנות
+   * מתפזרות לאורך הגובה לפי כמה שיש בה, ולכן יום של שלוש תחנות נראה
+   * מרווח ויום של שמונה נראה צפוף — וזה בדיוק המידע.
+   *
+   * **השם מתקצר, הסמל לא.** "פארק ריקה — תחנת רכבל" נכתב כאן "פארק
+   * ריקה", אבל הסמל נגזר מהשם המלא ולכן הוא עדיין רכבל. השם המלא
+   * מחכה בחלון שנפתח בהקשה.
+   */
+
+  const T_CW = 54;      // רוחב עמודה
+  const T_GAP = 3;
+  const T_PAD = 3;
+  const T_HEAD = 40;    // כותרת היום
+  const T_R = 16;       // רדיוס המדליון
+  const T_LH = 9.4;     // גובה שורת שם
+  const T_FOOT = 17;    // שורת הסיכום שבתחתית העמודה
+  const T_RIVER = 24;   // הנהר שמתחת לכל העמודות
+  const T_TONES = 5;
+
+  /** השם כפי שהוא נכתב בעמודה צרה: בלי ההסבר שאחרי המקף ובלי הסוגריים */
+  function shortName(name) {
+    const full = String(name || "").trim();
+    const cut = full
+      .split(/\s[—–-]\s/)[0]
+      .split(/,\s/)[0]
+      .replace(/\s*\(.*$/, "")
+      .trim();
+    return cut || full;
+  }
+
+  /** הגובה שתחנה אחת צורכת: מדליון, שם, ורווח נשימה */
+  const slotH = (lines) => T_R * 2 + 5 + lines * T_LH + 7;
+
+  /** רוחב משוער של שורה, כדי לדעת מתי לכווץ אותה אל תוך העמודה */
+  const textW = (t) => String(t).length * 4.9;
+
+  function tripDeco(kind, x, top, bottom, seed) {
+    const rnd = rng(seed);
+    const out = [];
+    const cloud = (cx, cy, s) =>
+      `<path class="tc-cloud" transform="translate(${r(cx)} ${r(cy)}) scale(${r(s)})" ` +
+      'd="M14 22a9 9 0 0 1 0-18 12 12 0 0 1 22 2 8 8 0 0 1 2 16Z"/>';
+
+    // ענן אחד ליד הכותרת בכל יום, ועוד כמה ביום טיסה
+    out.push(cloud(x + 2 + rnd() * 8, top - 3, 0.34));
+    if (kind === "air") {
+      for (let i = 0; i < 3; i++) {
+        out.push(cloud(x + rnd() * (T_CW - 22), top + 30 + rnd() * (bottom - top - 80), 0.4 + rnd() * 0.2));
+      }
+    }
+
+    // קו הרקיע שבתחתית העמודה, לפי אופי היום
+    const y = bottom;
+    if (kind === "road") {
+      out.push(
+        `<path class="tc-hill" d="M${x} ${y} L${x + 12} ${y - 17} L${x + 21} ${y - 6} L${x + 33} ${y - 23} L${x + 45} ${y - 7} L${x + T_CW} ${y - 14} V${y} Z"/>` +
+        `<path class="tc-snow" d="M${x + 33} ${y - 23} l4.5 6 h-9 Z M${x + 12} ${y - 17} l3.4 4.6 h-6.8 Z"/>`
+      );
+    } else if (kind === "trail") {
+      for (let i = 0; i < 4; i++) {
+        const cx = x + 7 + i * 13.5;
+        const rad = 4.5 + rnd() * 2;
+        out.push(
+          `<path class="tc-trunk" d="M${r(cx)} ${y} v${r(-rad - 3)}"/>` +
+          `<circle class="tc-hill" cx="${r(cx)}" cy="${r(y - rad - 4)}" r="${r(rad)}"/>`
+        );
+      }
+    } else if (kind !== "air") {
+      let hx = x + 1;
+      while (hx < x + T_CW - 7) {
+        const w = 7 + Math.round(rnd() * 5);
+        const h = 7 + Math.round(rnd() * 11);
+        const ww = Math.min(w, x + T_CW - 1 - hx);
+        out.push(
+          kind === "city" || rnd() > 0.5
+            ? `<path class="tc-hill" d="M${hx} ${y} v${-h} h${ww} v${h} Z"/>`
+            : `<path class="tc-hill" d="M${hx} ${y} v${-h} l${ww / 2} ${-ww / 2.6} l${ww / 2} ${ww / 2.6} V${y} Z"/>`
+        );
+        hx += ww + 1;
+      }
+    }
+    return out.join("");
+  }
+
+  /**
+   * @param days  ימי הטיול, לפי הסדר
+   * @param opt.status  (day) → "past" | "now" | "future"
+   * @param opt.dow     (day) → יום השבוע בקיצור
+   * @param opt.date    (day) → התאריך כפי שהוא מוצג
+   * @param opt.foot    (day) → השורה שבתחתית העמודה (ק"מ או מספר תחנות)
+   * @param opt.state   (day, point) → "done" | "now" | ""
+   * @param opt.data    (day, point, i, total) → תכונות ה-data של התחנה
+   */
+  function tripSvg(days, opt = {}) {
+    const list = (days || []).filter(Boolean);
+    if (!list.length) return "";
+
+    const cols = list.map((day) => {
+      const pts = (day.points || []).filter((p) => p && p.name);
+      const stops = pts.map((p) => {
+        const lines = wrap(shortName(p.name), 10, 3);
+        return { p, lines, h: slotH(lines.length) };
+      });
+      return { day, stops, need: stops.reduce((sum, s) => sum + s.h, 0) };
+    });
+
+    const body = Math.max(120, ...cols.map((c) => c.need)) + 26;
+    const W = T_PAD * 2 + cols.length * T_CW + (cols.length - 1) * T_GAP;
+    const colH = T_HEAD + body + T_FOOT;
+    const H = T_PAD + colH + T_RIVER;
+    const top = T_PAD;
+    const out = [];
+
+    cols.forEach((c, idx) => {
+      const { day, stops } = c;
+      // יום 1 מימין: בעברית מתחילים לקרוא משם
+      const x = W - T_PAD - T_CW - idx * (T_CW + T_GAP);
+      const cx = x + T_CW / 2;
+      const kind = sceneOf(day);
+      const status = opt.status ? opt.status(day) : "";
+      const tone = ((Number(day.n) || idx + 1) - 1) % T_TONES + 1;
+      const bodyTop = top + T_HEAD;
+      const bodyBot = bodyTop + body;
+
+      // התחנות מתפזרות לאורך העמודה; הרווח הנוסף מוגבל, כדי שיום של
+      // שתי תחנות לא ייפרש על גובה של יום של שמונה
+      const spare = body - 26 - c.need;
+      const gap = stops.length ? Math.min(spare / stops.length, 30) : 0;
+      let y = bodyTop + 10;
+      const at = stops.map((s, i) => {
+        const pos = { x: cx + (stops.length > 1 ? (i % 2 ? -6.5 : 6.5) : 0), y: y + T_R + 1 };
+        y += s.h + gap;
+        return pos;
+      });
+
+      const way = at.length
+        ? [{ x: cx, y: bodyTop - 2 }, ...at, { x: cx, y: Math.min(at[at.length - 1].y + 46, bodyBot - 6) }]
+        : [];
+      const line = way.length ? spline(way) : "";
+
+      const marks = stops
+        .map((s, i) => {
+          const p = s.p;
+          const st = opt.state ? opt.state(day, p) : "";
+          const a = at[i];
+          const label = s.lines
+            .map((t, j) => {
+              const squeeze = textW(t) > T_CW - 3
+                ? ` textLength="${T_CW - 4}" lengthAdjust="spacingAndGlyphs"`
+                : "";
+              return `<tspan x="${r(cx)}" dy="${j ? T_LH : 0}"${squeeze}>${esc(t)}</tspan>`;
+            })
+            .join("");
+          return (
+            `<g class="ovs__stop tc-stop${st ? " is-" + st : ""}" ` +
+            `${opt.data ? opt.data(day, p, i, stops.length) : ""} role="button" tabindex="0" ` +
+            `aria-label="${esc("יום " + day.n + " · " + p.name)}">` +
+            `<circle class="sc-halo" cx="${r(a.x)}" cy="${r(a.y)}" r="${T_R + 3.5}"/>` +
+            `<circle class="tc-disc" cx="${r(a.x)}" cy="${r(a.y)}" r="${T_R}"/>` +
+            `<g class="sc-g tc-g" transform="translate(${r(a.x - 10.8)} ${r(a.y - 10.8)}) scale(0.9)">${G[kindOf(p)] || G.pin}</g>` +
+            (st === "done"
+              ? `<g class="sc-ok"><circle cx="${r(a.x + 11.5)}" cy="${r(a.y + 11.5)}" r="5.6"/>` +
+                `<path d="M${r(a.x + 8.9)} ${r(a.y + 11.6)} l1.8 2 3.3-3.8"/></g>`
+              : "") +
+            `<text class="tc-label" x="${r(cx)}" y="${r(a.y + T_R + 11)}">${label}</text>` +
+            "</g>"
+          );
+        })
+        .join("");
+
+      const foot = opt.foot ? opt.foot(day) : "";
+      const sub = [opt.dow ? opt.dow(day) : "", opt.date ? opt.date(day) : ""]
+        .filter(Boolean)
+        .join(" · ");
+
+      out.push(
+        `<g class="tc-col tc-col--${tone}${status ? " is-" + status : ""}">` +
+        `<rect class="tc-bg" x="${x}" y="${top}" width="${T_CW}" height="${colH}" rx="7"/>` +
+        // הזנב שמתחת לעמודה, שמצביע אל הנהר
+        `<path class="tc-bg" d="M${r(cx - 4.5)} ${top + colH - 0.5} h9 l-4.5 5 Z"/>` +
+        tripDeco(kind, x, top + 12, top + colH - T_FOOT, Number(day.n) || idx + 1) +
+        (line ? `<path class="tc-path" d="${line}"/><path class="tc-path-mark" d="${line}"/>` : "") +
+        `<g class="tc-head" data-ov-day-pick="${esc(day.n)}" role="button" tabindex="0" ` +
+        `aria-label="${esc("יום " + day.n + " — " + (day.title || ""))}">` +
+        `<rect class="tc-hit" x="${x}" y="${top}" width="${T_CW}" height="${T_HEAD}" rx="7"/>` +
+        `<text class="tc-day" x="${r(cx)}" y="${top + 19}">יום ${esc(day.n)}</text>` +
+        (sub ? `<text class="tc-sub" x="${r(cx)}" y="${top + 31}">${esc(sub)}</text>` : "") +
+        "</g>" +
+        (stops.length
+          ? marks
+          : `<text class="tc-empty" x="${r(cx)}" y="${bodyTop + 30}">אין תחנות</text>`) +
+        (foot ? `<text class="tc-foot" x="${r(cx)}" y="${top + colH - 5.5}">${esc(foot)}</text>` : "") +
+        (status === "now" ? `<rect class="tc-now" x="${x + 1}" y="${top + 1}" width="${T_CW - 2}" height="${colH - 2}" rx="6.2"/>` : "") +
+        "</g>"
+      );
+    });
+
+    // הנהר: קו גלי אחד מתחת לכל הימים, וסירה בכל קצה — תחילת הטיול וסופו
+    const ry = T_PAD + colH + 14;
+    let wave = `M${T_PAD + 14} ${ry}`;
+    const step = 13;
+    for (let wx = T_PAD + 14, i = 0; wx < W - T_PAD - 14 - step; wx += step, i++) {
+      wave += ` q${step / 2} ${i % 2 ? 4.5 : -4.5} ${step} 0`;
+    }
+    const boat = (bx) =>
+      `<g class="tc-boat" transform="translate(${r(bx)} ${ry - 9})">` +
+      '<path d="M0 6 h12 l-2.2 4 h-7.6 Z"/><path d="M6 6 V0 l4 4 h-4"/></g>';
+
+    return (
+      `<svg class="ovs__svg tc" viewBox="0 0 ${W} ${r(H)}" width="${W}" height="${r(H)}" ` +
+      'role="img" aria-label="תרשים של כל ימי הטיול" xmlns="http://www.w3.org/2000/svg">' +
+      out.join("") +
+      `<path class="tc-river" d="${wave}"/>` +
+      boat(W - T_PAD - 13) + boat(T_PAD + 1) +
+      "</svg>"
+    );
+  }
+
+  return {
+    svg, tripSvg, kindOf, sceneOf,
+    sceneLabel: (d) => SCENE_LABEL[sceneOf(d)] || "",
+    glyph: (k) => G[k] || G.pin,
+  };
 })();
 
 if (typeof window !== "undefined") window.DayScene = DayScene;

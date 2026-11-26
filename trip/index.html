@@ -385,6 +385,7 @@
     <button class="tab" role="tab" id="tab-map"      aria-controls="view-map"      aria-selected="true">🗺️ מפה</button>
     <button class="tab" role="tab" id="tab-route"    aria-controls="view-route"    aria-selected="false">📅 מסלול יומי</button>
     <button class="tab" role="tab" id="tab-live"     aria-controls="view-live"     aria-selected="false">📡 עכשיו</button>
+    <button class="tab" role="tab" id="tab-food"     aria-controls="view-food"     aria-selected="false">🍽️ אוכל</button>
     <button class="tab" role="tab" id="tab-flights"  aria-controls="view-flights"  aria-selected="false">✈️ טיסות</button>
     <button class="tab" role="tab" id="tab-tips"     aria-controls="view-tips"     aria-selected="false">💡 שיפורים</button>
     <button class="tab" role="tab" id="tab-cost"     aria-controls="view-cost"     aria-selected="false">💰 תכנון עלויות</button>
@@ -480,6 +481,18 @@
          הנתונים מגיעים משירותים ציבוריים דרך השרת ומתרעננים כל חצי שעה.</p>
     </div>
     <div id="liveView"></div>
+  </section>
+
+  <!-- ============================================== VIEW: FOOD ===== -->
+  <!-- חיפוש אוכל ליד המקום שבו אנחנו. הלוגיקה ב-food.js, והחיפוש עצמו
+       בשרת (/api/food) — רק בלחיצה, כי כל הרצה היא חיפוש ברשת. -->
+  <section class="view" id="view-food" role="tabpanel" aria-labelledby="tab-food">
+    <div class="section-head">
+      <h2>איפה אוכלים</h2>
+      <p>מסעדות, בתי קפה וברים ליד המקום שבו אתם נמצאים — או ליד כל תחנה
+         במסלול. בחרו סגנון, והרשימה מגיעה מחיפוש ברשת שנעשה באותו רגע.</p>
+    </div>
+    <div id="foodView"></div>
   </section>
 
   <section class="view" id="view-flights" role="tabpanel" aria-labelledby="tab-flights">
@@ -807,6 +820,7 @@
 <script src="assets/js/scene.js"></script>
 <script src="assets/js/guide.js"></script>
 <script src="assets/js/live.js"></script>
+<script src="assets/js/food.js"></script>
 <script src="assets/js/app.js"></script>
 
 <!-- ה-Service Worker הוא מה שמאפשר התקנה ופתיחה בלי רשת. הוא נרשם

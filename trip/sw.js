@@ -46,6 +46,7 @@ const SHELL = [
   "./assets/js/scene.js",
   "./assets/js/guide.js",
   "./assets/js/live.js",
+  "./assets/js/food.js",
   "./assets/js/app.js",
   "./assets/vendor/leaflet/leaflet.js",
   "./assets/vendor/leaflet/leaflet.css",
