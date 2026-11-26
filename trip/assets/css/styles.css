@@ -1829,6 +1829,184 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 }
 .overview__hint[hidden] { display: none; }
 
+/* ---------- המלווה בשטח ---------- */
+
+/*
+ * דמות קטנה בפינה, שמופיעה רק כשיש לה מה לומר.
+ *
+ * היא יושבת בצד הנגדי לכפתורים הצפים — הם בקצה ההתחלתי של שורה RTL
+ * (השמאלי), והיא בקצה הסופי (הימני). לא רק כדי לא להתנגש: כפתור הוא
+ * כלי שלוחצים עליו כשרוצים, ודמות היא מישהו שפונה אליך. שני דברים
+ * שונים לא צריכים לשבת באותה ערימה.
+ */
+.guide {
+  position: fixed;
+  inset-block-end: calc(18px + env(safe-area-inset-bottom));
+  inset-inline-start: 14px;
+  z-index: 907;
+  display: flex; align-items: flex-end; gap: 8px;
+  max-inline-size: calc(100vw - 28px);
+}
+.guide[hidden] { display: none; }
+
+/* ---------- הדמות ---------- */
+
+.guide__who {
+  position: relative;
+  flex: 0 0 auto;
+  inline-size: 44px; block-size: 44px;
+  display: grid; place-items: center;
+  padding: 0;
+  background: var(--ink-800);
+  border: 1px solid var(--moss);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 10px 24px -8px rgba(0, 0, 0, .7);
+  transition: inline-size .22s, block-size .22s, transform .22s;
+}
+[data-theme="light"] .guide__who { background: #fff; }
+
+.guide__fig {
+  inline-size: 26px; block-size: 26px;
+  fill: none; stroke: var(--moss);
+  stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+  transition: inline-size .22s, block-size .22s;
+}
+
+/* גדלה טיפה כשהיא מדברת — וזו הסיבה היחידה שהיא גדלה */
+.guide.is-talking .guide__who { inline-size: 52px; block-size: 52px; }
+.guide.is-talking .guide__fig { inline-size: 31px; block-size: 31px; }
+
+/* הנקודה אומרת "יש לי משהו" כשהבועה סגורה */
+.guide__dot {
+  position: absolute; inset-block-start: 1px; inset-inline-start: 1px;
+  inline-size: 10px; block-size: 10px;
+  background: var(--gold);
+  border: 2px solid var(--ink-900);
+  border-radius: 50%;
+}
+[data-theme="light"] .guide__dot { border-color: #fff; }
+
+/*
+ * ההופעה היא שתי פעימות ואז שקט.
+ *
+ * אלמנט שמופיע בפינה בלי תנועה נבלע בשאר המסך; אלמנט שזז נתפס בזווית
+ * העין גם כשמסתכלים על הרחוב. תנועה שלא נגמרת היא כבר הסחה ולא הודעה,
+ * ולכן שתי פעימות בלבד.
+ */
+.guide.is-enter .guide__who { animation: guideHop .62s ease-in-out 2; }
+@keyframes guideHop {
+  0%, 100% { transform: translateY(0) scale(1); }
+  35%      { transform: translateY(-7px) scale(1.07); }
+  70%      { transform: translateY(0) scale(.98); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide.is-enter .guide__who { animation: none; }
+  .guide__who, .guide__fig, .guide__bubble { transition: none; }
+}
+
+/* ---------- הבועה ---------- */
+
+/* נפתחת **מתוך** הדמות: נקודת המוצא של ההגדלה היא הפינה שנוגעת בה */
+.guide__bubble {
+  position: relative;
+  flex: 1 1 auto; min-inline-size: 0;
+  inline-size: min(272px, calc(100vw - 92px));
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 11px 12px 12px;
+  background: var(--ink-850);
+  border: 1px solid color-mix(in srgb, var(--moss) 45%, var(--line-strong));
+  /* הפינה החדה היא זו שנוגעת בדמות: בדף RTL הדמות מימין לבועה */
+  border-radius: var(--radius) var(--radius) 7px var(--radius);
+  box-shadow: 0 16px 36px -14px rgba(0, 0, 0, .8);
+  /* ההגדלה יוצאת מהפינה הזו, ולכן נראה שהבועה נפתחה מתוך הדמות */
+  transform-origin: 100% 100%;
+  animation: guideSay .2s ease;
+}
+
+/*
+ * הזנב שמחבר את הבועה לדמות.
+ *
+ * מאפיינים פיזיים ולא לוגיים בכוונה: הדף כולו RTL, והסיבוב של 45°
+ * אינו מודע לכיוון ממילא — המרה לוגית כאן הייתה מסתירה את העובדה
+ * שהריבוע מופנה ימינה ולא מוסיפה דבר.
+ */
+.guide__bubble::after {
+  content: "";
+  position: absolute;
+  bottom: 14px; right: -7px;
+  width: 12px; height: 12px;
+  background: inherit;
+  border-top: 1px solid color-mix(in srgb, var(--moss) 45%, var(--line-strong));
+  border-right: 1px solid color-mix(in srgb, var(--moss) 45%, var(--line-strong));
+  border-radius: 0 3px 0 0;
+  transform: rotate(45deg);
+}
+[data-theme="light"] .guide__bubble {
+  background: #fff;
+  box-shadow: 0 16px 32px -16px rgba(20, 30, 45, .5);
+}
+@keyframes guideSay {
+  from { opacity: 0; transform: scale(.72) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.guide__x {
+  position: absolute; inset-block-start: 5px; inset-inline-end: 5px;
+  inline-size: 24px; block-size: 24px;
+  display: grid; place-items: center;
+  padding: 0;
+  background: transparent; border: 0; border-radius: 7px;
+  color: var(--txt-mute); font: inherit; font-size: .82rem; line-height: 1;
+  cursor: pointer;
+}
+.guide__x:hover { background: var(--ink-700); color: var(--txt); }
+
+.guide__ttl { padding-inline-end: 24px; font-size: .86rem; color: var(--moss); }
+.guide__txt { margin: 0; font-size: .81rem; line-height: 1.5; color: var(--txt-dim); }
+
+/* ---------- הדירוג ---------- */
+
+.guide__stars { display: flex; gap: 2px; justify-content: center; margin-top: 2px; }
+.guide__star {
+  padding: 2px 4px;
+  background: transparent; border: 0;
+  color: var(--line-strong); font-size: 1.4rem; line-height: 1;
+  cursor: pointer;
+  transition: color .12s, transform .12s;
+}
+.guide__star.is-on { color: var(--gold); }
+.guide__star:hover { transform: scale(1.14); }
+
+.guide__hint {
+  margin: 0; text-align: center;
+  font-size: .72rem; color: var(--txt-mute); min-block-size: 1em;
+}
+
+.guide__note {
+  inline-size: 100%; min-inline-size: 0;
+  padding: 6px 9px;
+  background: var(--ink-900); border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--txt); font: inherit; font-size: .78rem;
+}
+[data-theme="light"] .guide__note { background: #f6f8fc; }
+.guide__note:focus { outline: none; border-color: var(--moss); }
+
+.guide__acts { display: flex; gap: 6px; justify-content: flex-end; margin-top: 2px; }
+.guide__acts .btn { flex: 0 1 auto; white-space: nowrap; }
+.guide__was { margin: 0; font-size: .72rem; color: var(--txt-mute); }
+
+/* ---------- הדירוג בחלון התחנה ---------- */
+
+.pop__rate {
+  margin: 0;
+  font-size: .78rem; color: var(--txt-dim);
+}
+.pop__rate b { color: var(--gold); font-weight: 400; letter-spacing: 1px; }
+/* הכוכבים הריקים הם אותם כוכבים בצבע הרקע — כך הרוחב קבוע בכל דירוג */
+.pop__rate i { color: var(--line-strong); font-style: normal; }
+
 /* ---------- חלון התחנה ---------- */
 
 /* חלון קטן שנפתח צמוד לסמל שנלחץ. קודם נפתח כאן כרטיס מתחת לתרשים,
@@ -2182,6 +2360,10 @@ body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .fab {
 }
 body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .fx {
   z-index: 961;
+}
+/* והדמות בוודאי: מסך המסלול הוא בדיוק המסך שהולכים איתו ברחוב */
+body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .guide {
+  z-index: 962;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -532,6 +532,10 @@ const DayRoute = (() => {
     const day = ctx.day(st.n);
     const list = stops(day);
     if (!list.length) return;
+    // הדמות שמלווה בשטח שואלת "איך היה" — ולכן היא צריכה לדעת שהגענו
+    if (auto && typeof TripGuide !== "undefined") {
+      try { TripGuide.arrived(list[st.idx]?.name); } catch { /* לא קריטי */ }
+    }
     if (!st.done.includes(st.idx)) st.done.push(st.idx);
     if (st.idx < list.length - 1) st.idx++;
     st.auto = Boolean(auto);

@@ -1887,12 +1887,23 @@
         </span>
       </div>
       ${d.ovNote ? `<p class="pop__txt">${esc(d.ovNote)}</p>` : ""}
+      ${rateLine(d.ovName)}
       <div class="pop__acts">${act}</div>`;
 
     box.hidden = false;
     popAt = seg;
     placePop();
     box.querySelector(".pop__x")?.focus({ preventScroll: true });
+  }
+
+  /** הדירוג שנתתם למקום בשטח, אם נתתם */
+  function rateLine(name) {
+    const r = typeof TripGuide !== "undefined" ? TripGuide.rateOf(name) : null;
+    if (!r) return "";
+    return (
+      `<p class="pop__rate"><b aria-label="${r.stars} מתוך 5">${"★".repeat(r.stars)}` +
+      `<i>${"★".repeat(5 - r.stars)}</i></b>${r.note ? ` ${esc(r.note)}` : ""}</p>`
+    );
   }
 
   /**
@@ -5109,6 +5120,17 @@ ${[marks, line].filter(Boolean).join("\n")}
     });
 
     renderTrip();
+
+    /*
+     * המלווה בשטח. הוא מקבל את היום הנוכחי ואת הדרך להודיע שנשמר דירוג,
+     * ולא את המשתנים הפנימיים — בדיוק כמו שאר המודולים.
+     */
+    if (typeof TripGuide !== "undefined") {
+      TripGuide.init({
+        today: () => (TRIP.days || []).find((d) => d.date === todayISO()) || null,
+        rated: () => { paintScene(); },
+      });
+    }
 
     // עוזר ה-AI מקבל גישה לטיול הפעיל ולשמירה, ולא למשתנים הפנימיים
     TripAI.init({

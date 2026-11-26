@@ -24,7 +24,7 @@
    המטמונים הישנים נמחקים בהפעלה.
    ========================================================================= */
 
-const CACHE = "trip-v5";
+const CACHE = "trip-v6";
 
 /** מה שנשמר כבר בהתקנה, כדי שהפתיחה הראשונה בלי רשת תעבוד */
 const SHELL = [
@@ -44,6 +44,7 @@ const SHELL = [
   "./assets/js/watch.js",
   "./assets/js/route.js",
   "./assets/js/scene.js",
+  "./assets/js/guide.js",
   "./assets/js/live.js",
   "./assets/js/app.js",
   "./assets/vendor/leaflet/leaflet.js",
