@@ -118,6 +118,7 @@ export default async (req: Request) => {
     c.place && `יעד: ${line(c.place, 80)}`,
     c.when && `עכשיו: ${line(c.when, 40)}`,
     c.state && `מצב: ${line(c.state, 60)}`,
+    c.spot && `איפה אני: ${line(c.spot, 220)}`,
     c.now && `מה קורה עכשיו: ${line(c.now, 300)}`,
     c.next && `הבא בתור: ${line(c.next, 300)}`,
     c.hotel && `לינה: ${line(c.hotel, 120)}`,

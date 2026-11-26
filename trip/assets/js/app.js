@@ -894,6 +894,104 @@
   let asking = false;
 
   /** מה שהחבר צריך לדעת כדי לענות — אותו הקשר לשאלה ולבדיקה היזומה */
+  /**
+   * איפה אנחנו ברגע הזה — בזמן, במסלול, ובמרחב.
+   *
+   * העוזר קיבל עד כה רק את התאריך, ולכן על "המלץ על מסעדה ביעד הבא" הוא
+   * ענה "לא ברור לאיזה יום מתכוונים". זו הייתה שאלה שאפשר לענות עליה:
+   * האפליקציה יודעת איזה יום היום, מה השעה, איזו עצירה כבר עברנו, ומי
+   * שנתן הרשאת מיקום — גם איפה הוא עומד. שאלה שהמשתמש צודק בכך שאינה
+   * אמורה להישאל.
+   *
+   * המיקום מגיע ממסך המסלול, שהוא היחיד שמבקש הרשאה. אם לא נתנו הרשאה
+   * `where` הוא null, והמודל יודע שאין לו מיקום — ולא מנחש אחד.
+   */
+  function whereAmI() {
+    const t = todayISO();
+    const days = TRIP.days || [];
+    const i = days.findIndex((d) => d.date === t);
+    const day = i >= 0 ? days[i] : null;
+    const after = i >= 0 ? days[i + 1] : days.find((d) => d.date > t);
+    const d = new Date();
+    const clock = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+    const out = {
+      date: t,
+      clock,
+      weekday: new Intl.DateTimeFormat("he-IL", { weekday: "long" }).format(d),
+      beforeTrip: Boolean(days.length && t < days[0].date),
+      afterTrip: Boolean(days.length && t > days[days.length - 1].date),
+      today: day ? { n: day.n, title: day.title || "", region: day.region || "" } : null,
+      tomorrow: after
+        ? { n: after.n, date: after.date, title: after.title || "", region: after.region || "" }
+        : null,
+      doingNow: null,
+      nextUp: null,
+      visited: [],
+      where: null,
+    };
+
+    if (day) {
+      // מה כבר עבר ומה הבא בתור — לפי השעון, מתוך לוח הזמנים של היום
+      const rows = (day.plan || []).filter((r) => /^\d{1,2}:\d{2}/.test(String(r.time || "")));
+      const past = rows.filter((r) => r.time <= clock);
+      out.doingNow = past.length ? { time: past[past.length - 1].time, text: past[past.length - 1].text } : null;
+      const next = rows.find((r) => r.time > clock);
+      out.nextUp = next ? { time: next.time, text: next.text } : null;
+
+      // ומה סומן במסך המסלול עצמו — "היינו שם" ידני גובר על השעון
+      const marks = (typeof DayRoute !== "undefined" && DayRoute.progress ? DayRoute.progress(day) : {}) || {};
+      out.visited = Object.keys(marks).filter((k) => marks[k] === "done");
+      const here = Object.keys(marks).find((k) => marks[k] === "now");
+      if (here) out.atStop = here;
+    }
+
+    const fix = typeof DayRoute !== "undefined" && DayRoute.where ? DayRoute.where() : null;
+    if (fix) {
+      out.where = {
+        lat: +fix.lat.toFixed(5),
+        lng: +fix.lng.toFixed(5),
+        accuracyM: fix.acc,
+        minutesAgo: Math.round((Date.now() - fix.at) / 60000),
+      };
+      /* הנקודה הקרובה ביותר — "אני ליד X" קריא בהרבה מזוג קואורדינטות.
+         החיפוש הוא על כל הטיול ולא רק על היום: מי שסטה מהמסלול עומד ליד
+         מקום אמיתי, ושיוך היום אומר למודל אם הוא על המסלול או מחוצה לו. */
+      let best = null;
+      for (const dd of days) {
+        for (const q of dd.points || []) {
+          if (!q || !Number.isFinite(q.lat) || !Number.isFinite(q.lng)) continue;
+          const km = kmBetween(fix, q);
+          if (km !== null && (!best || km < best.km)) best = { km, name: q.name, day: dd.n };
+        }
+      }
+      if (best) {
+        out.where.nearest = {
+          name: best.name,
+          metres: Math.round(best.km * 1000),
+          ofDay: best.day,
+        };
+      }
+    }
+
+    return out;
+  }
+
+  /** המיקום כמשפט אחד, לשאלות החיות של "בדוק עכשיו" */
+  function spotLine() {
+    const h = whereAmI();
+    const bits = [];
+    if (h.today) bits.push(`יום ${h.today.n} בטיול — ${h.today.title}`);
+    if (h.where?.nearest) {
+      bits.push(
+        `אני ליד ${h.where.nearest.name} (${h.where.nearest.metres} מ׳)` +
+          (h.where.minutesAgo > 10 ? `, מיקום מלפני ${h.where.minutesAgo} דקות` : "")
+      );
+    }
+    if (h.doingNow) bits.push(`עכשיו לפי התוכנית: ${h.doingNow.time} ${h.doingNow.text}`);
+    return bits.join(". ");
+  }
+
   function nowContext() {
     const box = $("#nowBox");
     const leg = TRIP.flights?.out;
@@ -905,6 +1003,9 @@
       now: $("#nowBox .now__sub")?.textContent || "",
       next: $("#nowBox .now__main")?.textContent || "",
       hotel: TRIP.days?.find((d) => d.date === todayISO())?.hotel?.name || "",
+      /* ‎/api/ask מקבל שדות קצרים ומנוקים בלבד, ולכן המיקום מגיע אליו
+         כמשפט אחד ולא כאובייקט. העוזר הגדול מקבל את הבלוק המלא. */
+      spot: spotLine(),
       flight: leg ? `${leg.flightNo} ${leg.from} ${leg.dep} → ${leg.to} ${leg.arr}` : "",
     };
   }
@@ -5015,10 +5116,11 @@ ${[marks, line].filter(Boolean).join("\n")}
 
       /** הרשימות שמהן העוזר חייב לבחור כשהוא רושם הוצאה */
       getContext: () => ({
-        today: new Date().toISOString().slice(0, 10),
+        today: todayISO(),
         people: state.people.map((p) => p.name),
         categories: CATEGORIES.map((c) => c.name),
         currencies: CURRENCIES,
+        here: whereAmI(),
       }),
 
       onApply: (doc, { undo }) => {

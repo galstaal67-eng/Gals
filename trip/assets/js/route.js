@@ -39,6 +39,16 @@ const DayRoute = (() => {
   let el = null;                     // האלמנט של השכבה
   let watchId = null;
   let pos = null;                    // GeolocationPosition.coords
+  /**
+   * המיקום האחרון שנקלט, ומתי.
+   *
+   * `pos` מתאפס בסגירת המסך כי המסך מפסיק לעקוב. `lastFix` לא: מי
+   * שנתן הרשאת מיקום ציפה שהאפליקציה תדע איפה הוא, וגם שתי דקות אחרי
+   * שסגר את המסלול התשובה "אני לא יודע איפה אתה" אינה נכונה. הגיל
+   * נשמר יחד עם הנקודה, כדי שמי שקורא אותה יוכל להחליט אם היא עדיין
+   * רלוונטית — מיקום ישן גרוע ממיקום חסר רק כשלא אומרים שהוא ישן.
+   */
+  let lastFix = null;                // { lat, lng, acc, at }
   let geoErr = "";
   let nearHits = 0;                  // קריאות רצופות בתוך הרדיוס
   let askShift = false;              // האם ההצעה להזיז את היום פתוחה
@@ -430,6 +440,12 @@ const DayRoute = (() => {
     watchId = navigator.geolocation.watchPosition(
       (p) => {
         pos = p.coords;
+        lastFix = {
+          lat: p.coords.latitude,
+          lng: p.coords.longitude,
+          acc: Math.round(p.coords.accuracy || 0),
+          at: Date.now(),
+        };
         geoErr = "";
         autoArrive();        // הגעה היא שינוי מצב, והיא כן בונה מחדש
         paintGeo();
@@ -1408,7 +1424,7 @@ const DayRoute = (() => {
     return out;
   }
 
-  return { init, open, close, isOpen, progress, started: (date) => {
+  return { init, open, close, isOpen, progress, where: () => lastFix, started: (date) => {
     try {
       const s = JSON.parse(localStorage.getItem(SKEY(date)) || "null");
       return s?.startedAt || null;
