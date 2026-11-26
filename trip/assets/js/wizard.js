@@ -464,7 +464,14 @@ const TripWizard = (() => {
       const want = Math.max(1, Number(s.nights) || 1);
       const got = i === stops.length - 1 ? left : Math.max(1, Math.round(want * scale));
       left -= got;
-      return { name: s.name.trim(), nights: Math.max(1, got) };
+      /* הקואורדינטות נשלחות עם היעד: השרת מחפש את המקומות **בתוך**
+         תיבת היעד, ובלי תיבה הוא לא מוצא דבר — גם לא "תחנת סאו בנטו". */
+      const p = s.place;
+      return {
+        name: s.name.trim(),
+        nights: Math.max(1, got),
+        ...(p && Number.isFinite(p.lat) ? { lat: p.lat, lng: p.lng } : {}),
+      };
     });
 
     return {

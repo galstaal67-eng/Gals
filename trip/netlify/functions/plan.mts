@@ -197,6 +197,11 @@ const str = (v: unknown, max = 200) =>
 interface Stop {
   name: string;
   nights: number;
+  /* הקואורדינטות שהאשף כבר איתר. הן לא קישוט: resolvePlaces מחפש
+     **בתוך תיבת היעד** בלבד, ובלי תיבה הוא מחזיר אפס תוצאות — גם על
+     שמות שכל מפה מכירה. ראו boxOf. */
+  lat?: number;
+  lng?: number;
 }
 
 interface Brief {
@@ -221,7 +226,13 @@ function readBrief(raw: Record<string, unknown>): Brief | string {
   const stops = (Array.isArray(raw.stops) ? raw.stops : [])
     .map((s) => {
       const o = (s || {}) as Record<string, unknown>;
-      return { name: str(o.name, 80), nights: Math.max(0, Math.min(60, Number(o.nights) || 0)) };
+      const lat = Number(o.lat);
+      const lng = Number(o.lng);
+      return {
+        name: str(o.name, 80),
+        nights: Math.max(0, Math.min(60, Number(o.nights) || 0)),
+        ...(Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : {}),
+      };
     })
     .filter((s) => s.name);
   if (!stops.length) return "צריך לפחות יעד אחד";
@@ -252,6 +263,26 @@ function readBrief(raw: Record<string, unknown>): Brief | string {
     currency: str(raw.currency, 3),
     musts: str(raw.musts, 600),
     limits: str(raw.limits, 600),
+  };
+}
+
+/**
+ * תיבת היעד, סביב כל היעדים שאותרו.
+ *
+ * אותו תיחום נדיב של buildTrip — 1.2° ברוחב ו-1.6° באורך — כדי שטיול
+ * יום לכל כיוון ייכנס אליה. בלי אף יעד שאותר אין תיבה, ואז המקומות
+ * פשוט לא נפתרים: זה מדווח למשתמש, ולא הופך לנקודה מומצאת.
+ */
+function boxOf(stops: Stop[]) {
+  const pts = stops.filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+  if (!pts.length) return null;
+  const lat = pts.map((s) => s.lat as number);
+  const lng = pts.map((s) => s.lng as number);
+  return {
+    latMin: Math.min(...lat) - 1.2,
+    latMax: Math.max(...lat) + 1.2,
+    lngMin: Math.min(...lng) - 1.6,
+    lngMax: Math.max(...lng) + 1.6,
   };
 }
 
@@ -400,7 +431,10 @@ async function detail(client: Anthropic, b: Brief, body: Record<string, unknown>
 
   /* המקומות נפתרים כאן, לא אצל המודל. תקציב של 10 חיפושים למנה של
      שלושה ימים — שם בעברית עולה שניים, תרגום וחיפוש. */
-  const doc = { meta: { countries: sk.countries || [] }, days: [] as unknown[] };
+  const doc = {
+    meta: { countries: sk.countries || [], bbox: boxOf(b.stops) },
+    days: [] as unknown[],
+  };
   const days = [];
   for (const d of out.days) {
     const { points, unresolved } = await resolvePlaces(d.places || [], doc, { lookups: 10 });
