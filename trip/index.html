@@ -317,6 +317,19 @@
 <!-- הדמות שמלווה בשטח. היא מופיעה רק כשיש לה מה לומר. ראו guide.js. -->
 <div class="guide" id="guide" hidden></div>
 
+<!-- מציג מסמך במסך מלא: זה מה שמראים בכניסה לאולם. -->
+<div class="overlay overlay--doc" id="docView" hidden>
+  <div class="docv" role="dialog" aria-modal="true" aria-labelledby="docvTitle">
+    <div class="docv__bar">
+      <b id="docvTitle">—</b>
+      <span class="docv__meta" id="docvMeta"></span>
+      <a class="icon-btn" id="docvGet" download title="שמירה">⤓</a>
+      <button class="icon-btn" id="docvClose" aria-label="סגירה">✕</button>
+    </div>
+    <div class="docv__body" id="docvBody"></div>
+  </div>
+</div>
+
 <!-- חלון צף של תחנה. ראו openPop ב-app.js. -->
 <div class="pop" id="ovPop" role="dialog" aria-labelledby="ovPopName" hidden></div>
 
@@ -328,6 +341,7 @@
     <button class="tab" role="tab" id="tab-live"     aria-controls="view-live"     aria-selected="false">📡 עכשיו</button>
     <button class="tab" role="tab" id="tab-food"     aria-controls="view-food"     aria-selected="false">🍽️ אוכל</button>
     <button class="tab" role="tab" id="tab-flights"  aria-controls="view-flights"  aria-selected="false">✈️ טיסות</button>
+    <button class="tab" role="tab" id="tab-docs"     aria-controls="view-docs"     aria-selected="false">🎫 מסמכים</button>
     <button class="tab" role="tab" id="tab-tips"     aria-controls="view-tips"     aria-selected="false">💡 שיפורים</button>
     <button class="tab" role="tab" id="tab-cost"     aria-controls="view-cost"     aria-selected="false">💰 תכנון עלויות</button>
     <button class="tab" role="tab" id="tab-expenses" aria-controls="view-expenses" aria-selected="false">💸 הוצאות בפועל</button>
@@ -434,6 +448,16 @@
          במסלול. בחרו סגנון, והרשימה מגיעה מחיפוש ברשת שנעשה באותו רגע.</p>
     </div>
     <div id="foodView"></div>
+  </section>
+
+  <!-- כרטיסים ואישורים. הם היו בתחתית לשונית המידע, מתחת ל"מידע שימושי",
+       ואיש לא גלל עד לשם — כרטיס להופעה שצריך להראות בכניסה אינו מידע
+       שימושי, הוא דבר שמחפשים מיד. -->
+  <section class="view" id="view-docs" role="tabpanel" aria-labelledby="tab-docs">
+    <div class="wrap">
+      <h2 class="sr-only">מסמכי הטיול</h2>
+      <div id="docsView"></div>
+    </div>
   </section>
 
   <section class="view" id="view-flights" role="tabpanel" aria-labelledby="tab-flights">

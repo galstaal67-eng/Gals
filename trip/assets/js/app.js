@@ -690,6 +690,20 @@
     return first.length > max ? first.slice(0, max - 1).replace(/\s+\S*$/, "") + "…" : first;
   }
 
+  /**
+   * המסמכים של היום, למי שצריך להראות אותם.
+   *
+   * ממוין כך שמה שמראים בכניסה — כרטיס להופעה, כרטיס עלייה — קודם למה
+   * שרק שמור. הקוביה מציגה כפתור אחד; מי שרוצה את כולם הולך ללשונית.
+   */
+  function todayDocs() {
+    const day = TRIP.days?.find((d) => d.date === todayISO());
+    if (!day) return [];
+    return docsCache
+      .filter((d) => Number(d.dayN) === day.n)
+      .sort((a, b) => Number(SHOWABLE.has(b.kind)) - Number(SHOWABLE.has(a.kind)));
+  }
+
   function morningCard(day, rows, m, facts) {
     const first = rows[0];
     const last = rows[rows.length - 1];
@@ -1274,6 +1288,19 @@
              href="${esc(statusLink(card.status))}">🔄 סטטוס</a>` : ""}
         ${card.day ? `<button class="btn btn--sm btn--primary" data-route-day="${card.day}"
              title="מסך המסלול: תחנה־תחנה, עם ניווט לכל אחת">🚶 יוצאים למסלול</button>` : ""}
+        ${(() => {
+          /* כרטיס שצריך להראות היום — בלחיצה אחת מהקוביה, בלי לחפש.
+             אחד: נפתח ישר. כמה: הולכים ללשונית שבה כולם. */
+          const mine = card.day ? todayDocs() : [];
+          if (!mine.length) return "";
+          const one = mine.length === 1;
+          const icon = DOC_ICON[mine[0].kind] || "📎";
+          return `<button class="btn btn--sm" ${
+            one ? `data-doc-open="${esc(mine[0].id)}"` : "data-docs-tab"
+          } title="המסמכים של היום">${icon} ${
+            one ? esc(mine[0].title.slice(0, 22)) : `${mine.length} מסמכי היום`
+          }</button>`;
+        })()}
         ${card.day ? `<button class="btn btn--sm" data-food-near=""
              title="מסעדות, בתי קפה וברים ליד המקום שבו אנחנו">🍽️ אוכל</button>` : ""}
         ${card.day ? `<button class="btn btn--sm" data-add-exp>➕ הוצאה</button>` : ""}
@@ -2178,7 +2205,7 @@
 
     $("#dayOverlay").hidden = false;
     paintJourneyChips();          // מזג האוויר והכסף של החלון שזה עתה נבנה
-    renderTripDocs();             // והמסמכים, שנקראים מ-IndexedDB
+    renderDocs();                 // והמסמכים, שנקראים מ-IndexedDB
   }
 
   function closeDayModal() {
@@ -2189,6 +2216,7 @@
 
   function bindJourney() {
     bindPop();
+    bindDocs();
 
     $("#journey").addEventListener("click", (e) => {
       // לחיצה על יום בבוחר מציירת אותו; הפירוט המלא נפתח מה-i שבסוף המסלול
@@ -2198,7 +2226,7 @@
         closePop();
         renderOverview();
         paintJourneyChips();
-        renderTripDocs();
+        renderDocs();
         return;
       }
 
@@ -3105,6 +3133,13 @@ ${[marks, line].filter(Boolean).join("\n")}
     </li>`;
   }
 
+  /** objectURL לכל מסמך, בלי לדלוף: הישנים משוחררים לפני שנוצרים חדשים */
+  function refreshDocUrls(docs) {
+    docUrls.forEach((u) => URL.revokeObjectURL(u));
+    docUrls.clear();
+    docs.forEach((d) => docUrls.set(d.id, URL.createObjectURL(d.blob)));
+  }
+
   async function renderTripDocs() {
     const list = $("#docList");
     if (!TripDocs.available()) {
@@ -3113,15 +3148,20 @@ ${[marks, line].filter(Boolean).join("\n")}
     }
 
     const docs = await TripDocs.list(TRIP.id);
-
-    docUrls.forEach((u) => URL.revokeObjectURL(u));
-    docUrls.clear();
-    docs.forEach((d) => docUrls.set(d.id, URL.createObjectURL(d.blob)));
+    docsCache = docs;
+    refreshDocUrls(docs);
 
     list.innerHTML = docs.length
       ? `<ul class="doc-items">${docs.map((d) => docItem(d, { showDay: true })).join("")}</ul>`
       : `<p class="muted sm">עדיין לא הועלו מסמכים. אפשר לצרף כרטיס או אישור
            לעוזר (✨), והוא יקרא אותו ויכניס את הפרטים למסלול.</p>`;
+    if (docs.length) {
+      list.insertAdjacentHTML(
+        "beforeend",
+        '<p class="muted sm"><button type="button" class="btn btn--sm" data-docs-tab>' +
+          "🎫 לכל המסמכים</button></p>"
+      );
+    }
 
     // אותם מסמכים, בכרטיס היום שהם שייכים לו — זה מה שהופך אותם לשימושיים
     // בטיול עצמו ולא רק ברשימה
@@ -3141,6 +3181,211 @@ ${[marks, line].filter(Boolean).join("\n")}
       chip.textContent = mine.length === 1 ? `📎 ${mine[0].title}` : `📎 ${mine.length} מסמכים`;
       chip.hidden = !mine.length;
     });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  לשונית המסמכים                                                     */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * כל הכרטיסים והאישורים במקום אחד שאפשר למצוא.
+   *
+   * ── למה לשונית ולא רשימה בתוך לשונית ──
+   * הם היו בתחתית "מידע וציוד", מתחת ל"מידע שימושי", ואיש לא גלל עד
+   * לשם. כרטיס להופעה שצריך להראות בכניסה אינו מידע שימושי — הוא דבר
+   * שמחפשים **מיד**, ולפעמים מול בודק כרטיסים שמחכה.
+   *
+   * ── ולמה הם מקובצים לפי יום ולא לפי זמן העלאה ──
+   * כי השאלה בשטח היא "מה אני צריך עכשיו", ולא "מה העליתי מתי". היום
+   * של היום ראשון, ובראשו מה שצריך להראות היום.
+   */
+  const DOC_ICON = {
+    boarding: "🛫", ticket: "🎫", flight: "✈️", event: "🎟️", attraction: "🎫",
+    lodging: "🛏️", transport: "🚆", rental: "🚗", insurance: "🛡️", info: "📄",
+    other: "📎",
+  };
+
+  /** סוגים שמראים למישהו בכניסה — הם עולים לראש וזוכים לכפתור משלהם */
+  const SHOWABLE = new Set(["boarding", "ticket", "flight", "event", "attraction"]);
+
+  let docsCache = [];
+
+  function docCard(d, today) {
+    const url = docUrls.get(d.id);
+    const day = TRIP.days?.find((x) => x.n === Number(d.dayN));
+    const when = day ? `יום ${day.n} · ${fullDate(day.date)}` : "לא שויך ליום";
+    const pic = (d.type || "").startsWith("image/");
+    return `<article class="doc-card${today ? " is-today" : ""}">
+      <button type="button" class="doc-card__open" data-doc-open="${esc(d.id)}">
+        <span class="doc-card__thumb">${
+          pic && url
+            ? `<img src="${url}" alt="" loading="lazy" />`
+            : `<span aria-hidden="true">${DOC_ICON[d.kind] || "📎"}</span>`
+        }</span>
+        <span class="doc-card__body">
+          <b>${esc(d.title)}</b>
+          <small>${esc(TripDocs.label(d.kind))} · ${esc(when)}</small>
+          ${d.note ? `<small class="doc-card__note">${esc(d.note)}</small>` : ""}
+        </span>
+      </button>
+      <div class="doc-card__acts">
+        <label class="doc-card__day">יום
+          <select data-doc-day="${esc(d.id)}">
+            <option value="">—</option>
+            ${(TRIP.days || [])
+              .map(
+                (x) =>
+                  `<option value="${x.n}" ${Number(d.dayN) === x.n ? "selected" : ""}>${x.n}</option>`
+              )
+              .join("")}
+          </select>
+        </label>
+        <a class="icon-btn" href="${url}" download="${esc(d.name)}" title="שמירה">⤓</a>
+        <button type="button" class="icon-btn" data-doc-del="${esc(d.id)}"
+                aria-label="מחיקת המסמך">🗑️</button>
+      </div>
+    </article>`;
+  }
+
+  async function renderDocsView() {
+    const box = $("#docsView");
+    if (!box) return;
+    if (!TripDocs.available()) {
+      box.innerHTML = '<p class="muted">הדפדפן הזה אינו תומך באחסון מסמכים מקומי.</p>';
+      return;
+    }
+
+    const docs = await TripDocs.list(TRIP.id);
+    docsCache = docs;
+    refreshDocUrls(docs);
+
+    if (!docs.length) {
+      box.innerHTML = `
+        <div class="card">
+          <h3>עדיין אין מסמכים</h3>
+          <p class="muted">צרפו כרטיס, אישור או הזמנה לעוזר (✨) — הוא יקרא אותם,
+             יכניס את הפרטים למסלול, והקובץ עצמו יישמר כאן.</p>
+          <p class="muted sm">המסמכים נשמרים <b>במכשיר הזה בלבד</b> ונפתחים גם בלי רשת.
+             הם אינם עוברים לשרת ואינם מסתנכרנים בין מכשירים.</p>
+        </div>`;
+      return;
+    }
+
+    const todayN = TRIP.days?.find((d) => d.date === todayISO())?.n ?? null;
+    const mine = (n) => docs.filter((d) => Number(d.dayN) === n);
+    const loose = docs.filter((d) => !Number(d.dayN));
+
+    const sections = [];
+    if (todayN && mine(todayN).length) {
+      // מה שמראים בכניסה קודם למה שרק שמור
+      const sorted = [...mine(todayN)].sort(
+        (a, b) => Number(SHOWABLE.has(b.kind)) - Number(SHOWABLE.has(a.kind))
+      );
+      sections.push({ title: "🎫 היום", docs: sorted, today: true });
+    }
+    (TRIP.days || []).forEach((d) => {
+      if (d.n === todayN) return;
+      const list = mine(d.n);
+      if (list.length) sections.push({ title: `יום ${d.n} · ${fullDate(d.date)}`, docs: list });
+    });
+    if (loose.length) sections.push({ title: "בלי שיוך ליום", docs: loose });
+
+    box.innerHTML =
+      sections
+        .map(
+          (sec) => `<section class="doc-sec">
+            <h3 class="doc-sec__h">${esc(sec.title)}</h3>
+            ${sec.docs.map((d) => docCard(d, sec.today)).join("")}
+          </section>`
+        )
+        .join("") +
+      `<p class="muted sm doc-note">המסמכים נשמרים במכשיר הזה בלבד ונפתחים גם בלי רשת.
+         הם אינם עוברים לשרת ואינם מסתנכרנים בין מכשירים.</p>`;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  המציג                                                              */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * מסמך במסך מלא — זה מה שמראים לבודק הכרטיסים.
+   *
+   * תמונה ממלאת את המסך; PDF נפתח ב-iframe. הרקע כהה והכרום מינימלי,
+   * כי מה שצריך להיות גדול הוא הברקוד ולא הממשק.
+   */
+  function openDoc(id) {
+    const d = docsCache.find((x) => x.id === id);
+    const box = $("#docView");
+    if (!d || !box) return;
+    const url = docUrls.get(d.id);
+    const day = TRIP.days?.find((x) => x.n === Number(d.dayN));
+
+    $("#docvTitle").textContent = d.title;
+    $("#docvMeta").textContent =
+      `${TripDocs.label(d.kind)}${day ? ` · יום ${day.n}` : ""}`;
+    const get = $("#docvGet");
+    get.href = url || "#";
+    get.setAttribute("download", d.name || "document");
+
+    const type = d.type || "";
+    $("#docvBody").innerHTML = type.startsWith("image/")
+      ? `<img src="${url}" alt="${esc(d.title)}" />`
+      : type === "application/pdf"
+      ? `<iframe src="${url}#view=FitH" title="${esc(d.title)}"></iframe>`
+      : `<div class="docv__plain">
+           <p>${esc(d.name)}</p>
+           <a class="btn btn--primary" href="${url}" download="${esc(d.name)}">שמירת הקובץ</a>
+         </div>`;
+
+    box.hidden = false;
+    document.body.classList.add("is-locked");
+    $("#docvClose").focus({ preventScroll: true });
+  }
+
+  function closeDoc() {
+    const box = $("#docView");
+    if (!box || box.hidden) return;
+    box.hidden = true;
+    $("#docvBody").innerHTML = "";     // עוצר ניגון/טעינה של iframe
+    document.body.classList.remove("is-locked");
+  }
+
+  /* ------------------------------------------------------------------ */
+
+  function bindDocs() {
+    document.addEventListener("click", async (e) => {
+      const open = e.target.closest("[data-doc-open]");
+      if (open) return openDoc(open.dataset.docOpen);
+
+      if (e.target.closest("#docvClose") || e.target === $("#docView")) return closeDoc();
+
+      const go = e.target.closest("[data-docs-tab]");
+      if (go) {
+        closeDoc();
+        selectTab($("#tab-docs"));
+        return;
+      }
+    });
+
+    // שיוך ליום: העוזר לא תמיד מזהה תאריך, וזו הדרך לתקן
+    document.addEventListener("change", async (e) => {
+      const sel = e.target.closest("[data-doc-day]");
+      if (!sel) return;
+      const n = sel.value ? Number(sel.value) : null;
+      await TripDocs.patch(sel.dataset.docDay, { dayN: n });
+      await renderDocs();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !$("#docView").hidden) closeDoc();
+    });
+  }
+
+  /** כל מקום שמציג מסמכים, בקריאה אחת */
+  async function renderDocs() {
+    await renderTripDocs();
+    await renderDocsView();
+    renderNow();                 // הכפתור "הכרטיס של היום" תלוי במסמכים
   }
 
   /** פותחת כרטיס יום מסוים בלשונית המסלול וגוללת אליו. */
@@ -3169,7 +3414,7 @@ ${[marks, line].filter(Boolean).join("\n")}
       if (!btn || e.target.closest("#flightsView")) return;   // ללשונית הטיסות מאזין משלה
       if (!confirm("למחוק את המסמך מהמכשיר הזה?")) return;
       await TripDocs.remove(btn.dataset.docDel);
-      await renderTripDocs();
+      await renderDocs();
       FlightsView.render();          // אותו מסמך עשוי להופיע גם בלשונית הטיסות
     });
 
@@ -4439,7 +4684,7 @@ ${[marks, line].filter(Boolean).join("\n")}
     renderPacking();
     FlightsView.render();        // אסינכרוני — קורא מסמכים מ-IndexedDB
     if (typeof FoodFinder !== "undefined") FoodFinder.render();
-    renderTripDocs();            // אסינכרוני מאותה סיבה
+    renderDocs();                // אסינכרוני מאותה סיבה
 
     fillSelects();
     renderPeople();
@@ -5341,14 +5586,14 @@ ${[marks, line].filter(Boolean).join("\n")}
             alert(err.message || "שמירת המסמך נכשלה.");
           }
         }
-        await renderTripDocs();
+        await renderDocs();
         FlightsView.render();        // כרטיס טיסה מופיע גם בלשונית הטיסות
         return ids;
       },
 
       onDocsRemove: async (ids) => {
         await TripDocs.removeMany(ids);
-        await renderTripDocs();
+        await renderDocs();
         FlightsView.render();
       },
 
