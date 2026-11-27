@@ -140,7 +140,9 @@ const TripDocs = (() => {
       const doc = await tx("readonly", (os) => os.get(id));
       if (!doc) return null;
       const next = { ...doc };
-      ["title", "kind", "dayN", "note", "leg", "who"].forEach((k) => {
+      // `at` היא שעת האירוע שהמסמך שייך לו — מה שקובע מתי הכרטיס
+      // קופץ מעצמו בקוביה. ריק פירושו "תגזור מלוח הזמנים".
+      ["title", "kind", "dayN", "note", "leg", "who", "at"].forEach((k) => {
         if (k in fields) next[k] = fields[k];
       });
       await tx("readwrite", (os) => os.put(next));

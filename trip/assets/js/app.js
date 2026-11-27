@@ -584,6 +584,13 @@
       ].filter(Boolean);
 
       /*
+       * כרטיס לאירוע קרוב גובר על הכול — בדיוק כמו כרטיס העלייה למטוס.
+       * זה הרגע שבו המסך צריך לענות על שאלה אחת: איפה הכרטיס שלי.
+       */
+      const tk = at ? null : ticketNow(day, m);
+      if (tk) return ticketCard(day, tk, m, facts);
+
+      /*
        * לפני שיוצאים — ברכת פתיחת יום ולא "הבא בתור".
        * `at` נבדק כי הצצה מדמה שעה עתידית, ובוקר אינו מצב שמציצים אליו.
        */
@@ -691,6 +698,65 @@
   }
 
   /**
+   * השעה שבה המסמך הזה נחוץ.
+   *
+   * ── שלושה מקורות, לפי סדר אמינות ──
+   * 1. שעה שהמשתמש הזין בלשונית המסמכים. היא תמיד גוברת.
+   * 2. שעה שכתובה בהערה שהעוזר הוציא מהמסמך ("דלתות ב-19:30").
+   * 3. התאמה של כותרת המסמך לשורה בלוח הזמנים של היום. "כרטיס להופעה
+   *    — תיאטרון האופרה" ימצא את השורה שמדברת על תיאטרון האופרה.
+   *
+   * ── למה לא לבקש מהמודל שדה שעה ──
+   * כי לדקדוק של structured outputs יש תקרה, ונתיב המסמכים כבר יושב
+   * על 1.03x מהבסיס. ההתאמה הטקסטואלית כאן היא אותה התאמה שמביאה שעה
+   * לכל עצירה במסלול, והיא כבר מוכחת.
+   */
+  function docTime(doc, day) {
+    if (doc.at && MIN(doc.at) !== null) return MIN(doc.at);
+
+    const inNote = String(doc.note || "").match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+    if (inNote) return MIN(inNote[0]);
+
+    const words = nameWords(doc.title);
+    if (!words.length || !day) return null;
+    let best = null;
+    for (const row of day.plan || []) {
+      const m = MIN(row.time);
+      if (m === null) continue;
+      const text = String(row.text || "");
+      for (const w of words) {
+        if (text.includes(w) && (!best || w.length > best.len)) best = { m, len: w.length };
+      }
+    }
+    return best ? best.m : null;
+  }
+
+  /**
+   * הכרטיס שצריך להראות עכשיו, אם יש כזה.
+   *
+   * החלון בנוי כמו זה של כרטיס העלייה למטוס: נפתח מראש, כדי שיהיה זמן
+   * להגיע, ונסגר אחרי שנכנסו. 75 דקות לפני ושעתיים אחרי — מי שהופעה
+   * שלו ב-20:00 מקבל את הכרטיס מ-18:45, והוא נשאר זמין עד 22:00.
+   */
+  const TICKET_BEFORE = 75;
+  const TICKET_AFTER = 120;
+
+  function ticketNow(day, m) {
+    if (!day) return null;
+    let best = null;
+    for (const d of docsCache) {
+      if (Number(d.dayN) !== day.n || !SHOWABLE.has(d.kind)) continue;
+      // כרטיס טיסה מטופל על ידי כרטיס העלייה למטוס, ולא כאן
+      if (d.kind === "boarding" || d.kind === "flight" || d.kind === "ticket") continue;
+      const at = docTime(d, day);
+      if (at === null) continue;
+      if (m < at - TICKET_BEFORE || m > at + TICKET_AFTER) continue;
+      if (!best || at < best.at) best = { doc: d, at };
+    }
+    return best;
+  }
+
+  /**
    * המסמכים של היום, למי שצריך להראות אותם.
    *
    * ממוין כך שמה שמראים בכניסה — כרטיס להופעה, כרטיס עלייה — קודם למה
@@ -702,6 +768,41 @@
     return docsCache
       .filter((d) => Number(d.dayN) === day.n)
       .sort((a, b) => Number(SHOWABLE.has(b.kind)) - Number(SHOWABLE.has(a.kind)));
+  }
+
+  /**
+   * כרטיס כניסה בשעתו — התאום של כרטיס העלייה למטוס.
+   *
+   * אותו היגיון בדיוק: ברגע שהאירוע מתקרב, הקוביה מפסיקה לספר על היום
+   * ומתמקדת בדבר היחיד שצריך — הכרטיס, גדול ובלחיצה אחת. ההבדל היחיד
+   * הוא המקור: טיסה חיה במסמך הטיול, וכרטיס להופעה חי בקובץ שהעלו.
+   */
+  function ticketCard(day, tk, m, facts) {
+    const left = tk.at - m;
+    const when = hhmm(tk.at);
+    /* "בעוד 1:05 שעות" אינו עברית. עד שעה וחצי סופרים בדקות — זו
+       היחידה שבה חושבים כשצריך להספיק למשהו — ומעבר לזה בשעות. */
+    const h = Math.floor(left / 60);
+    const mins = left % 60;
+    const head =
+      left <= 0
+        ? `התחיל ב-${when}`
+        : left <= 90
+        ? `בעוד ${left} דק' — ${when}`
+        : `בעוד ${h} שעות${mins ? ` ו-${mins} דק'` : ""} — ${when}`;
+
+    return {
+      tone: "alert",
+      icon: DOC_ICON[tk.doc.kind] || "🎟️",
+      title: `${TripDocs.label(tk.doc.kind)} · יום ${day.n}`,
+      main: `${head} · ${tk.doc.title}`,
+      sub: tk.doc.note || "",
+      cue: "הכרטיס מוכן — הקישו עליו כדי להציג אותו בכניסה.",
+      tip: tipFor(day, (day.plan || []).find((r) => MIN(r.time) === tk.at)),
+      facts,
+      day: day.n,
+      ticket: tk.doc.id,
+    };
   }
 
   function morningCard(day, rows, m, facts) {
@@ -1283,6 +1384,8 @@
              href="${esc(card.dir)}">🗺️ נווט</a>` : ""}
         ${card.pass ? `<button class="btn btn--sm${card.tone === "alert" ? " btn--primary" : ""}"
              data-pass-leg="${esc(card.pass)}">🎫 כרטיס עלייה</button>` : ""}
+        ${card.ticket ? `<button class="btn btn--sm btn--primary"
+             data-doc-open="${esc(card.ticket)}">🎟️ הצג את הכרטיס</button>` : ""}
         ${card.status ? `<a class="btn btn--sm" target="_blank" rel="noopener"
              title="סטטוס הטיסה, עיכובים ושער — נפתח בחיפוש"
              href="${esc(statusLink(card.status))}">🔄 סטטוס</a>` : ""}
@@ -1291,7 +1394,7 @@
         ${(() => {
           /* כרטיס שצריך להראות היום — בלחיצה אחת מהקוביה, בלי לחפש.
              אחד: נפתח ישר. כמה: הולכים ללשונית שבה כולם. */
-          const mine = card.day ? todayDocs() : [];
+          const mine = card.day && !card.ticket ? todayDocs() : [];
           if (!mine.length) return "";
           const one = mine.length === 1;
           const icon = DOC_ICON[mine[0].kind] || "📎";
@@ -3210,6 +3313,13 @@ ${[marks, line].filter(Boolean).join("\n")}
 
   let docsCache = [];
 
+  /** השעה שהמערכת מצאה למסמך, לתצוגה בשדה כשאין שעה שהוזנה */
+  function derivedAt(d) {
+    const day = TRIP.days?.find((x) => x.n === Number(d.dayN));
+    const m = day ? docTime({ ...d, at: "" }, day) : null;
+    return m === null ? "" : hhmm(m);
+  }
+
   function docCard(d, today) {
     const url = docUrls.get(d.id);
     const day = TRIP.days?.find((x) => x.n === Number(d.dayN));
@@ -3240,6 +3350,15 @@ ${[marks, line].filter(Boolean).join("\n")}
               .join("")}
           </select>
         </label>
+        ${
+          /* שעה רק למה שמראים בכניסה: היא מה שקובע מתי הכרטיס יקפוץ
+             מעצמו בקוביה. ריק פירושו "תגזור מלוח הזמנים". */
+          SHOWABLE.has(d.kind)
+            ? `<label class="doc-card__day">שעה
+                 <input type="time" data-doc-at="${esc(d.id)}" value="${esc(d.at || derivedAt(d))}" />
+               </label>`
+            : ""
+        }
         <a class="icon-btn" href="${url}" download="${esc(d.name)}" title="שמירה">⤓</a>
         <button type="button" class="icon-btn" data-doc-del="${esc(d.id)}"
                 aria-label="מחיקת המסמך">🗑️</button>
@@ -3370,10 +3489,16 @@ ${[marks, line].filter(Boolean).join("\n")}
     // שיוך ליום: העוזר לא תמיד מזהה תאריך, וזו הדרך לתקן
     document.addEventListener("change", async (e) => {
       const sel = e.target.closest("[data-doc-day]");
-      if (!sel) return;
-      const n = sel.value ? Number(sel.value) : null;
-      await TripDocs.patch(sel.dataset.docDay, { dayN: n });
-      await renderDocs();
+      if (sel) {
+        const n = sel.value ? Number(sel.value) : null;
+        await TripDocs.patch(sel.dataset.docDay, { dayN: n });
+        return renderDocs();
+      }
+      const at = e.target.closest("[data-doc-at]");
+      if (at) {
+        await TripDocs.patch(at.dataset.docAt, { at: at.value || "" });
+        return renderDocs();
+      }
     });
 
     document.addEventListener("keydown", (e) => {
