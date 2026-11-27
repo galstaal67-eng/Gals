@@ -3153,6 +3153,19 @@ body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .guide {
 
 /* ---------- המצבים ---------- */
 
+/* בוקר: הקוביה אומרת מה צפוי היום, ולא "מה עכשיו" */
+.now.is-morning { border-inline-start-color: var(--gold); }
+
+/* שורת הקריאה לפעולה — מה לעשות, להבדיל מ-💡 שהוא מה לדעת */
+.now__cue {
+  margin: 8px 0 0; padding: 7px 10px;
+  background: color-mix(in srgb, var(--moss) 12%, var(--ink-900));
+  border-inline-start: 3px solid var(--moss);
+  border-radius: var(--radius-sm);
+  font-size: .8rem; line-height: 1.45; color: var(--txt);
+}
+[data-theme="light"] .now__cue { background: color-mix(in srgb, var(--moss) 10%, #fff); }
+
 .now.is-soon  { border-inline-start-color: var(--sky); }
 .now.is-air   { border-inline-start-color: var(--heather); }
 .now.is-night { border-inline-start-color: var(--txt-mute); }

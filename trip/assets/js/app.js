@@ -583,6 +583,17 @@
         spentTrip && `📊 ${spentTrip} בטיול`,
       ].filter(Boolean);
 
+      /*
+       * לפני שיוצאים — ברכת פתיחת יום ולא "הבא בתור".
+       * `at` נבדק כי הצצה מדמה שעה עתידית, ובוקר אינו מצב שמציצים אליו.
+       */
+      const started =
+        typeof DayRoute !== "undefined" && DayRoute.started ? DayRoute.started(day.date) : null;
+      const firstM = rows.length ? MIN(rows[0].time) : null;
+      if (!at && !started && rows.length && firstM !== null && m <= firstM + 120) {
+        return morningCard(day, rows, m, facts);
+      }
+
       if (next) {
         const after = rows[rows.indexOf(next) + 1];
         return {
@@ -607,7 +618,9 @@
         tone: "night",
         icon: now_ ? "🌙" : "📍",
         title: `יום ${day.n} · ${day.title || ""}`.trim(),
-        main: now_ ? "התוכנית של היום הושלמה." : "אין שעות בתוכנית של היום.",
+        main: now_
+          ? "התוכנית של היום הושלמה."
+          : `${GREET(m)}. ליום הזה עדיין אין לוח זמנים — אפשר לבנות אותו עם העוזר.`,
         sub: day.hotel?.name ? `לינה: ${day.hotel.name}` : "",
         tip: tipFor(day, now_),
         facts,
@@ -642,6 +655,69 @@
       };
     }
     return null;
+  }
+
+  /**
+   * ברכת פתיחת יום, לפני שיוצאים.
+   *
+   * ── למה זה כרטיס נפרד ולא ניסוח אחר ──
+   * "הבא בתור 10:45 — סבטיצחובלי" היא תשובה לשאלה "מה עכשיו", ובשבע
+   * בבוקר זו אינה השאלה. בשעה הזו שואלים "מה מחכה לי היום" ו"מתי
+   * לצאת", והכרטיס צריך לענות על אלה. זו אותה קוביה, במצב אחר.
+   *
+   * ── ומתי הוא מתחלף ──
+   * ברגע שיוצאים לדרך. "יציאה" אינה שעה אלא פעולה: פתיחת מסך המסלול,
+   * או סימון תחנה כלשהי. שעתיים אחרי שעת ההתחלה הכתובה הוא מתחלף גם
+   * בלי זה — מי שעוד לא יצא בשעה כזו כבר לא בתחילת היום, הוא מאחר.
+   */
+  const GREET = (m) =>
+    m < 11 * 60 ? "בוקר טוב" : m < 16 * 60 ? "צהריים טובים" : "ערב טוב";
+
+  /**
+   * כותרת היום מתוך התקציר שלו.
+   *
+   * לא פשוט "המשפט הראשון": התקצירים כאן בנויים כ"כותרת: פירוט" —
+   * "יום מערבה, כולו בגובה נמוך ולכן בטוח בכל מזג אוויר: הבירה העתיקה
+   * מצחתה…". מה שלפני הנקודתיים **הוא** הכותרת, והפירוט שייך לכרטיס
+   * היום ולא לשורה אחת בקוביה.
+   */
+  function oneLine(text, max = 130) {
+    const t = String(text || "").trim();
+    if (!t) return "";
+    const first = t.split(/(?<=[.!?])\s+/)[0] || t;
+    const head = first.split(/\s*:\s*/)[0];
+    if (head !== first && head.length >= 18) return head;
+    return first.length > max ? first.slice(0, max - 1).replace(/\s+\S*$/, "") + "…" : first;
+  }
+
+  function morningCard(day, rows, m, facts) {
+    const first = rows[0];
+    const last = rows[rows.length - 1];
+    const stops = (day.points || []).filter((p) => p && p.name).length;
+    const what = oneLine(day.summary) || day.title || "";
+
+    const span = [
+      stops ? `${stops} עצירות` : "",
+      first && last && first.time !== last.time ? `${first.time}–${last.time}` : first?.time || "",
+      day.drive?.km ? `${nfNum.format(day.drive.km)} ק"מ` : "",
+    ].filter(Boolean);
+
+    const late = MIN(first.time) !== null && m > MIN(first.time) + 15;
+
+    return {
+      tone: "morning",
+      icon: m < 11 * 60 ? "☀️" : "🧭",
+      title: `יום ${day.n} · ${day.title || ""}`.trim(),
+      main: `${GREET(m)}. ${what ? `היום: ${what}` : "יום חדש בטיול."}`,
+      sub: span.join(" · "),
+      cue: late
+        ? `התוכנית כתובה מ-${first.time}. כשתצאו — לחצו "יוצאים למסלול", ואציע להזיז את כל היום בהתאם.`
+        : `כשתצאו לדרך — לחצו "יוצאים למסלול", ואלווה אתכם תחנה־תחנה.`,
+      tip: (day.tips || [])[0] || tipFor(day, first),
+      facts,
+      day: day.n,
+      next: `מתחילים ב-${first.time} — ${first.text}`,
+    };
   }
 
   /* ---------- התראת העלייה למטוס ---------- */
@@ -773,6 +849,7 @@
             )
             .join("")}</p>`
         : ""}
+      ${card.cue ? `<p class="now__cue">${esc(card.cue)}</p>` : ""}
       ${card.tip ? `<p class="now__tip">💡 ${esc(card.tip)}</p>` : ""}
       ${card.facts?.length
         ? `<p class="now__facts">${card.facts.map((t) => `<span>${esc(t)}</span>`).join("")}</p>`
