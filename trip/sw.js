@@ -24,7 +24,7 @@
    המטמונים הישנים נמחקים בהפעלה.
    ========================================================================= */
 
-const CACHE = "trip-v7";
+const CACHE = "trip-v8";
 
 /** מה שנשמר כבר בהתקנה, כדי שהפתיחה הראשונה בלי רשת תעבוד */
 const SHELL = [
@@ -37,6 +37,7 @@ const SHELL = [
   "./assets/js/wizard.js",
   "./assets/js/ai.js",
   "./assets/js/docs.js",
+  "./assets/js/pdf.js",
   "./assets/js/flights.js",
   "./assets/js/pass.js",
   "./assets/js/mail.js",

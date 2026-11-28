@@ -1337,12 +1337,49 @@
       </div>`;
   }
 
+  /* ---------- חלונית "חבר" ---------- */
+
+  /**
+   * הקוביה נפתחת מכפתור, ולא יושבת בראש המסך.
+   *
+   * ── מה שלא השתנה ──
+   * `renderNow` בונה את התוכן כל חצי דקה גם כשהחלונית סגורה. זה לא
+   * בזבוז: הנקודה שעל הכפתור, ההתראה בשעת העלייה למטוס, וההקשר
+   * ש-`nowContext` שולף מתוך ה-DOM — כולם נשענים על תוכן מעודכן.
+   *
+   * ── והכפתור מסמן ──
+   * קוביה בטון alert היא הרגע שבו טעות עולה בטיסה או בכרטיס. כפתור
+   * ששתק באותו רגע היה מבטל את כל מה שהקוביה הזו עושה.
+   */
+  const buddyOpen = () => Boolean($("#nowBox")?.classList.contains("is-open"));
+
+  function openBuddy() {
+    const box = $("#nowBox");
+    if (!box || box.hidden) return;
+    box.classList.add("is-open");
+    box.scrollTop = 0;
+    $("#buddyBtn")?.setAttribute("aria-expanded", "true");
+  }
+
+  function closeBuddy() {
+    $("#nowBox")?.classList.remove("is-open");
+    $("#buddyBtn")?.setAttribute("aria-expanded", "false");
+  }
+
+  function paintBuddy(card) {
+    const btn = $("#buddyBtn");
+    if (!btn) return;
+    btn.hidden = !card;
+    if (!card) return closeBuddy();
+    btn.classList.toggle("is-alert", card.tone === "alert");
+  }
+
   function renderNow() {
     const box = $("#nowBox");
     // נקראת גם מתוך זרימת הסנכרון, שרצה לפני שהטיול נטען
     if (!box || !TRIP?.days?.length) return;
     const card = nowCard();
-    if (!card) { box.hidden = true; return; }
+    if (!card) { box.hidden = true; paintBuddy(null); return; }
 
     const wantsBell =
       card.tone !== "alert" &&
@@ -1352,7 +1389,10 @@
 
     const at = nextStage(card);
 
-    box.className = `now wrap is-${card.tone}`;
+    /* הטון נכתב כל חצי דקה, ולכן הוא חייב לכבד את מצב הפתיחה: שורה
+       שדרסה את כל ה-className סגרה את החלונית מתחת לאצבע. ‎is-open לפני
+       הטון, כי ‎nowContext קורא את הטון כ-`is-` האחרון שבשורה. */
+    box.className = `now${buddyOpen() ? " is-open" : ""} is-${card.tone}`;
     box.innerHTML = `
       <span class="now__walker" aria-hidden="true"><span>🚶</span></span>
       <div class="now__side">
@@ -1411,6 +1451,7 @@
         ${wantsBell ? '<button class="btn btn--sm" data-now-bell title="התראה בשעת העלייה למטוס, כל עוד האפליקציה פתוחה">🔔</button>' : ""}
       </div>`;
     box.hidden = false;
+    paintBuddy(card);
     notifyBoarding(card);
   }
 
@@ -3432,10 +3473,13 @@ ${[marks, line].filter(Boolean).join("\n")}
    * תמונה ממלאת את המסך; PDF נפתח ב-iframe. הרקע כהה והכרום מינימלי,
    * כי מה שצריך להיות גדול הוא הברקוד ולא הממשק.
    */
+  let docOpenId = null;             // מה שפתוח עכשיו, בשביל ציור אסינכרוני
+
   function openDoc(id) {
     const d = docsCache.find((x) => x.id === id);
     const box = $("#docView");
     if (!d || !box) return;
+    docOpenId = d.id;
     const url = docUrls.get(d.id);
     const day = TRIP.days?.find((x) => x.n === Number(d.dayN));
 
@@ -3447,25 +3491,68 @@ ${[marks, line].filter(Boolean).join("\n")}
     get.setAttribute("download", d.name || "document");
 
     const type = d.type || "";
-    $("#docvBody").innerHTML = type.startsWith("image/")
-      ? `<img src="${url}" alt="${esc(d.title)}" />`
-      : type === "application/pdf"
-      ? `<iframe src="${url}#view=FitH" title="${esc(d.title)}"></iframe>`
-      : `<div class="docv__plain">
+    const body = $("#docvBody");
+    if (type.startsWith("image/")) {
+      body.innerHTML = `<img src="${url}" alt="${esc(d.title)}" />`;
+    } else if (TripPdf.is(type, d.name)) {
+      body.innerHTML = '<p class="docv__wait">פותח את המסמך…</p>';
+      paintPdf(d, url);                 // אסינכרוני: החלון כבר פתוח
+    } else {
+      body.innerHTML = `<div class="docv__plain">
            <p>${esc(d.name)}</p>
            <a class="btn btn--primary" href="${url}" download="${esc(d.name)}">שמירת הקובץ</a>
          </div>`;
+    }
 
     box.hidden = false;
     document.body.classList.add("is-locked");
     $("#docvClose").focus({ preventScroll: true });
   }
 
+  /**
+   * PDF מצויר כאן, ולא נמסר לדפדפן.
+   *
+   * ‎<iframe> עם blob של PDF עובד במחשב ונכשל בטלפון: דפדפנים רבים
+   * מסרבים להציג PDF בתוך הדף ומחליפים אותו בעמוד ביניים משלהם עם
+   * כפתור "הורד קובץ". בכניסה לאולם, עם כרטיס שכבר נמצא במכשיר, זו
+   * תשובה שאי אפשר להראות למי שבודק. ‎TripPdf מצייר ל-canvas, וקנבס
+   * הוא תמונה רגילה בדף שכל דפדפן מראה.
+   *
+   * ‎docId נבדק מול המסמך שפתוח עכשיו: ציור של מסמך לוקח זמן, ובזמן
+   * הזה אפשר כבר לסגור ולפתוח אחר.
+   */
+  async function paintPdf(d, url) {
+    const body = $("#docvBody");
+    const wide = Math.max(body?.clientWidth || 0, 700);
+    try {
+      const { canvases, total } = await TripPdf.pages(d.blob, { width: wide, max: 6 });
+      if (docOpenId !== d.id) return;
+      body.innerHTML = "";
+      const wrap = document.createElement("div");
+      wrap.className = "docv__pages";
+      canvases.forEach((c) => { c.className = "docv__page"; wrap.appendChild(c); });
+      if (total > canvases.length) {
+        const more = document.createElement("p");
+        more.className = "docv__wait";
+        more.textContent = `מוצגים ${canvases.length} עמודים מתוך ${total} — את השאר אפשר לשמור בכפתור ⤓.`;
+        wrap.appendChild(more);
+      }
+      body.appendChild(wrap);
+    } catch (err) {
+      if (docOpenId !== d.id) return;
+      body.innerHTML = `<div class="docv__plain">
+           <p>לא הצלחנו לצייר את המסמך כאן${err?.message ? ` (${esc(err.message)})` : ""}.</p>
+           <a class="btn btn--primary" href="${url}" download="${esc(d.name)}">שמירת הקובץ</a>
+         </div>`;
+    }
+  }
+
   function closeDoc() {
     const box = $("#docView");
     if (!box || box.hidden) return;
     box.hidden = true;
-    $("#docvBody").innerHTML = "";     // עוצר ניגון/טעינה של iframe
+    docOpenId = null;
+    $("#docvBody").innerHTML = "";     // משחרר את הקנבסים ועוצר ניגון
     document.body.classList.remove("is-locked");
   }
 
@@ -5377,7 +5464,35 @@ ${[marks, line].filter(Boolean).join("\n")}
     setInterval(tickCountdown, 60_000);
     // חצי דקה: שעת עלייה למטוס היא רגע שרוצים לראות בלי לרענן
     setInterval(() => { renderNow(); renderClocks(); }, 30_000);
+    $("#buddyBtn").addEventListener("click", () =>
+      buddyOpen() ? closeBuddy() : openBuddy());
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && buddyOpen()) closeBuddy();
+    });
+    /*
+     * בשלב הלכידה, ולא בבעבוע.
+     *
+     * לחיצה על "להציץ" שבתוך הקוביה מרעננת אותה — ‎renderNow בונה את
+     * ה-innerHTML מחדש, והאלמנט שנלחץ מתנתק מהעץ. מאזין שבועבוע היה
+     * מקבל יעד מנותק, ‎closest("#nowBox") היה מחזיר null, והחלונית
+     * הייתה נסגרת בדיוק מהלחיצה שנועדה להרחיב אותה.
+     */
+    document.addEventListener("click", (e) => {
+      if (!buddyOpen()) return;
+      if (e.target.closest("#nowBox") || e.target.closest("#buddyBtn")) return;
+      closeBuddy();
+    }, true);
+
     $("#nowBox").addEventListener("click", (e) => {
+      /* פעולה שמעבירה למקום אחר — מסך המסלול, לשונית, מסמך, כרטיס —
+         סוגרת את החלונית מאחוריה. מה שמרענן את הקוביה במקומה (הצצה,
+         רשימת ההתראות) משאיר אותה פתוחה. */
+      if (e.target.closest(
+        "[data-route-day],[data-ov-open],[data-docs-tab],[data-doc-open]," +
+        "[data-pass-leg],[data-add-exp],[data-food-near],[data-now-settings],a[href]"
+      )) closeBuddy();
+
       if (e.target.closest("[data-now-bell]")) return askNotify();
 
       if (e.target.closest("[data-now-settings]")) {

@@ -290,8 +290,10 @@
 </header>
 
 <!-- מה רלוונטי עכשיו: טיסה שעולים אליה, שורה בתוכנית, או ספירה ליציאה.
-     יושבת מתחת לכותרת ומעל מבט העל, ומתעדכנת כל חצי דקה. -->
-<section class="now wrap" id="nowBox" aria-live="polite" hidden></section>
+     אינה יושבת בראש המסך: חלונית צפה שנפתחת מכפתור "חבר" שבפינה הימנית
+     התחתונה. התוכן נבנה מחדש כל חצי דקה **גם כשהיא סגורה**, כי הנקודה
+     שעל הכפתור וההקשר שהעוזר מקבל נשענים עליו. ראו renderNow. -->
+<section class="now" id="nowBox" aria-live="polite" hidden></section>
 
 
 <!-- המסך הקבוע: מבנה הטיול. הלשוניות שמתחת הן הפירוט. -->
@@ -729,6 +731,15 @@
 
 <!-- כפתור העוזר צף מעל התוכן ולא יושב בסרגל: הסרגל נגלל לרוחב בטלפון,
      והכפתור נדחק אל מחוץ למסך בדיוק כשצריך אותו — באמצע קריאת המסלול. -->
+<!-- החבר/ה: הפינה הנגדית לעוזר ולמראה, ומעליו הדמות ההולכת. הכפתור
+     מסמן בעצמו כשבקוביה יש התראה — אחרת הסתרת הקוביה הייתה משתיקה
+     בדיוק את הרגעים שבשבילם היא נבנתה. -->
+<button class="fab fab--buddy" id="buddyBtn" aria-expanded="false" aria-controls="nowBox"
+        title="מה רלוונטי עכשיו — היום, הטיסה, הכרטיס" hidden>
+  <span class="fab__icon" aria-hidden="true">🧑‍🤝‍🧑</span>
+  <span class="fab__text">חבר</span>
+</button>
+
 <button class="fab" id="aiBtn" title="שינוי חופשי בעזרת AI" aria-label="עוזר הטיול">
   <span class="fab__icon" aria-hidden="true">✨</span>
   <span class="fab__text">עוזר</span>
@@ -776,6 +787,7 @@
 <script src="assets/js/wizard.js"></script>
 <script src="assets/js/ai.js"></script>
 <script src="assets/js/docs.js"></script>
+<script src="assets/js/pdf.js"></script>
 <script src="assets/js/flights.js"></script>
 <script src="assets/js/pass.js"></script>
 <script src="assets/js/mail.js"></script>

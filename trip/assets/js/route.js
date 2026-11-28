@@ -27,6 +27,9 @@
 const DayRoute = (() => {
   /** חלון אחר שפתוח מעל מסך המסלול */
   const OTHER_OVERLAY = ".overlay:not(#routeOverlay):not([hidden])";
+  /* חלונית "חבר" אינה overlay — היא צפה מעל המסלול — אבל Escape סוגר
+     אותה, ולכן היא שייכת לאותה בדיקה */
+  const BUDDY_OPEN = "#nowBox.is-open";
 
   const SKEY = (date) => `route:${date}`;
   const GKEY = "gmaps:key";          // מפתח Embed API, אם המשתמש הזין
@@ -1481,6 +1484,7 @@ const DayRoute = (() => {
          ב-Escape. בלי הבדיקה הזו אותה הקשה סגרה **גם** את המסלול
          שמתחתיו, והמשתמש מצא את עצמו בחוץ אחרי שאלה אחת לעוזר. */
       if (document.querySelector(OTHER_OVERLAY)) return;
+      if (document.querySelector(BUDDY_OPEN)) return;
       if (timeEdit) { timeEdit = false; return render(); }
       if (keyEdit) { keyEdit = false; return render(); }
       close();

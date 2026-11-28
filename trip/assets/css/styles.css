@@ -1153,10 +1153,23 @@ table.data.cost-table td:first-child { min-width: 15rem; }
   object-fit: contain;
   background: #fff; border-radius: 8px;
 }
-.docv__body iframe {
-  inline-size: 100%; block-size: 100%;
-  border: 0; border-radius: 8px; background: #fff;
+/*
+ * עמודי PDF: תמונות שציירנו, ולא ‎<iframe> שמוסר את הקובץ לדפדפן.
+ *
+ * המרכוז של ה-grid מתבטל כאן בכוונה: ילד שממורכז ב-grid וגבוה מהמכולה
+ * נחתך בראשו ואי אפשר לגלול אליו — ודווקא ראש הכרטיס הוא מה שמראים.
+ */
+.docv__body:has(.docv__pages) { display: block; }
+.docv__pages {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
 }
+.docv__page {
+  inline-size: min(100%, 900px); block-size: auto;
+  background: #fff; border-radius: 8px;
+  box-shadow: 0 10px 28px -14px rgba(0, 0, 0, .8);
+}
+.docv__wait { color: rgba(255, 255, 255, .72); font-size: .86rem; text-align: center; }
+
 .docv__plain { text-align: center; color: #fff; display: flex; flex-direction: column; gap: 12px; }
 
 /* =========================================================== WIZARD === */
@@ -2280,6 +2293,17 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 }
 .guide[hidden] { display: none; }
 
+/*
+ * כפתור "חבר" יושב באותה פינה, ולכן הדמות עולה מעליו.
+ *
+ * וכשהחלונית פתוחה היא נסוגה: זה אותו חבר/ה. בועה שמדברת מעל חלונית
+ * פתוחה, באותה פינה, היא אותו קול פעמיים.
+ */
+body:has(#buddyBtn:not([hidden])) .guide {
+  inset-block-end: calc(76px + env(safe-area-inset-bottom));
+}
+body:has(#nowBox.is-open) .guide { opacity: 0; pointer-events: none; }
+
 /* ---------- הדמות ---------- */
 
 .guide__who {
@@ -2813,7 +2837,8 @@ main { scroll-margin-top: calc(68px + var(--clock-h)); }
 body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .fab {
   z-index: 960;
 }
-body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .fx {
+body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .fx,
+body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .now {
   z-index: 961;
 }
 /* והדמות בוודאי: מסך המסלול הוא בדיוק המסך שהולכים איתו ברחוב */
@@ -3036,27 +3061,60 @@ body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .guide {
 /* מה שרלוונטי בשעה הזו, מתחת לכותרת. בשעת העלייה למטוס היא משנה צבע
    ונעשית ההתראה עצמה — זה הרגע היחיד בטיול שבו טעות עולה בטיסה. */
 
+/*
+ * הקוביה צפה מעל הפינה ונפתחת מכפתור "חבר", ואינה יושבת בראש המסך.
+ *
+ * ראש המסך הוא הנדל"ן היקר, והקוביה תפסה אותו בכל שעה — גם כשלא היה
+ * לה מה לומר מלבד "מחר יוצאים". עכשיו היא נפתחת כשרוצים אותה, והכפתור
+ * הוא שמסמן כשבאמת צריך להסתכל.
+ *
+ * ‎inset-inline-start בדף RTL הוא הקצה הימני — אותה פינה שבה הכפתור.
+ */
 .now {
-  position: relative;
+  position: fixed;
+  inset-block-end: calc(76px + env(safe-area-inset-bottom));
+  inset-inline-start: 12px;
+  /* מעל התוכן ומעל סרגל הניווט (900), ומתחת לדמות (907) ולחלונות (1000) */
+  z-index: 906;
+  inline-size: min(var(--maxw), calc(100vw - 24px));
+  /* תקרה ולא "מה שיוצא": יום של שמונה תחנות עם שש פעולות גבוה ממסך
+     טלפון שכוב, וחלונית שגבוהה מהמסך אי אפשר לסגור */
+  max-block-size: min(72vh, 600px);
+  overflow-y: auto; overscroll-behavior: contain;
   display: flex; align-items: flex-start; gap: 11px;
-  /*
-   * הקוביה נכנסת פנימה מהקצוות ואינה נוגעת בהם.
-   *
-   * ‎.wrap נותן ריווח צד כ-padding, אבל ‎.now דורסת אותו ב-padding משלה
-   * — ולכן הכרטיס נגע בשני קצות המסך ונראה כמו רצועה ולא כמו קוביה.
-   * max-inline-size הוא שמחזיר את הריווח, והפעם כ**שוליים**: במסך צר
-   * הכרטיס צר ב-2.3rem מהמסך וממורכז, ובמסך רחב הוא עדיין נעצר ב---maxw.
-   */
-  max-inline-size: min(var(--maxw), calc(100% - 2.3rem));
-  margin: 0 auto 2px;
-  padding: 12px 14px;
+  margin: 0;
+  /* 18 למעלה ולא 12: הדמות ההולכת נכנסה פנימה, כי מה שחורג מהקצה
+     נחתך ברגע שיש גלילה */
+  padding: 18px 14px 12px;
   background: var(--ink-800);
   border: 1px solid var(--line-strong);
   border-inline-start: 3px solid var(--moss);
   border-radius: var(--radius);
-  box-shadow: 0 10px 26px -18px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 18px 44px -14px rgba(0, 0, 0, .85);
 }
-.now[hidden] { display: none; }
+/* ‎hidden הוא "אין מה להראות"; is-open הוא "פתוחה". שניהם מסתירים. */
+.now[hidden], .now:not(.is-open) { display: none; }
+.now.is-open { animation: fade .16s ease; }
+
+/* ---------- הכפתור שפותח אותה ---------- */
+
+.fab--buddy {
+  /* הפינה הימנית: ‎inline-start בדף RTL. ‎end חייב להתבטל במפורש,
+     כי ‎.fab קובע אותו ושתי הפינות יחד מותחות את הכפתור על כל השורה. */
+  inset-inline-start: 18px;
+  inset-inline-end: auto;
+}
+/* ‎.fab מגדיר display, ולכן ברירת המחדל של [hidden] לבדה לא מסתירה */
+.fab--buddy[hidden] { display: none; }
+.fab--buddy.is-alert {
+  background: var(--gold);
+  border-color: color-mix(in srgb, var(--gold) 60%, #000);
+  color: #2a1c00;
+  animation: nowPulse 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fab--buddy.is-alert { animation: none; }
+}
 
 .now__icon { flex: 0 0 auto; font-size: 1.5rem; line-height: 1.1; }
 
@@ -3427,7 +3485,8 @@ body.is-route:not(:has(.overlay:not(#routeOverlay):not([hidden]))) .guide {
    זה לא קישוט בלבד: זה מה שהופך את הקוביה ממסך למישהו. */
 
 .now__walker {
-  position: absolute; inset-block-start: -12px; inset-inline-start: 8px;
+  /* בתוך הקצה ולא עליו: ל-‎.now יש overflow-y, ומה שחורג ממנו נחתך */
+  position: absolute; inset-block-start: 1px; inset-inline-start: 8px;
   font-size: .95rem; line-height: 1;
   animation: walkAcross 22s linear infinite;
   pointer-events: none;

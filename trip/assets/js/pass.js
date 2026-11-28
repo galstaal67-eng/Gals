@@ -97,41 +97,17 @@ const BoardingPass = (() => {
   /*  ציור הברקוד — המסמך המקורי                                         */
   /* ------------------------------------------------------------------ */
 
-  let pdfjs = null;
-
-  /** pdf.js נטען רק כשצריך אותו: 1.4MB שאין סיבה לשלם עליהם תמיד */
-  async function loadPdfjs() {
-    if (pdfjs) return pdfjs;
-    const mod = await import("../vendor/pdfjs/pdf.min.mjs");
-    mod.GlobalWorkerOptions.workerSrc = "assets/vendor/pdfjs/pdf.worker.min.mjs";
-    pdfjs = mod;
-    return mod;
-  }
-
   /**
    * העמוד הראשון של ה-PDF כקנבס.
-   * הרזולוציה נגזרת מרוחב התצוגה ומצפיפות המסך — ברקוד שמרונדר קטן
-   * ואז נמתח ב-CSS יוצא מטושטש, וסורק לא אוהב מטושטש.
+   *
+   * הציור עצמו יושב ב-`TripPdf`, כי לא רק הכרטיס לעלייה למטוס צריך
+   * אותו: גם מציג המסמכים מצייר שם PDF בעצמו, מאותה סיבה בדיוק.
    */
   async function pdfToCanvas(blob, cssWidth) {
-    const lib = await loadPdfjs();
-    const data = await blob.arrayBuffer();
-    const pdf = await lib.getDocument({ data }).promise;
-    const page = await pdf.getPage(1);
-
-    const base = page.getViewport({ scale: 1 });
-    const dpr = Math.min(window.devicePixelRatio || 1, 3);
-    const scale = Math.max(1.5, Math.min(6, (cssWidth * dpr) / base.width));
-    const viewport = page.getViewport({ scale });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(viewport.width);
-    canvas.height = Math.round(viewport.height);
-    canvas.className = "pass__scan";
-    await page.render({ canvas, viewport }).promise;
-
-    pdf.cleanup();
-    return canvas;
+    const { canvases } = await TripPdf.pages(blob, { width: cssWidth, max: 1 });
+    if (!canvases.length) throw new Error("אין עמודים בקובץ");
+    canvases[0].className = "pass__scan";
+    return canvases[0];
   }
 
   /** ממלא את אזור הברקוד במסמך עצמו. ה-objectURL כבר נוצר ב-draw */
@@ -148,7 +124,7 @@ const BoardingPass = (() => {
         img.src = url;
         await img.decode();
         full = img;
-      } else if (type === "application/pdf" || /\.pdf$/i.test(doc.name || "")) {
+      } else if (TripPdf.is(type, doc.name)) {
         full = await pdfToCanvas(doc.blob, Math.max(area.clientWidth || 0, 420));
       } else {
         throw new Error("סוג קובץ שאי אפשר להציג כאן");
