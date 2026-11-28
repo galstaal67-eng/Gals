@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>טביליסי · 24–29.11.2026</title>
+  <meta name="description" content="מסלול טיול מפורט לשישה ימים בטביליסי: העיר העתיקה ובתי המרחץ, קזבגי והכביש הצבאי הגאורגי, מצחתה וגורי — עם מפה אינטראקטיבית, תכנון עלויות וניהול הוצאות משותף." />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#080d14" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f4f6fa" media="(prefers-color-scheme: light)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="הטיולים שלי" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏔️</text></svg>" />
+
+  <!-- התקנה במסך הבית. iOS מתעלם מאייקוני ה-manifest ולוקח את
+       apple-touch-icon, ולכן שניהם כאן. -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+</head>
+<body>
+
+<!-- =============================================== AI OVERLAY ======== -->
+<div class="overlay" id="aiOverlay" hidden>
+  <div class="overlay__sheet" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
+    <div class="ov-head">
+      <h2 id="aiTitle">✨ עוזר הטיול</h2>
+      <button class="icon-btn" id="aiClose" aria-label="סגירה">✕</button>
+    </div>
+
+    <!-- ---------- שלב 1: הבקשה ---------- -->
+    <section class="ai-step" id="aiAsk">
+      <p class="muted sm" style="padding:0 18px">
+        כתבו, הכתיבו או צרפו מסמך — שינוי במסלול, הוצאה לרישום, או כרטיס
+        שייכנס לטיול. העוזר מציע, ואתם מאשרים לפני שנשמר.
+      </p>
+      <div style="padding:10px 18px 0">
+        <div class="ai-input">
+          <textarea id="aiPrompt" rows="3"
+            placeholder="למשל: תשנה את יום 3 להישאר בעיר וללא נסיעה&#10;או: שילמתי 45 לארי על קפה&#10;או: צרפו כרטיס ולא צריך לכתוב כלום"></textarea>
+          <button type="button" class="ai-mic" id="aiMic" hidden
+                  title="הכתבה" aria-label="הכתבה בקול">🎤</button>
+        </div>
+        <p class="ai-mic-note muted sm" id="aiMicNote" hidden></p>
+        <div class="ai-chips" id="aiChips"></div>
+
+        <!-- המסמכים נשמרים במכשיר ונשלחים לקריאה חד-פעמית בלבד -->
+        <div class="ai-attach">
+          <label class="btn btn--sm">📎 צרף מסמך
+            <input type="file" id="aiFiles" hidden multiple
+                   accept="application/pdf,image/*,text/plain,text/markdown,text/csv,.txt,.md,.csv" />
+          </label>
+          <span class="muted sm">כרטיס טיסה, כרטיס להופעה, אישור לינה או כל מידע — PDF, תמונה או טקסט.</span>
+        </div>
+        <ul class="ai-files" id="aiFileList"></ul>
+
+        <label class="ai-code" id="aiCodeWrap" hidden>קוד גישה
+          <input type="password" id="aiCode" autocomplete="off" />
+        </label>
+      </div>
+      <p class="wiz__err" id="aiErr" hidden></p>
+      <div class="ov-foot">
+        <button type="button" class="btn" id="aiCancel">ביטול</button>
+        <button type="button" class="btn btn--primary" id="aiSend">שלח</button>
+      </div>
+    </section>
+
+    <!-- ---------- שלב 2: המתנה ---------- -->
+    <section class="ai-step" id="aiBusy" hidden>
+      <div class="ai-busy">
+        <span class="ai-spin" aria-hidden="true"></span>
+        <p>חושב על השינוי…</p>
+        <p class="muted sm" id="aiBusyNote">זה לוקח בדרך כלל כמה שניות.</p>
+      </div>
+    </section>
+
+    <!-- ---------- שלב 2.5: שאלות הבהרה ----------
+         העוזר שואל רק כשהתשובה משנה את מה שייכנס לטיול. שעת הופעה
+         שנוחשה נראית בדיוק כמו שעה שנקראה מהכרטיס. -->
+    <section class="ai-step" id="aiQuestions" hidden>
+      <div style="padding:14px 18px 0">
+        <p id="aiQSummary" class="ai-summary"></p>
+        <p class="muted sm" id="aiQIntro">כדי לא לנחש, צריך לדעת:</p>
+        <div class="ai-questions" id="aiQList"></div>
+      </div>
+      <p class="wiz__err" id="aiQErr" hidden></p>
+      <div class="ov-foot">
+        <button type="button" class="btn" id="aiQCancel">ביטול</button>
+        <button type="button" class="btn btn--primary" id="aiQSend">המשך</button>
+      </div>
+    </section>
+
+    <!-- ---------- שלב 3: הצעה לאישור ---------- -->
+    <section class="ai-step" id="aiReview" hidden>
+      <div style="padding:14px 18px 0">
+        <p id="aiSummary" class="ai-summary"></p>
+        <p id="aiWarning" class="ai-warning" hidden></p>
+        <div id="aiDiff" class="ai-diff"></div>
+        <p class="muted sm" id="aiUsage"></p>
+      </div>
+      <div class="ov-foot">
+        <button type="button" class="btn" id="aiReject">בטל</button>
+        <button type="button" class="btn" id="aiRetry">נסח מחדש</button>
+        <button type="button" class="btn btn--primary" id="aiApply">החל את השינוי</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ============================================ TRIPS OVERLAY ======== -->
+<!-- יום בודד, כשלוחצים עליו במבט על. לא ניווט ללשונית אחרת — חלון. -->
+<div class="overlay" id="dayOverlay" hidden>
+  <div class="overlay__sheet" role="dialog" aria-modal="true" aria-labelledby="dayOvTitle">
+    <div class="ov-head">
+      <h2 id="dayOvTitle">—</h2>
+      <button class="icon-btn" id="dayOvClose" aria-label="סגירה">✕</button>
+    </div>
+    <div class="day-sheet" id="dayOvBody"></div>
+  </div>
+</div>
+
+<!-- ============================================== DAY ROUTE ========= -->
+<!-- מסך המסלול היומי. נפתח ביציאה מהמלון, ומוביל תחנה־תחנה. -->
+<div class="overlay overlay--full" id="routeOverlay" hidden>
+  <div class="overlay__sheet rt" role="dialog" aria-modal="true" aria-labelledby="rtTitle">
+    <div class="ov-head rt__head">
+      <h2 id="rtTitle" data-rt-head-txt>—</h2>
+      <span class="rt__badge" aria-hidden="true">🚶 מסלול יומי</span>
+      <div class="rt__head-acts">
+        <!-- שעת ההתחלה של היום חיה כאן ולא בקוביה: היא נשאלת כשיוצאים,
+             וכאן יוצאים -->
+        <button class="icon-btn" data-rt-time aria-pressed="false"
+                title="שעת ההתחלה של היום">🕐</button>
+        <!-- מצב חוץ: מסך אחד גדול, לקריאה בשמש ותוך כדי הליכה -->
+        <button class="icon-btn" data-rt-out aria-pressed="false"
+                title="מצב חוץ">🔆</button>
+        <button class="icon-btn" data-rt-close aria-label="סגירה">✕</button>
+      </div>
+    </div>
+    <!-- מבט העל: דבוק לראש המסך, לא נגלל עם התוכן -->
+    <div class="rt__top" data-rt-top></div>
+    <div class="rt__main">
+      <div class="rt__body" data-rt-body>
+        <!-- מה שנבנה מחדש בכל רינדור -->
+        <div class="rt__flow" data-rt-flow></div>
+        <!-- המפה: ה-iframe הזה אינו נוגע ב-DOM שוב. העברה של iframe
+             למקום אחר בעץ טוענת אותו מחדש, וזו הייתה הקפיצה. -->
+        <section class="rt__map" data-rt-map hidden>
+          <div class="rt__map-head" data-rt-map-head></div>
+          <div class="rt__frame-slot" data-rt-frame></div>
+          <div data-rt-map-note></div>
+        </section>
+        <div class="rt__flow" data-rt-tail></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================== MAIL IMPORT ======== -->
+<!-- הקריאה מתבצעת בדפדפן מול Google; שום מייל אינו עובר דרך השרת. -->
+<div class="overlay" id="mailOverlay" hidden>
+  <div class="overlay__sheet" role="dialog" aria-modal="true" aria-labelledby="mailTitle">
+    <div class="ov-head">
+      <h2 id="mailTitle">📬 ייבוא מהמייל</h2>
+      <button class="icon-btn" data-mail-close aria-label="סגירה">✕</button>
+    </div>
+
+    <!-- ---------- חיבור ראשוני ---------- -->
+    <section class="mail__setup" id="mailSetup" hidden>
+      <p class="sm">
+        כדי לקרוא מה-Gmail צריך <b>Client ID</b> משלכם. אין כאן מפתח משותף:
+        Google מזהה את האפליקציה מול החשבון שיצר אותה, וכך גם הגישה נשארת
+        שלכם בלבד. ההרשאה המבוקשת היא <b>קריאה בלבד</b>.
+      </p>
+      <ol class="sm mail__steps">
+        <li>נכנסים ל-<a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud</a> ויוצרים פרויקט.</li>
+        <li>APIs &amp; Services ← Library ← מפעילים <b>Gmail API</b>.</li>
+        <li>OAuth consent screen ← External ← מוסיפים את עצמכם ב-Test users.</li>
+        <li>Credentials ← Create credentials ← <b>OAuth client ID</b> ← Web application.</li>
+        <li>ב-Authorized JavaScript origins מוסיפים את כתובת האתר הזה.</li>
+        <li>מעתיקים את ה-Client ID לכאן.</li>
+      </ol>
+      <div class="mail__idrow">
+        <input type="text" id="mailId" placeholder="...apps.googleusercontent.com" />
+        <button class="btn btn--sm btn--primary" data-mail-save-id>שמירה</button>
+      </div>
+    </section>
+
+    <!-- ---------- חיפוש ---------- -->
+    <section class="mail__main" id="mailMain" hidden>
+      <div class="mail__picks">
+        <button class="btn btn--sm btn--primary" data-mail-find="all">הכול</button>
+        <button class="btn btn--sm" data-mail-find="flights">✈️ טיסות וכרטיסים</button>
+        <button class="btn btn--sm" data-mail-find="stays">🛏️ לינה</button>
+        <button class="btn btn--sm" data-mail-find="place">📍 לפי היעד</button>
+      </div>
+      <div class="mail__idrow">
+        <input type="text" id="mailQ" placeholder="חיפוש חופשי בשפת Gmail" />
+        <button class="btn btn--sm" data-mail-find="free">חיפוש</button>
+      </div>
+      <p class="mail__note" id="mailNote" hidden></p>
+      <div class="mail__list" id="mailResults"></div>
+      <p class="muted sm mail__foot">
+        המיילים נקראים בדפדפן מול Google ואינם עוברים דרך השרת. מסמך שנבחר
+        נשלח לעוזר — הוא קורא, מציע, והשמירה במכשיר קורית רק באישור.
+        <button class="btn btn--sm" data-mail-forget>ניתוק החשבון</button>
+      </p>
+    </section>
+  </div>
+</div>
+
+<!-- ============================================ BOARDING PASS ======== -->
+<!-- הברקוד שמוצג כאן הוא תמיד המסמך המקורי של חברת התעופה, ולא ברקוד
+     שנבנה מהפרטים: ברקוד משוחזר נראה אמיתי ועלול לא להיסרק בשער. -->
+<div class="overlay pass" id="passOverlay" hidden>
+  <div class="overlay__sheet pass__sheet" role="dialog" aria-modal="true" aria-labelledby="passTitle">
+    <div class="ov-head">
+      <h2 id="passTitle">🎫 כרטיס עלייה</h2>
+      <button class="icon-btn" data-pass-close aria-label="סגירה">✕</button>
+    </div>
+    <div class="pass__body" id="passBody"></div>
+  </div>
+
+  <!-- סרגל מצב הסריקה: מופיע רק כשהברקוד פרוש על כל המסך -->
+  <div class="pass__bar">
+    <button class="btn btn--sm" data-pass-zoom="-1" aria-label="הקטנה">➖</button>
+    <button class="btn btn--sm" data-pass-zoom="1" aria-label="הגדלה">➕</button>
+    <button class="btn btn--sm" data-pass-focus hidden>הכרטיס כולו</button>
+    <button class="btn btn--sm" data-pass-rotate>⟳ סיבוב</button>
+    <button class="btn btn--sm btn--primary" data-pass-unscan>סיום</button>
+  </div>
+</div>
+
+<div class="overlay" id="tripsOverlay" hidden>
+  <div class="overlay__sheet" role="dialog" aria-modal="true" aria-labelledby="tripsTitle">
+
+    <!-- ---------- מסך הפתיחה: רשימת הטיולים ---------- -->
+    <section class="ov-view" id="tripsPicker">
+      <div class="ov-head">
+        <h2 id="tripsTitle">🧳 הטיולים שלי</h2>
+        <button class="icon-btn" id="tripsClose" aria-label="סגירה">✕</button>
+      </div>
+      <div id="tripsList" class="trip-list"></div>
+      <div class="ov-foot">
+        <button class="btn btn--primary" id="newTripBtn">➕ טיול חדש</button>
+      </div>
+    </section>
+
+    <!-- ---------- אשף הטיול החדש ----------
+         התוכן נבנה כולו ב-wizard.js: חמישה שלבים שתלויים זה בזה
+         (סוג הטיול קובע מה נשאל בהמשך), ושלושה מהם הם רשימות
+         שמשתנות תוך כדי. HTML סטטי לא היה חוסך כאן דבר. -->
+    <section class="ov-view wz" id="tripsWizard" hidden></section>
+
+  </div>
+</div>
+
+<!-- ==================================================== HERO ========= -->
+<!-- רצועת השעונים קבועה בראש המסך גם בגלילה, ולכן היא יושבת מחוץ
+     לכותרת: אלמנט sticky נעצר יחד עם ההורה שלו, והכותרת נגללת. -->
+<div class="clockbar" id="heroClocks" hidden></div>
+
+<header class="hero">
+  <svg class="hero__ridge" viewBox="0 0 1440 140" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 140 L0 96 L120 58 L235 92 L360 34 L470 78 L600 22 L720 70 L845 30 L980 84 L1105 46 L1230 90 L1340 52 L1440 88 L1440 140 Z"
+          fill="rgba(76,201,164,.14)" />
+    <path d="M0 140 L0 116 L145 88 L280 112 L415 74 L545 106 L680 66 L810 104 L950 78 L1085 112 L1215 82 L1340 108 L1440 84 L1440 140 Z"
+          fill="rgba(176,136,249,.12)" />
+  </svg>
+
+  <div class="wrap hero__inner">
+    <h1 id="heroTitle">טביליסי</h1>
+    <span class="hero__eyebrow" id="heroEyebrow">🇬🇪 24 – 29 בנובמבר 2026</span>
+    <p class="hero__sub" id="heroSub">
+      שישה ימים ובסיס אחד בלב העיר: העיר העתיקה ובתי הגופרית, יום על הכביש
+      הצבאי הגאורגי עד קזבגי, יום במצחתה ובגורי, ויום על הטביליסי שמעבר
+      לשדרת רוסתאוולי — הכול ללא רכב שכור.
+    </p>
+
+    <p class="hero__facts"><b id="heroLead">—</b><span id="heroNumbers"></span></p>
+  </div>
+</header>
+
+<!-- מה רלוונטי עכשיו: טיסה שעולים אליה, שורה בתוכנית, או ספירה ליציאה.
+     אינה יושבת בראש המסך: חלונית צפה שנפתחת מכפתור "חבר" שבפינה הימנית
+     התחתונה. התוכן נבנה מחדש כל חצי דקה **גם כשהיא סגורה**, כי הנקודה
+     שעל הכפתור וההקשר שהעוזר מקבל נשענים עליו. ראו renderNow. -->
+<section class="now" id="nowBox" aria-live="polite" hidden></section>
+
+
+<!-- המסך הקבוע: מבנה הטיול. הלשוניות שמתחת הן הפירוט. -->
+<section class="journey wrap" id="journey" aria-labelledby="journeyTitle">
+  <div class="journey__head">
+    <h2 id="journeyTitle">מבט על הטיול</h2>
+  </div>
+
+  <!-- שלב התכנון: פתוח לשינויים, או סגור ובהכנות. ראו renderStage. -->
+  <div class="stage" id="stageBar" hidden></div>
+
+  <!-- בוחר הימים למעלה, ומתחתיו היום הנבחר מצויר: מסלול מתפתל שעובר
+       בין התחנות, על רקע שמתאים לאופי היום. -->
+  <div class="overview">
+    <div class="overview__days" id="ovDays" role="tablist" aria-label="ימי הטיול"></div>
+    <div class="ovs" id="ovScene"></div>
+    <p class="overview__hint" id="ovHint">הקישו על תחנה בתרשים כדי לקרוא עליה, ועל ⓘ שבסוף המסלול כדי לפתוח את הפירוט המלא של היום.</p>
+  </div>
+</section>
+
+<div class="live-strip wrap" id="liveStrip" role="status" hidden></div>
+
+<!-- הדמות שמלווה בשטח. היא מופיעה רק כשיש לה מה לומר. ראו guide.js. -->
+<div class="guide" id="guide" hidden></div>
+
+<!-- מציג מסמך במסך מלא: זה מה שמראים בכניסה לאולם. -->
+<div class="overlay overlay--doc" id="docView" hidden>
+  <div class="docv" role="dialog" aria-modal="true" aria-labelledby="docvTitle">
+    <div class="docv__bar">
+      <b id="docvTitle">—</b>
+      <span class="docv__meta" id="docvMeta"></span>
+      <a class="icon-btn" id="docvGet" download title="שמירה">⤓</a>
+      <button class="icon-btn" id="docvClose" aria-label="סגירה">✕</button>
+    </div>
+    <div class="docv__body" id="docvBody"></div>
+  </div>
+</div>
+
+<!-- חלון צף של תחנה. ראו openPop ב-app.js. -->
+<div class="pop" id="ovPop" role="dialog" aria-labelledby="ovPopName" hidden></div>
+
+<!-- ===================================================== NAV ========== -->
+<nav class="nav" aria-label="ניווט ראשי">
+  <div class="nav__inner" role="tablist">
+    <button class="tab" role="tab" id="tab-map"      aria-controls="view-map"      aria-selected="true">🗺️ מפה</button>
+    <button class="tab" role="tab" id="tab-route"    aria-controls="view-route"    aria-selected="false">📅 מסלול יומי</button>
+    <button class="tab" role="tab" id="tab-live"     aria-controls="view-live"     aria-selected="false">📡 עכשיו</button>
+    <button class="tab" role="tab" id="tab-food"     aria-controls="view-food"     aria-selected="false">🍽️ אוכל</button>
+    <button class="tab" role="tab" id="tab-flights"  aria-controls="view-flights"  aria-selected="false">✈️ טיסות</button>
+    <button class="tab" role="tab" id="tab-docs"     aria-controls="view-docs"     aria-selected="false">🎫 מסמכים</button>
+    <button class="tab" role="tab" id="tab-tips"     aria-controls="view-tips"     aria-selected="false">💡 שיפורים</button>
+    <button class="tab" role="tab" id="tab-cost"     aria-controls="view-cost"     aria-selected="false">💰 תכנון עלויות</button>
+    <button class="tab" role="tab" id="tab-expenses" aria-controls="view-expenses" aria-selected="false">💸 הוצאות בפועל</button>
+    <button class="tab" role="tab" id="tab-info"     aria-controls="view-info"     aria-selected="false">ℹ️ מידע וציוד</button>
+    <span class="nav__spacer"></span>
+    <button class="icon-btn" id="tripsBtn" title="הטיולים שלי" aria-label="מעבר בין טיולים">🧳</button>
+    <button class="icon-btn" id="themeToggle" title="מצב בהיר / כהה" aria-label="החלפת ערכת צבעים">🌙</button>
+    <button class="icon-btn" id="printBtn" title="הדפסה" aria-label="הדפסה">🖨️</button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- התרעה פעילה מתוך לשונית "עכשיו", מוצגת בכל לשונית -->
+
+
+  <!-- ============================================= VIEW: JOURNEY ===== -->
+
+  <!-- ================================================= VIEW: MAP ===== -->
+  <section class="view is-active" id="view-map" role="tabpanel" aria-labelledby="tab-map">
+    <div class="section-head">
+      <h2>מפת המסלול</h2>
+      <p>לחצו על יום כדי להתמקד בו, ועל החץ ⌄ שלידו כדי לפתוח את המסלול של אותו יום.
+         הקווים מציינים את אופן המעבר: טיסה, נהיגה, הליכה או עירוני.</p>
+    </div>
+
+    <div class="map-filter" id="mapFilter"></div>
+
+    <div class="map-shell" id="mapShell">
+      <div id="map"></div>
+      <div class="map-touch-guard" id="mapGuard" role="button" tabindex="0">
+        <span>👆 הקישו כדי להפעיל את המפה</span>
+      </div>
+      <div class="map-fallback card pad" id="mapFallback">
+        <h3>לא ניתן לטעון את המפה</h3>
+        <p>ספריית המפות לא נטענה. כל שאר האתר עובד כרגיל, ובכל יום במסלול
+           יש כפתור "ניווט ב-Google Maps" עם כל נקודות העצירה.</p>
+      </div>
+    </div>
+
+    <div class="map-legend" id="mapLegend"></div>
+
+    <div class="map-actions">
+      <button class="btn btn--sm" id="navDayBtn" disabled>🧭 ניווט ביום הנבחר ב-Google Maps</button>
+      <button class="btn btn--sm btn--primary" id="kmlBtn">⬇️ הורדת כל המסלול ל-Google Maps</button>
+      <span class="muted map-actions__hint">
+        הקובץ נטען ל-<a href="https://www.google.com/mymaps" target="_blank" rel="noopener">Google My Maps</a>:
+        צרו מפה חדשה → ייבוא → בחרו את הקובץ. הטיסות אינן כלולות.
+      </span>
+    </div>
+
+    <div class="grid-2 mt-3">
+      <div class="card pad">
+        <h3>ק"מ ברכב לפי אזור</h3>
+        <p class="muted">כולל את הסעות הרכב בימי ההליכה. ימי הטיסה והעיר אינם נספרים.</p>
+        <div class="bar-list mt-1" id="regionBars"></div>
+      </div>
+      <div class="card pad">
+        <h3>עומס נהיגה יומי</h3>
+        <p class="muted">שעות נהיגה נטו, ללא עצירות. יום 11 הוא החריג — ראו את לשונית השיפורים.</p>
+        <div class="spark mt-1" id="driveSpark"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============================================== VIEW: ROUTE ===== -->
+  <section class="view" id="view-route" role="tabpanel" aria-labelledby="tab-route">
+    <div class="section-head row-between">
+      <div>
+        <h2>המסלול יום אחר יום</h2>
+        <p>לחצו על יום כדי לפתוח את התוכנית המלאה, המלון והטיפים.</p>
+      </div>
+      <div class="pill-row">
+        <button class="btn btn--sm" id="expandAll">פתח הכול</button>
+        <button class="btn btn--sm" id="collapseAll">סגור הכול</button>
+        <button class="btn btn--sm btn--primary" id="summaryBtn"
+                title="פותח את חלון ההדפסה — שם אפשר לבחור 'שמירה כ-PDF'">
+          📄 תמצית ל-2 עמודים
+        </button>
+      </div>
+    </div>
+    <div class="day-list" id="dayList"></div>
+  </section>
+
+  <!-- ================================================ VIEW: TIPS ===== -->
+  <!-- ============================================== VIEW: LIVE ===== -->
+  <section class="view" id="view-live" role="tabpanel" aria-labelledby="tab-live">
+    <div class="section-head">
+      <h2>עכשיו</h2>
+      <p>מה שמשתנה בלי קשר למסלול: תחזית לכל יום לפי המקום שבאמת קובע בו,
+         מה קורה ביעד בתאריכים האלה, חגים רשמיים, שערי מטבע ואיכות אוויר.
+         הנתונים מגיעים משירותים ציבוריים דרך השרת ומתרעננים כל חצי שעה.</p>
+    </div>
+    <div id="liveView"></div>
+  </section>
+
+  <!-- ============================================== VIEW: FOOD ===== -->
+  <!-- חיפוש אוכל ליד המקום שבו אנחנו. הלוגיקה ב-food.js, והחיפוש עצמו
+       בשרת (/api/food) — רק בלחיצה, כי כל הרצה היא חיפוש ברשת. -->
+  <section class="view" id="view-food" role="tabpanel" aria-labelledby="tab-food">
+    <div class="section-head">
+      <h2>איפה אוכלים</h2>
+      <p>מסעדות, בתי קפה וברים ליד המקום שבו אתם נמצאים — או ליד כל תחנה
+         במסלול. בחרו סגנון, והרשימה מגיעה מחיפוש ברשת שנעשה באותו רגע.</p>
+    </div>
+    <div id="foodView"></div>
+  </section>
+
+  <!-- כרטיסים ואישורים. הם היו בתחתית לשונית המידע, מתחת ל"מידע שימושי",
+       ואיש לא גלל עד לשם — כרטיס להופעה שצריך להראות בכניסה אינו מידע
+       שימושי, הוא דבר שמחפשים מיד. -->
+  <section class="view" id="view-docs" role="tabpanel" aria-labelledby="tab-docs">
+    <div class="wrap">
+      <h2 class="sr-only">מסמכי הטיול</h2>
+      <div id="docsView"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-flights" role="tabpanel" aria-labelledby="tab-flights">
+    <div class="wrap">
+      <h2 class="sr-only">טיסות</h2>
+      <div id="flightsView"></div>
+    </div>
+  </section>
+
+<section class="view" id="view-tips" role="tabpanel" aria-labelledby="tab-tips">
+    <div class="section-head">
+      <h2>המלצות לשיפור המסלול</h2>
+      <p>עברתי על המסלול. אלה הנקודות שהייתי משנה או מוודא מראש, מסודרות לפי דחיפות.
+         מה שסומן "יושם במסלול" כבר משוקלל בתוכנית היומית עצמה; השאר דורש החלטה או הזמנה מכם.</p>
+      <div class="pill-row mt-1" id="impCounts"></div>
+    </div>
+    <div class="imp-list" id="impList"></div>
+  </section>
+
+  <!-- ================================================ VIEW: COST ===== -->
+  <section class="view" id="view-cost" role="tabpanel" aria-labelledby="tab-cost">
+    <div class="section-head">
+      <h2>תכנון עלויות — לזוג</h2>
+      <p id="costNote"></p>
+    </div>
+
+    <div class="exp-summary mb-2" id="costSummary"></div>
+
+    <div class="card pad mb-2">
+      <div class="row-between">
+        <h3 style="margin:0">מה כלול</h3>
+        <label class="pill-row" style="font-size:.85rem;font-weight:700;color:var(--txt-dim);cursor:pointer">
+          <input type="checkbox" id="costIncludeExtras" checked />
+          <span>כלול גם נסיעות, כניסות וחניונים</span>
+        </label>
+      </div>
+      <p class="muted mt-1" style="margin:0">
+        טיסות, מלונות ורכב הם הליבה. אוכל ושתייה <strong>אינם</strong> כלולים —
+        אומדן נפרד לאלה נמצא בלשונית "מידע וציוד", ואת ההוצאה בפועל מנהלים בלשונית "הוצאות בפועל".
+      </p>
+    </div>
+
+    <div id="costGroups"></div>
+
+    <div class="card pad mt-2">
+      <h3>שערי המרה</h3>
+      <p class="muted">אותם שערים משמשים גם את לשונית ההוצאות בפועל.</p>
+      <div class="rate-grid mt-1" id="costRateGrid"></div>
+    </div>
+  </section>
+
+  <!-- ============================================ VIEW: EXPENSES ===== -->
+  <section class="view" id="view-expenses" role="tabpanel" aria-labelledby="tab-expenses">
+    <div class="section-head">
+      <h2>ניהול הוצאות וקיזוז</h2>
+      <p>מבוסס על גיליון ההוצאות מהטיול הקודם: הזנת הוצאות במטבע המקורי, המרה אוטומטית לשקל,
+         סיכום לפי אדם ולפי זוג, וחישוב ההעברה הנדרשת בסוף.</p>
+      <div class="sync-status is-local mt-1" id="syncStatus"></div>
+    </div>
+
+    <div class="upload-prompt" id="uploadPrompt" hidden>
+      <div>
+        <strong>נמצאו <span id="uploadCount">0</span> הוצאות ששמורות רק במכשיר הזה.</strong>
+        <div class="muted">להעלות אותן לענן כדי שכולם יראו אותן?</div>
+      </div>
+      <div class="pill-row">
+        <button class="btn btn--primary btn--sm" id="uploadLocal">⬆️ העלה לענן</button>
+        <button class="btn btn--sm" id="dismissUpload">לא עכשיו</button>
+      </div>
+    </div>
+
+    <div class="exp-grid">
+
+      <!-- סיכום -->
+      <div class="exp-summary" id="expSummary"></div>
+
+      <div class="settle-note" id="settleNote">עדיין לא הוזנו הוצאות.</div>
+
+      <!-- הזנת הוצאה -->
+      <div class="card pad">
+        <h3>הוספת הוצאה</h3>
+        <form class="form-grid mt-1" id="expForm" autocomplete="off">
+          <div class="field">
+            <label for="exDate">תאריך</label>
+            <input type="date" id="exDate" required />
+          </div>
+          <div class="field">
+            <label for="exAmount">סכום</label>
+            <input type="number" id="exAmount" step="0.01" min="0" placeholder="0.00" required />
+          </div>
+          <div class="field">
+            <label for="exCurrency">מטבע</label>
+            <select id="exCurrency"></select>
+          </div>
+          <div class="field">
+            <label for="exCategory">סעיף הוצאה</label>
+            <select id="exCategory"></select>
+          </div>
+          <div class="field">
+            <label for="exPayer">מי שילם</label>
+            <select id="exPayer"></select>
+          </div>
+          <div class="field" style="grid-column: span 2; min-width: 180px;">
+            <label for="exNote">תיאור / הערות</label>
+            <input type="text" id="exNote" placeholder="ארוחת ערב בפורטרי" />
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button class="btn btn--primary" type="submit">➕ הוסף</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- טבלת הוצאות -->
+      <div class="card">
+        <div class="pad row-between" style="padding-bottom:.6rem">
+          <h3 style="margin:0">כל ההוצאות (<span id="expCount">0</span>)</h3>
+          <div class="pill-row">
+            <button class="btn btn--sm" id="exportCsv">⬇️ ייצוא CSV</button>
+            <label class="btn btn--sm" for="importCsv">⬆️ ייבוא CSV</label>
+            <input type="file" id="importCsv" accept=".csv,text/csv" class="sr-only" />
+            <button class="btn btn--sm btn--danger" id="clearExp">🗑️ נקה הכול</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data exp-table">
+            <thead>
+              <tr>
+                <th>תאריך</th><th>סעיף</th><th>מי שילם</th>
+                <th>סכום</th><th>מטבע</th><th>בש"ח</th><th>הערות</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="expBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ניתוחים -->
+      <div class="grid-2">
+        <div class="card pad">
+          <h3>חלוקה לסעיפים</h3>
+          <div class="bar-list mt-1" id="catBars"><p class="muted">אין נתונים עדיין.</p></div>
+        </div>
+        <div class="card pad">
+          <h3>הוצאה לפי אדם</h3>
+          <div class="bar-list mt-1" id="personBars"><p class="muted">אין נתונים עדיין.</p></div>
+        </div>
+      </div>
+
+      <div class="card pad">
+        <h3>הוצאה יומית</h3>
+        <p class="muted">סך ההוצאות בכל יום של הטיול, בשקלים. לחיצה על יום מציגה את פירוטו.</p>
+        <div class="mt-1" id="dailyChart"></div>
+      </div>
+
+      <!-- הגדרות -->
+      <div class="grid-2">
+        <div class="card pad">
+          <h3>שערי המרה לשקל</h3>
+          <p class="muted">עדכנו לפי השער בפועל ביום הטיול. השינוי מחשב מחדש את כל הטבלה.</p>
+          <div class="rate-grid mt-1" id="rateGrid"></div>
+        </div>
+
+        <div class="card pad">
+          <h3>מטיילים וזוגות</h3>
+          <p class="muted">מי משתתף ולאיזה זוג הוא שייך. הקיזוז מחושב בין הזוגות.</p>
+          <div id="peopleList" class="mt-1"></div>
+          <form class="form-grid mt-2" id="personForm" autocomplete="off">
+            <div class="field">
+              <label for="pName">שם</label>
+              <input type="text" id="pName" placeholder="שם המטייל" required />
+            </div>
+            <div class="field">
+              <label for="pGroup">זוג</label>
+              <select id="pGroup">
+                <option value="1">זוג 1</option>
+                <option value="2">זוג 2</option>
+                <option value="3">זוג 3</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button class="btn btn--sm" type="submit">הוסף מטייל</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card pad">
+        <h3>תקציב יעד</h3>
+        <p class="muted">אופציונלי — קבעו תקציב כולל לטיול כדי לעקוב אחרי הניצול.</p>
+        <div class="form-grid mt-1">
+          <div class="field">
+            <label for="budgetInput">תקציב כולל (₪)</label>
+            <input type="number" id="budgetInput" min="0" step="100" placeholder="20000" />
+          </div>
+        </div>
+        <div class="progress mt-2"><div class="progress__fill" id="budgetBar" style="width:0%"></div></div>
+        <p class="muted" id="budgetText">לא הוגדר תקציב.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================ VIEW: INFO ===== -->
+  <section class="view" id="view-info" role="tabpanel" aria-labelledby="tab-info">
+    <div class="section-head">
+      <h2>על הטיול</h2>
+      <p>המספרים של הטיול — אורך, לילות, נסיעה ומרחק.</p>
+    </div>
+    <div class="hero__stats" id="tripStats"></div>
+
+    <div class="card pad watch">
+      <h3>🧑‍🤝‍🧑 רמת הליווי</h3>
+      <p class="sm">
+        כמה פעמים החבר/ה המלווה ייצא לבדוק ברשת מה השתנה — עיכוב בטיסה,
+        שער שהתחלף, מעבר שנסגר, שביתה, מזג אוויר שמשנה את היום.
+        <b>כל בדיקה עולה כסף</b>, ולכן הבחירה כאן.
+      </p>
+      <div class="watch__levels" id="watchLevels"></div>
+
+      <h4>מה מעניין אותך</h4>
+      <p class="muted sm">
+        מה שמסומן כאן <b>מתווסף</b> ואינו מחליף: טיסה, הגעה מהשדה למלון
+        וחזרה לשדה נבדקים תמיד. טיפ בנושא שסומן מופיע בשקט, בלי צלצול.
+      </p>
+      <div class="watch__topics" id="watchTopics"></div>
+      <p class="muted sm">
+        בדיקה שלא מצאה דבר שותקת — לא מופיעה, לא מצלצלת. התראה נשלחת רק
+        על מה שמשנה את השעות הקרובות, ולא בין 23:00 ל-07:00.
+        הבדיקה רצה כל עוד האפליקציה פתוחה, וכשחוזרים אליה אחרי שהטלפון
+        היה נעול היא משלימה את מה שהוחמץ.
+      </p>
+      <div class="row-between">
+        <button class="btn btn--sm" id="watchNow">🔎 בדיקה עכשיו</button>
+      </div>
+      <h4>מה נמצא</h4>
+      <ul class="watch__log" id="watchLog"></ul>
+    </div>
+
+    <div class="card pad install" id="installCard" hidden>
+      <h3>📲 האפליקציה במסך הבית</h3>
+      <p id="installText"></p>
+      <button class="btn btn--primary" id="installBtn" hidden>התקנה</button>
+    </div>
+
+    <div class="section-head mt-3">
+      <h2>מידע שימושי</h2>
+      <p>נהיגה, מזג אוויר, כסף, הזמנות מראש — כל מה שכדאי לדעת לפני היציאה.</p>
+    </div>
+    <div class="info-grid" id="infoGrid"></div>
+
+    <div class="section-head mt-3">
+      <h2>מסמכי הטיול</h2>
+      <p>כרטיסים, אישורים וכל מה שהעליתם. נשמרים במכשיר הזה בלבד, ונפתחים גם בלי רשת.</p>
+    </div>
+    <div class="doc-list" id="docList"></div>
+
+    <div class="section-head mt-3">
+      <h2>רשימת ציוד</h2>
+      <p>סמנו פריטים תוך כדי אריזה — הסימון נשמר בדפדפן.</p>
+    </div>
+    <div class="progress"><div class="progress__fill" id="packBar" style="width:0%"></div></div>
+    <p class="muted mb-2" id="packText"></p>
+    <div class="pack-grid" id="packGrid"></div>
+  </section>
+
+</main>
+
+<!-- כפתור העוזר צף מעל התוכן ולא יושב בסרגל: הסרגל נגלל לרוחב בטלפון,
+     והכפתור נדחק אל מחוץ למסך בדיוק כשצריך אותו — באמצע קריאת המסלול. -->
+<!-- החבר/ה: הפינה הנגדית לעוזר ולמראה, ומעליו הדמות ההולכת. הכפתור
+     מסמן בעצמו כשבקוביה יש התראה — אחרת הסתרת הקוביה הייתה משתיקה
+     בדיוק את הרגעים שבשבילם היא נבנתה. -->
+<button class="fab fab--buddy" id="buddyBtn" aria-expanded="false" aria-controls="nowBox"
+        title="מה רלוונטי עכשיו — היום, הטיסה, הכרטיס" hidden>
+  <span class="fab__icon" aria-hidden="true">🧑‍🤝‍🧑</span>
+  <span class="fab__text">חבר</span>
+</button>
+
+<button class="fab" id="aiBtn" title="שינוי חופשי בעזרת AI" aria-label="עוזר הטיול">
+  <span class="fab__icon" aria-hidden="true">✨</span>
+  <span class="fab__text">עוזר</span>
+</button>
+
+<!-- המרת מטבע: כפתור קטן מעל כפתור העוזר, וחלונית שנפתחת במקום -->
+<button class="fab fab--fx" id="fxBtn" title="המרת מטבע" aria-label="המרת מטבע"
+        aria-expanded="false" aria-controls="fxBox">
+  <span class="fab__icon" aria-hidden="true">₾</span>
+</button>
+
+<div class="fx" id="fxBox" role="dialog" aria-label="המרת מטבע" hidden>
+  <div class="fx__head">
+    <b>המרת מטבע</b>
+    <button class="icon-btn icon-btn--sm" data-fx-close aria-label="סגירה">✕</button>
+  </div>
+
+  <div class="fx__grid">
+    <div class="fx__cell">
+      <input type="text" id="fxA" inputmode="decimal" autocomplete="off"
+             aria-label="סכום להמרה" placeholder="0" />
+      <select id="fxFrom" aria-label="מטבע המקור"></select>
+    </div>
+
+    <button class="fx__swap" data-fx-swap title="החלפת כיוון" aria-label="החלפת כיוון">⇅</button>
+
+    <div class="fx__cell">
+      <input type="text" id="fxB" inputmode="decimal" autocomplete="off"
+             aria-label="הסכום אחרי ההמרה" placeholder="0" />
+      <select id="fxTo" aria-label="מטבע היעד"></select>
+    </div>
+  </div>
+
+  <p class="fx__rate" id="fxRate"></p>
+</div>
+
+<footer class="foot wrap">
+  <p id="footNote">הנתונים נשמרים בדפדפן ומסתנכרנים בין המכשירים</p>
+</footer>
+
+<script src="assets/vendor/leaflet/leaflet.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/trips.js"></script>
+<script src="assets/js/wizard.js"></script>
+<script src="assets/js/ai.js"></script>
+<script src="assets/js/docs.js"></script>
+<script src="assets/js/pdf.js"></script>
+<script src="assets/js/flights.js"></script>
+<script src="assets/js/pass.js"></script>
+<script src="assets/js/mail.js"></script>
+<script src="assets/js/money.js"></script>
+<script src="assets/js/install.js"></script>
+<script src="assets/js/watch.js"></script>
+<script src="assets/js/route.js"></script>
+<script src="assets/js/scene.js"></script>
+<script src="assets/js/guide.js"></script>
+<script src="assets/js/live.js"></script>
+<script src="assets/js/food.js"></script>
+<script src="assets/js/app.js"></script>
+
+<!-- ה-Service Worker הוא מה שמאפשר התקנה ופתיחה בלי רשת. הוא נרשם
+     אחרי הטעינה כדי לא להתחרות על הפס עם הדף עצמו. -->
+<script>
+  // הקשר מאובטח בלבד — כולל localhost, שבו רצה הפיתוח
+  const secure =
+    location.protocol === "https:" ||
+    ["localhost", "127.0.0.1"].includes(location.hostname);
+  if ("serviceWorker" in navigator && secure) {
+    /*
+     * טעינה מחדש כש-Service Worker חדש משתלט.
+     *
+     * הדף שרץ עכשיו קיבל את הנכסים שלו מה-SW הקודם. אם בינתיים נפרסה
+     * גרסה חדשה, הקוד שבידו שייך לפריסה שכבר אינה — ודף חצי מעודכן
+     * יכול להיות שבור ולא רק מיושן. טעינה אחת מביאה אותו ליישור קו.
+     *
+     * `had` נמדד לפני הרישום בכוונה: בהתקנה ראשונה אין SW קודם,
+     * controllerchange נורה ממילא, וטעינה מחדש שם הייתה לולאה.
+     */
+    const had = Boolean(navigator.serviceWorker.controller);
+    let going = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!had || going) return;
+      going = true;
+      location.reload();
+    });
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {
+        /* דפדפן שחוסם, או פתיחה מקובץ מקומי — האפליקציה עובדת בלעדיו */
+      });
+    });
+  }
+</script>
+</body>
+</html>

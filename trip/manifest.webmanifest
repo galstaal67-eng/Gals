@@ -1,0 +1,23 @@
+{
+  "name": "הטיולים שלי",
+  "short_name": "טיולים",
+  "description": "מסלול הטיול, מסמכים, הוצאות ומידע חי — בכיס, גם בלי רשת.",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#080d14",
+  "theme_color": "#080d14",
+  "categories": ["travel", "navigation", "productivity"],
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    {
+      "src": "assets/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

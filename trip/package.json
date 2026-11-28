@@ -1,0 +1,21 @@
+{
+  "name": "manchester-scotland-trip",
+  "version": "1.0.0",
+  "private": true,
+  "description": "אפליקציית טיולים — אתר סטטי עם פונקציות Netlify, מסמך טיול לכל נסיעה והוצאות מסונכרנות",
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.11.0",
+    "@netlify/database": "^1.0.0",
+    "@netlify/functions": "^6.1.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^5.6.0"
+  }
+}
